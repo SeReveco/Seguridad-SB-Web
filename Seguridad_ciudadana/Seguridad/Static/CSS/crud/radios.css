@@ -1,0 +1,864 @@
+/* 🎨 ESTILOS PARA LA GESTIÓN DE RADIOS - BASADO EN VEHÍCULOS */
+
+/* Sección de Radios */
+.radios-section {
+    padding: 20px;
+    margin: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.section-title {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 2em;
+    font-weight: 600;
+}
+
+/* Botones de Acción para Radios */
+.radios-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.radios-container {
+    background: white;
+    border-radius: 10px;
+    padding: 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.radios-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.radios-header {
+    padding: 0;
+}
+
+.btn-agregar-radio {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border: none;
+    padding: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    width: 100%;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-actualizar-radio {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border: none;
+    padding: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    width: 100%;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-eliminar-radio {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    border: none;
+    padding: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    width: 100%;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-agregar-radio:hover {
+    background: linear-gradient(135deg, #218838, #1e9e8a);
+    transform: translateY(-2px);
+}
+
+.btn-actualizar-radio:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
+    transform: translateY(-2px);
+}
+
+.btn-eliminar-radio:hover {
+    background: linear-gradient(135deg, #c82333, #bd2130);
+    transform: translateY(-2px);
+}
+
+/* Estadísticas de Radios */
+.radios-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+}
+
+.stat-card i {
+    font-size: 2em;
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-number {
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.stat-label {
+    font-size: 0.9em;
+    color: #6c757d;
+}
+
+/* Colores específicos para íconos de estadísticas */
+.stat-card.total i { color: #007bff; }
+.stat-card.activos i { color: #28a745; }
+.stat-card.inactivos i { color: #ffc107; }
+.stat-card.mantenimiento i { color: #6f42c1; }
+
+/* Lista de Radios */
+.radios-lista {
+    margin-top: 30px;
+}
+
+.lista-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.lista-header h3 {
+    color: #333;
+    margin: 0;
+    font-size: 1.5em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.lista-radios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.radio-card {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    border-left: 4px solid #007bff;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.radio-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.radio-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.radio-nombre {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+    background: #e9ecef;
+    padding: 5px 10px;
+    border-radius: 6px;
+}
+
+.radio-estado {
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-left: 10px;
+    white-space: nowrap;
+}
+
+.estado-disponible {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.estado-no-disponible {
+    background: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}
+
+.stat-card.total i { color: #007bff; }
+.stat-card.disponibles i { color: #28a745; }
+.stat-card.no-disponibles i { color: #dc3545; }
+
+.radio-info {
+    margin-bottom: 15px;
+}
+
+.radio-dato {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.9em;
+    padding: 5px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.radio-dato:last-child {
+    border-bottom: none;
+}
+
+.radio-dato strong {
+    color: #495057;
+    min-width: 120px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.radio-dato span {
+    color: #6c757d;
+    text-align: right;
+    flex: 1;
+}
+
+.codigo-radio {
+    background: #e9ecef;
+    color: #495057;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 0.8em;
+    font-weight: 600;
+}
+
+.descripcion-radio {
+    font-style: italic;
+    color: #6c757d;
+}
+
+.radio-acciones {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.btn-editar-radio {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.8em;
+    transition: background 0.3s ease;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.btn-eliminar-radio-card {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.8em;
+    transition: background 0.3s ease;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.btn-editar-radio:hover {
+    background: #0056b3;
+}
+
+.btn-eliminar-radio-card:hover {
+    background: #c82333;
+}
+
+/* MODALES - Manteniendo los estilos del requerimiento pero adaptados */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 2% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.close {
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.close:hover {
+    color: #f8f9fa;
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+/* Formularios para radios */
+.form-section {
+    margin-bottom: 30px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.form-section h4 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 1.2em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* Búsqueda en Modales */
+.search-container {
+    position: relative;
+    margin-bottom: 15px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 45px 12px 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+}
+
+/* Lista de Resultados de Búsqueda */
+.radios-list-search {
+    max-height: 200px;
+    overflow-y: auto;
+    border: 2px solid #f1f3f4;
+    border-radius: 8px;
+    margin-bottom: 20px;
+}
+
+.radio-item-search {
+    padding: 15px;
+    border-bottom: 1px solid #f1f3f4;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.radio-item-search:hover {
+    background: #f8f9fa;
+}
+
+.radio-item-search.selected {
+    background: #e3f2fd;
+    border-left: 4px solid #007bff;
+}
+
+.radio-info-search {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.radio-nombre-search {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.radio-codigo-search {
+    font-size: 0.9em;
+    color: #6c757d;
+    background: #e9ecef;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+}
+
+/* Información del radio seleccionado */
+.radio-seleccionado-info {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 20px;
+    border-left: 4px solid #007bff;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #495057;
+    min-width: 120px;
+}
+
+.info-value {
+    color: #6c757d;
+    text-align: right;
+    flex: 1;
+}
+
+.estado-badge {
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+/* Advertencias */
+.advertencia-eliminacion {
+    background: linear-gradient(135deg, #fff5f5, #ffe6e6);
+    border: 2px solid #f8d7da;
+    border-radius: 8px;
+    padding: 15px;
+    margin-top: 15px;
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+}
+
+.advertencia-eliminacion i {
+    color: #dc3545;
+    font-size: 1.5em;
+    margin-top: 2px;
+}
+
+.advertencia-eliminacion strong {
+    color: #721c24;
+    display: block;
+    margin-bottom: 5px;
+}
+
+.texto-peligro {
+    color: #dc3545 !important;
+    font-weight: 600;
+    margin-top: 10px !important;
+}
+
+/* Footer de Modales */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 0 0 12px 12px;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn-cancelar {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-guardar {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-actualizar {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-eliminar-confirmar {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-cancelar:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.btn-guardar:hover {
+    background: linear-gradient(135deg, #218838, #1e9e8a);
+    transform: translateY(-1px);
+}
+
+.btn-actualizar:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
+    transform: translateY(-1px);
+}
+
+.btn-eliminar-confirmar:hover {
+    background: linear-gradient(135deg, #c82333, #bd2130);
+    transform: translateY(-1px);
+}
+
+.btn-guardar:disabled,
+.btn-actualizar:disabled,
+.btn-eliminar-confirmar:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Estados de carga */
+.loading-radios {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+}
+
+.loading-radios i {
+    font-size: 2em;
+    margin-bottom: 10px;
+    display: block;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Mensajes cuando no hay datos */
+.sin-radios {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px dashed #dee2e6;
+    grid-column: 1 / -1;
+}
+
+.sin-radios i {
+    font-size: 3em;
+    margin-bottom: 15px;
+    display: block;
+    color: #6c757d;
+}
+
+.no-resultados {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+/* Animaciones adicionales */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.stat-card {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .radios-actions {
+        grid-template-columns: 1fr;
+    }
+    
+    .radios-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .lista-radios-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .radio-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .radio-acciones {
+        flex-direction: column;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer button {
+        width: 100%;
+    }
+    
+    .lista-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .lista-header h3 {
+        text-align: center;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .info-value {
+        text-align: left;
+        width: 100%;
+    }
+}
+
+/* Para móviles pequeños */
+@media (max-width: 480px) {
+    .radios-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .radios-section {
+        padding: 15px;
+        margin: 10px;
+    }
+    
+    .section-title {
+        font-size: 1.5em;
+    }
+}
+
+/* Scrollbar personalizado */
+.radios-list-search::-webkit-scrollbar {
+    width: 6px;
+}
+
+.radios-list-search::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.radios-list-search::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.radios-list-search::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}

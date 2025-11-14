@@ -1,0 +1,370 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'CSS/navbar.css' %}">
+    <link rel="stylesheet" href="{% static 'CSS/crud/radios.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="{% static 'Img/logo_san_bernardo2.png' %}">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script src="https://kit.fontawesome.com/6a284d15f6.js" crossorigin="anonymous"></script>
+    <title>Radios - San Bernardo</title>
+</head>
+
+<body>
+
+    <nav id="navbar" class="navbar">
+
+        <!-- Botón del menú desplegable -->
+        <div class="dropdown">
+            <i id="boton-opciones" role="button" class="fa-solid fa-bars dropdown-toggle" onclick="toggleDropdown()">
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <a href="{% url 'index' %}" class="dropdown-item">
+                        <i class="fa-solid fa-map"></i> Mapa
+                    </a>
+                    <a href="" class="dropdown-item">
+                        <i class="fa-solid fa-list"></i> Historial de Alertas
+                    </a>
+                    <a href="" class="dropdown-item">
+                        <i class="fa-solid fa-chart-pie"></i> Graficos
+                    </a>
+                </div>
+            </i>
+        </div>
+
+        <h2 class="titulo-pagina">Gestión de Radios "San Bernardo"</h2>
+
+        <!-- Botón del menú Usuario -->
+        <div class="dropdown2">
+            <i id="boton-usuario" role="button" class="fa-solid fa-user dropdown-toggle2" onclick="toggleDropdown2()">
+                <div class="dropdown-menu2" id="dropdownUsuario">
+                    {% if user.is_authenticated %}
+                    <div class="user-info">
+                        <strong>{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</strong>
+                        <small>{{ user.id_rol.nombre_rol }}</small>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    {% endif %}
+                    <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
+                        <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                    </a>
+                    <a href="{% url 'Admin' %}" class="dropdown-item2">
+                        <i class="fa-solid fa-list"></i> Panel Administración
+                    </a>
+                </div>
+            </i>
+        </div>
+
+    </nav>
+
+    <!-- SECCIÓN PRINCIPAL -->
+    <div class="radios-section">
+
+        <!-- TÍTULO PRINCIPAL -->
+        <h1 class="section-title">Gestión de Radios</h1>
+
+        <!-- BOTONES DE ACCIÓN -->
+        <div class="radios-actions">
+            <div class="radios-container">
+                <div class="radios-header">
+                    <button class="btn-agregar-radio" onclick="abrirModalRadio()">
+                        <i class="fa-solid fa-plus"></i> Agregar Nuevo Radio
+                    </button>
+                </div>
+            </div>
+
+            <div class="radios-container">
+                <div class="radios-header">
+                    <button class="btn-actualizar-radio" onclick="abrirModalActualizarRadio()">
+                        <i class="fa-solid fa-pen-to-square"></i> Actualizar Radio Existente
+                    </button>
+                </div>
+            </div>
+
+            <div class="radios-container">
+                <div class="radios-header">
+                    <button class="btn-eliminar-radio" onclick="abrirModalEliminarRadio()">
+                        <i class="fa-solid fa-trash"></i> Eliminar Radio Existente
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESTADÍSTICAS -->
+        <div class="radios-stats">
+            <div class="stat-card total">
+                <i class="fas fa-walkie-talkie"></i>
+                <div class="stat-info">
+                    <div class="stat-number" id="total-radios">0</div>
+                    <div class="stat-label">Total Radios</div>
+                </div>
+            </div>
+            <div class="stat-card disponibles">
+                <i class="fas fa-check-circle"></i>
+                <div class="stat-info">
+                    <div class="stat-number" id="radios-disponibles">0</div>
+                    <div class="stat-label">Disponibles</div>
+                </div>
+            </div>
+            <div class="stat-card no-disponibles">
+                <i class="fas fa-times-circle"></i>
+                <div class="stat-info">
+                    <div class="stat-number" id="radios-no-disponibles">0</div>
+                    <div class="stat-label">No Disponibles</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LISTA DE RADIOS -->
+        <div class="radios-lista" id="radios-lista">
+            <div class="lista-header">
+                <h3><i class="fa-solid fa-list"></i> Radios Existentes</h3>
+                <div class="search-container">
+                    <input type="text" id="buscar-radios" placeholder="Buscar radios..." class="search-input"
+                        onkeyup="filtrarRadios()">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                </div>
+            </div>
+            <div id="lista-radios" class="lista-radios-grid">
+                <!-- Los radios se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL AGREGAR RADIO -->
+    <div id="modal-radio" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-plus"></i> Agregar Nuevo Radio</h2>
+                <span class="close" onclick="cerrarModalRadio()">&times;</span>
+            </div>
+
+            <form id="form-radio" class="modal-body" onsubmit="agregarRadio(event)">
+                {% csrf_token %}
+
+                <div class="form-section">
+                    <h4><i class="fa-solid fa-walkie-talkie"></i> Información del Radio</h4>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nombre-radio"><i class="fa-solid fa-id-card"></i> Nombre:</label>
+                            <input type="text" id="nombre-radio" name="nombre_radio" placeholder="Ej: Radio Patrulla 1"
+                                required maxlength="50">
+                        </div>
+                        <div class="form-group">
+                            <label for="codigo-radio"><i class="fa-solid fa-barcode"></i> Código:</label>
+                            <input type="text" id="codigo-radio" name="codigo_radio" placeholder="Código interno"
+                                required maxlength="20">
+                        </div>
+                    </div>
+
+                    <!-- En el modal agregar radio -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="estado-radio"><i class="fa-solid fa-circle-check"></i> Estado:</label>
+                            <select id="estado-radio" name="estado_radio" required>
+                                <option value="">Seleccionar Estado</option>
+                                <option value="Disponible">Disponible</option>
+                                <option value="No Disponible">No Disponible</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="descripcion-radio"><i class="fa-solid fa-file-lines"></i> Descripción:</label>
+                        <textarea class="form-control" id="descripcion-radio" name="descripcion_radio" rows="3"
+                            placeholder="Descripción del radio, características, etc."></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="cerrarModalRadio()">
+                        <i class="fa-solid fa-xmark"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn-guardar">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Radio
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL ACTUALIZAR RADIO -->
+    <div id="modal-actualizar-radio" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-pen-to-square"></i> Actualizar Radio Existente</h2>
+                <span class="close" onclick="cerrarModalActualizarRadio()">&times;</span>
+            </div>
+
+            <form id="form-actualizar-radio" class="modal-body">
+                {% csrf_token %}
+
+                <!-- Sección de búsqueda -->
+                <div class="form-section">
+                    <h4><i class="fa-solid fa-magnifying-glass"></i> Buscar Radio</h4>
+                    <div class="search-container">
+                        <input type="text" id="buscar-radio-actualizar"
+                            placeholder="Buscar por nombre, código o descripción..." class="search-input"
+                            onkeyup="buscarRadiosActualizar()">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    </div>
+                    <div id="lista-radios-actualizar" class="radios-list-search"></div>
+                </div>
+
+                <!-- Sección de información del radio seleccionado -->
+                <div id="info-radio-actualizar" class="form-section" style="display: none;">
+                    <h4><i class="fa-solid fa-info-circle"></i> Radio Seleccionado</h4>
+
+                    <div class="radio-seleccionado-info">
+                        <div class="info-row">
+                            <div class="info-label">Nombre:</div>
+                            <div class="info-value" id="nombre-radio-actualizar"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Código:</div>
+                            <div class="info-value" id="codigo-radio-actualizar"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Estado:</div>
+                            <div class="info-value">
+                                <span id="estado-radio-actualizar" class="estado-badge"></span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Descripción:</div>
+                            <div class="info-value" id="descripcion-radio-actualizar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección de edición -->
+                <div id="form-edicion-actualizar" class="form-section" style="display: none;">
+                    <h4><i class="fa-solid fa-edit"></i> Editar Información</h4>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nuevo-nombre">Nombre:</label>
+                            <input type="text" id="nuevo-nombre" placeholder="Nuevo nombre">
+                        </div>
+                        <div class="form-group">
+                            <label for="nuevo-codigo">Código:</label>
+                            <input type="text" id="nuevo-codigo" placeholder="Nuevo código">
+                        </div>
+                    </div>
+
+                    <!-- En el modal actualizar radio -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nuevo-estado">Estado:</label>
+                            <select id="nuevo-estado">
+                                <option value="">Seleccionar estado</option>
+                                <option value="Disponible">Disponible</option>
+                                <option value="No Disponible">No Disponible</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nueva-descripcion">Descripción:</label>
+                        <textarea id="nueva-descripcion" placeholder="Nueva descripción" rows="3"></textarea>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="cerrarModalActualizarRadio()">
+                        <i class="fa-solid fa-xmark"></i> Cancelar
+                    </button>
+                    <button type="button" id="btn-actualizar-radio" class="btn-actualizar" disabled
+                        onclick="actualizarRadio()">
+                        <i class="fa-solid fa-floppy-disk"></i> Actualizar Radio
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL ELIMINAR RADIO -->
+    <div id="modal-eliminar-radio" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-trash"></i> Eliminar Radio</h2>
+                <span class="close" onclick="cerrarModalEliminarRadio()">&times;</span>
+            </div>
+
+            <div class="modal-body">
+                {% csrf_token %}
+
+                <div class="form-section">
+                    <h4><i class="fa-solid fa-magnifying-glass"></i> Buscar Radio a Eliminar</h4>
+                    <div class="search-container">
+                        <input type="text" id="buscar-radio-eliminar"
+                            placeholder="Buscar por nombre, código o descripción..." class="search-input"
+                            onkeyup="buscarRadiosEliminar()">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    </div>
+                    <div id="lista-radios-eliminar" class="radios-list-search"></div>
+                </div>
+
+                <!-- Información del radio seleccionado para eliminar -->
+                <div id="info-radio-eliminar" class="form-section" style="display: none;">
+                    <h4><i class="fa-solid fa-triangle-exclamation"></i> Radio a Eliminar</h4>
+
+                    <div class="radio-seleccionado-info">
+                        <div class="info-row">
+                            <div class="info-label">Nombre:</div>
+                            <div class="info-value" id="nombre-radio-eliminar"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Código:</div>
+                            <div class="info-value" id="codigo-radio-eliminar"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Estado:</div>
+                            <div class="info-value">
+                                <span id="estado-radio-eliminar" class="estado-badge"></span>
+                            </div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Descripción:</div>
+                            <div class="info-value" id="descripcion-radio-eliminar"></div>
+                        </div>
+                    </div>
+
+                    <div class="advertencia-eliminacion">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <div>
+                            <strong>¡ADVERTENCIA!</strong>
+                            <p>Esta acción eliminará permanentemente el radio del sistema.</p>
+                            <p class="texto-peligro">Esta acción no se puede deshacer.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="cerrarModalEliminarRadio()">
+                        <i class="fa-solid fa-xmark"></i> Cancelar
+                    </button>
+                    <button type="button" id="btn-eliminar-radio" class="btn-eliminar-confirmar" disabled
+                        onclick="eliminarRadio()">
+                        <i class="fa-solid fa-trash"></i> Eliminar Radio
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'JavaScript/redirecciones.js' %}"></script>
+    <script src="{% static 'JavaScript/crud/radios/radios_listar.js' %}"></script>
+    <script src="{% static 'JavaScript/crud/radios/radios_agregar.js' %}"></script>
+    <script src="{% static 'JavaScript/crud/radios/radios_actualizar.js' %}"></script>
+    <script src="{% static 'JavaScript/crud/radios/radios_eliminar.js' %}"></script>
+
+</body>
+
+</html>

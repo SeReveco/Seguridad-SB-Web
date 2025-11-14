@@ -1,0 +1,510 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'CSS/navbar.css' %}">
+    <link rel="stylesheet" href="{% static 'CSS/crud/vehiculos.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="icon" type="image/png" href="{% static 'Img/logo_san_bernardo2.png' %}">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script src="https://kit.fontawesome.com/6a284d15f6.js" crossorigin="anonymous"></script>
+    <title>Vehículos - San Bernardo</title>
+
+
+    <style>
+        /* Estilos de prueba para verificar que el CSS funciona */
+        .btn-nuevo-tipo-test {
+            background: red !important;
+            color: white !important;
+            padding: 10px !important;
+            border: 2px solid yellow !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <nav id="navbar" class="navbar">
+
+        <!-- Botón del menú desplegable -->
+        <div class="dropdown">
+            <i id="boton-opciones" role="button" class="fa-solid fa-bars dropdown-toggle" onclick="toggleDropdown()">
+                <div class="dropdown-menu" id="dropdownMenu">
+                    <a href="{% url 'index' %}" class="dropdown-item">
+                        <i class="fa-solid fa-map"></i> Mapa
+                    </a>
+                    <a href="" class="dropdown-item">
+                        <i class="fa-solid fa-list"></i> Historial de Alertas
+                    </a>
+                    <a href="" class="dropdown-item">
+                        <i class="fa-solid fa-chart-pie"></i> Graficos
+                    </a>
+                </div>
+            </i>
+        </div>
+
+        <h2 class="titulo-pagina">Gestión de Vehículos "San Bernardo"</h2>
+
+        <!-- Botón del menú Usuario -->
+        <div class="dropdown2">
+            <i id="boton-usuario" role="button" class="fa-solid fa-user dropdown-toggle2" onclick="toggleDropdown2()">
+                <div class="dropdown-menu2" id="dropdownUsuario">
+                    {% if user.is_authenticated %}
+                    <div class="user-info">
+                        <strong>{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</strong>
+                        <small>{{ user.id_rol.nombre_rol }}</small>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    {% endif %}
+                    <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
+                        <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                    </a>
+                    <a href="{% url 'Admin' %}" class="dropdown-item2">
+                        <i class="fa-solid fa-list"></i> Panel Administración
+                    </a>
+                </div>
+            </i>
+        </div>
+
+    </nav>
+
+    <!-- SECCIÓN PRINCIPAL -->
+    <div class="vehiculos-section">
+
+        <!-- TÍTULO PRINCIPAL -->
+        <h1 class="section-title">Gestión de Vehículos</h1>
+
+        <!-- BOTONES DE ACCIÓN -->
+        <div class="vehiculos-actions">
+            <div class="vehiculos-container">
+                <div class="vehiculos-header">
+                    <button class="btn-agregar-vehiculo" onclick="abrirModalVehiculo()">
+                        <i class="fa-solid fa-plus"></i> Agregar Nuevo Vehículo
+                    </button>
+                </div>
+            </div>
+
+            <div class="vehiculos-container">
+                <div class="vehiculos-header">
+                    <button class="btn-actualizar-vehiculo" onclick="abrirModalActualizarVehiculo()">
+                        <i class="fa-solid fa-pen-to-square"></i> Actualizar Vehículo Existente
+                    </button>
+                </div>
+            </div>
+
+            <div class="vehiculos-container">
+                <div class="vehiculos-header">
+                    <button class="btn-eliminar-vehiculo" onclick="abrirModalEliminarVehiculo()">
+                        <i class="fa-solid fa-trash"></i> Eliminar Vehículo Existente
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ESTADÍSTICAS -->
+        <div class="vehiculos-stats">
+            <div class="stat-card total">
+                <i class="fas fa-car"></i>
+                <div class="stat-info">
+                    <div class="stat-number" id="total-vehiculos">0</div>
+                    <div class="stat-label">Total Vehículos</div>
+                </div>
+            </div>
+            <div class="stat-card disponibles">
+                <i class="fas fa-car-side"></i>
+                <div class="stat-info">
+                    <div class="stat-number" id="vehiculos-disponibles">0</div>
+                    <div class="stat-label">Disponibles</div>
+                </div>
+            </div>
+            <div class="stat-card mantenimiento">
+                <i class="fas fa-wrench"></i>
+                <div class="stat-info">
+                    <div class="stat-number" id="vehiculos-mantenimiento">0</div>
+                    <div class="stat-label">En Mantenimiento</div>
+                </div>
+            </div>
+            <div class="stat-card patrulla">
+                <i class="fas fa-shield-alt"></i>
+                <div class="stat-info">
+                    <div class="stat-number" id="vehiculos-patrulla">0</div>
+                    <div class="stat-label">En Patrulla</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LISTA DE VEHÍCULOS -->
+        <div class="vehiculos-lista" id="vehiculos-lista">
+            <div class="lista-header">
+                <h3><i class="fa-solid fa-list"></i> Vehículos Existentes</h3>
+                <div class="search-container">
+                    <input type="text" id="buscar-vehiculos" placeholder="Buscar vehículos..." class="search-input"
+                        onkeyup="filtrarVehiculos()">
+                    <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                </div>
+            </div>
+            <div id="lista-vehiculos" class="lista-vehiculos-grid">
+                <!-- Los vehículos se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+
+    </div>
+
+    <!-- MODAL AGREGAR VEHÍCULO -->
+    <div id="modal-vehiculo" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-plus"></i> Agregar Nuevo Vehículo</h2>
+                <span class="close" onclick="cerrarModalVehiculo()">&times;</span>
+            </div>
+
+            <form id="form-vehiculo" class="modal-body" onsubmit="agregarVehiculo(event)">
+                {% csrf_token %}
+
+                <div class="form-section">
+                    <h4><i class="fa-solid fa-car"></i> Información del Vehículo</h4>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="patente-vehiculo"><i class="fa-solid fa-id-card"></i> Patente:</label>
+                            <input type="text" id="patente-vehiculo" name="patente_vehiculo" placeholder="Ej: AB123CD"
+                                required maxlength="10">
+                        </div>
+                        <div class="form-group">
+                            <label for="codigo-vehiculo"><i class="fa-solid fa-barcode"></i> Código:</label>
+                            <input type="text" id="codigo-vehiculo" name="codigo_vehiculo" placeholder="Código interno"
+                                required maxlength="10">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="marca-vehiculo"><i class="fa-solid fa-industry"></i> Marca:</label>
+                            <input type="text" id="marca-vehiculo" name="marca_vehiculo"
+                                placeholder="Ej: Toyota, Chevrolet" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="modelo-vehiculo"><i class="fa-solid fa-car-side"></i> Modelo:</label>
+                            <input type="text" id="modelo-vehiculo" name="modelo_vehiculo"
+                                placeholder="Ej: Corolla, Cruze" required>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="total-kilometraje"><i class="fa-solid fa-tachometer-alt"></i>
+                                Kilometraje:</label>
+                            <input type="number" id="total-kilometraje" name="total_kilometraje" placeholder="0" min="0"
+                                value="0">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="id-tipo-vehiculo"><i class="fa-solid fa-caravan"></i> Tipo de Vehículo:</label>
+                        <div class="input-group" style="display: flex; gap: 10px; align-items: center;">
+                            <select id="id-tipo-vehiculo" name="id_tipo_vehiculo" required
+                                style="flex: 1; padding: 10px;">
+                                <option value="">Seleccionar Tipo</option>
+                                {% for tipo in tipos_vehiculos %}
+                                <option value="{{ tipo.id_tipo_vehiculo }}">{{ tipo.nombre_tipo_vehiculo }}</option>
+                                {% endfor %}
+                            </select>
+
+                            <!-- BOTÓN CON ESTILOS EN LÍNEA -->
+                            <button type="button" onclick="agregarNuevoTipoVehiculo()"
+                                style="background: #17a2b8; color: white; padding: 12px 15px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                                <i class="fa-solid fa-plus"></i> Nuevo Tipo
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="id-estado-vehiculo"><i class="fa-solid fa-circle-check"></i> Estado:</label>
+                        <select id="id-estado-vehiculo" name="id_estado_vehiculo" required>
+                            <option value="">Seleccionar Estado</option>
+                            {% for estado in estados_vehiculo %}
+                            <option value="{{ estado.id_estado_vehiculo }}">{{ estado.nombre_estado }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="cerrarModalVehiculo()">
+                        <i class="fa-solid fa-xmark"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn-guardar">
+                        <i class="fa-solid fa-floppy-disk"></i> Guardar Vehículo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL ACTUALIZAR VEHÍCULO -->
+    <div id="modal-actualizar-vehiculo" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-pen-to-square"></i> Actualizar Vehículo Existente</h2>
+                <span class="close" onclick="cerrarModalActualizarVehiculo()">&times;</span>
+            </div>
+
+            <form id="form-actualizar-vehiculo" class="modal-body">
+                {% csrf_token %}
+
+                <!-- Sección de búsqueda -->
+                <div class="form-section">
+                    <h4><i class="fa-solid fa-magnifying-glass"></i> Buscar Vehículo</h4>
+                    <div class="search-container">
+                        <input type="text" id="buscar-vehiculo-actualizar"
+                            placeholder="Buscar por patente, marca o modelo..." class="search-input"
+                            onkeyup="buscarVehiculosActualizar()">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    </div>
+                    <div id="lista-vehiculos-actualizar" class="vehiculos-list-search"></div>
+                </div>
+
+                <!-- Sección de información del vehículo seleccionado -->
+                <div id="info-vehiculo-actualizar" class="form-section" style="display: none;">
+                    <h4><i class="fa-solid fa-info-circle"></i> Vehículo Seleccionado</h4>
+
+                    <div class="vehiculo-seleccionado-info">
+                        <div class="info-row">
+                            <div class="info-label">Patente:</div>
+                            <div class="info-value" id="patente-vehiculo-actualizar"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Marca - Modelo:</div>
+                            <div class="info-value" id="marca-modelo-actualizar"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Código:</div>
+                            <div class="info-value" id="codigo-vehiculo-actualizar"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Estado:</div>
+                            <div class="info-value">
+                                <span id="estado-vehiculo-actualizar" class="estado-badge"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección de edición -->
+                <div id="form-edicion-actualizar" class="form-section" style="display: none;">
+                    <h4><i class="fa-solid fa-edit"></i> Editar Información</h4>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nueva-patente">Patente:</label>
+                            <input type="text" id="nueva-patente" placeholder="Nueva patente">
+                        </div>
+                        <div class="form-group">
+                            <label for="nuevo-codigo">Código:</label>
+                            <input type="text" id="nuevo-codigo" placeholder="Nuevo código">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nueva-marca">Marca:</label>
+                            <input type="text" id="nueva-marca" placeholder="Nueva marca">
+                        </div>
+                        <div class="form-group">
+                            <label for="nuevo-modelo">Modelo:</label>
+                            <input type="text" id="nuevo-modelo" placeholder="Nuevo modelo">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="nuevo-kilometraje">Kilometraje:</label>
+                            <input type="number" id="nuevo-kilometraje" placeholder="Nuevo kilometraje" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="nuevo-tipo-vehiculo">Tipo:</label>
+                            <select id="nuevo-tipo-vehiculo">
+                                <option value="">Seleccionar tipo</option>
+                                {% for tipo in tipos_vehiculos %}
+                                <option value="{{ tipo.id_tipo_vehiculo }}">{{ tipo.nombre_tipo_vehiculo }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="nuevo-estado-vehiculo">Estado:</label>
+                        <select id="nuevo-estado-vehiculo">
+                            <option value="">Seleccionar estado</option>
+                            {% for estado in estados_vehiculo %}
+                            <option value="{{ estado.id_estado_vehiculo }}">{{ estado.nombre_estado }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="cerrarModalActualizarVehiculo()">
+                        <i class="fa-solid fa-xmark"></i> Cancelar
+                    </button>
+                    <button type="button" id="btn-actualizar-vehiculo" class="btn-actualizar" disabled
+                        onclick="actualizarVehiculo()">
+                        <i class="fa-solid fa-floppy-disk"></i> Actualizar Vehículo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL ELIMINAR VEHÍCULO -->
+    <div id="modal-eliminar-vehiculo" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2><i class="fa-solid fa-trash"></i> Eliminar Vehículo</h2>
+                <span class="close" onclick="cerrarModalEliminarVehiculo()">&times;</span>
+            </div>
+
+            <div class="modal-body">
+                {% csrf_token %}
+
+                <div class="form-section">
+                    <h4><i class="fa-solid fa-magnifying-glass"></i> Buscar Vehículo a Eliminar</h4>
+                    <div class="search-container">
+                        <input type="text" id="buscar-vehiculo-eliminar"
+                            placeholder="Buscar por patente, marca o modelo..." class="search-input"
+                            onkeyup="buscarVehiculosEliminar()">
+                        <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                    </div>
+                    <div id="lista-vehiculos-eliminar" class="vehiculos-list-search"></div>
+                </div>
+
+                <!-- Información del vehículo seleccionado para eliminar -->
+                <div id="info-vehiculo-eliminar" class="form-section" style="display: none;">
+                    <h4><i class="fa-solid fa-triangle-exclamation"></i> Vehículo a Eliminar</h4>
+
+                    <div class="vehiculo-seleccionado-info">
+                        <div class="info-row">
+                            <div class="info-label">Patente:</div>
+                            <div class="info-value" id="patente-vehiculo-eliminar"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Marca - Modelo:</div>
+                            <div class="info-value" id="marca-modelo-eliminar"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Código:</div>
+                            <div class="info-value" id="codigo-vehiculo-eliminar"></div>
+                        </div>
+                        <div class="info-row">
+                            <div class="info-label">Estado:</div>
+                            <div class="info-value">
+                                <span id="estado-vehiculo-eliminar" class="estado-badge"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="advertencia-eliminacion">
+                        <i class="fa-solid fa-triangle-exclamation"></i>
+                        <div>
+                            <strong>¡ADVERTENCIA!</strong>
+                            <p>Esta acción eliminará permanentemente el vehículo del sistema.</p>
+                            <p class="texto-peligro">Esta acción no se puede deshacer.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn-cancelar" onclick="cerrarModalEliminarVehiculo()">
+                        <i class="fa-solid fa-xmark"></i> Cancelar
+                    </button>
+                    <button type="button" id="btn-eliminar-vehiculo" class="btn-eliminar-confirmar" disabled
+                        onclick="eliminarVehiculo()">
+                        <i class="fa-solid fa-trash"></i> Eliminar Vehículo
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts JavaScript separados -->
+    <script src="{% static 'JavaScript/redirecciones.js' %}"></script>
+    <script src="{% static 'JavaScript/crud/vehiculos/vehiculos_agregar.js' %}"></script>
+    <script src="{% static 'JavaScript/crud/vehiculos/vehiculos_actualizar.js' %}"></script>
+    <script src="{% static 'JavaScript/crud/vehiculos/vehiculos_eliminar.js' %}"></script>
+    <script src="{% static 'JavaScript/crud/vehiculos/vehiculos_listar.js' %}"></script>
+
+    <script>
+        console.log("🔍 VERIFICANDO CARGA DE SCRIPTS:");
+
+        // Verificar cada script
+        const scripts = [
+            'vehiculos_agregar.js',
+            'vehiculos_listar.js',
+            'vehiculos_actualizar.js',
+            'vehiculos_eliminar.js'
+        ];
+
+        scripts.forEach(script => {
+            const funcName = script.replace('.js', '').split('_').map(word =>
+                word.charAt(0).toUpperCase() + word.slice(1)
+            ).join('');
+            const firstFunc = 'agregarNuevoTipoVehiculo'; // La función que necesitamos
+
+            console.log(`📂 ${script}:`, {
+                '¿Está cargado?': typeof window[firstFunc] !== 'undefined',
+                'Tipo': typeof window[firstFunc]
+            });
+        });
+
+        // Si no está cargado, cargar función de emergencia
+        if (typeof agregarNuevoTipoVehiculo === 'undefined') {
+            console.log("❌ vehiculos_agregar.js NO se cargó - Usando emergencia");
+            cargarFuncionEmergencia();
+        } else {
+            console.log("✅ vehiculos_agregar.js cargado correctamente");
+        }
+
+        function cargarFuncionEmergencia() {
+            console.log("🔄 Cargando función de emergencia...");
+
+            // Función de emergencia
+            window.agregarNuevoTipoVehiculo = function () {
+                console.log("🎯 agregarNuevoTipoVehiculo (EMERGENCIA) ejecutada");
+
+                Swal.fire({
+                    title: 'Agregar Nuevo Tipo de Vehículo',
+                    input: 'text',
+                    inputLabel: 'Nombre del tipo de vehículo',
+                    inputPlaceholder: 'Ej: Automóvil, Motocicleta, Camioneta...',
+                    showCancelButton: true,
+                    confirmButtonText: 'Agregar',
+                    cancelButtonText: 'Cancelar',
+                    confirmButtonColor: '#28a745',
+                    inputValidator: (value) => {
+                        if (!value) return 'Debe ingresar un nombre';
+                        if (value.length < 2) return 'El nombre debe tener al menos 2 caracteres';
+                    }
+                }).then((result) => {
+                    if (result.isConfirmed) {
+                        console.log("📝 Nuevo tipo a guardar:", result.value);
+                        // Aquí puedes agregar el código para guardar
+                        Swal.fire({
+                            icon: 'success',
+                            title: '¡Éxito!',
+                            text: `Tipo "${result.value}" se guardaría en la base de datos`,
+                            confirmButtonColor: '#28a745'
+                        });
+                    }
+                });
+            };
+
+            console.log("✅ Función de emergencia cargada");
+        }
+    </script>
+</body>
+
+</html>
