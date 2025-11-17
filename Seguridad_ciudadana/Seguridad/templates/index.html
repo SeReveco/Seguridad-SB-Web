@@ -81,37 +81,164 @@
       <div id="map" class="map"></div>
     </div>
 
-    <script>
-      document.addEventListener('DOMContentLoaded', function () {
-        // ✅ MOSTRAR BIENVENIDA EN INDEX (no en login)
-        {% if mostrar_bienvenida and usuario_nombre %}
-        Swal.fire({
-          icon: 'success',
-          title: `¡Bienvenido/a {{ usuario_rol }}! 🎉`,
-          text: '{{ usuario_nombre|escapejs }}',
-          confirmButtonText: 'Comenzar',
-          confirmButtonColor: '#28a745',
-          background: '#1e1e1e',
-          color: 'white',
-          timer: 4000,
-          timerProgressBar: true,
-          didOpen: () => {
-            // Opcional: reproducir sonido de bienvenida
-            // const audio = new Audio('/static/sounds/welcome.mp3');
-            // audio.play();
-          }
-        });
-        {% endif %}
+    <!-- NUEVO: Panel lateral con las 3 funcionalidades -->
+    <div class="panel-lateral">
+
+      <!-- 1. Botón para agregar denuncias -->
+      <button class="btn-agregar-denuncia" onclick="abrirModalDenuncia()">
+        <i class="fa-solid fa-plus"></i>
+        Agregar Denuncia
+      </button>
+
+      <!-- 2. Lista de denuncias del día -->
+      <div class="lista-denuncias">
+        <h3><i class="fa-solid fa-list"></i> Denuncias de Hoy</h3>
+        <div class="lista-contenido" id="lista-denuncias-hoy">
+          <!-- Las denuncias se cargarán aquí dinámicamente -->
+          <div class="cargando">Cargando denuncias...</div>
+        </div>
+      </div>
+
+      <!-- 3. Lista de asignaciones de vehículos -->
+      <div class="lista-vehiculos">
+        <h3><i class="fa-solid fa-car"></i> Vehículos Asignados</h3>
+        <div class="lista-contenido" id="lista-vehiculos-asignados">
+          <!-- Los vehículos asignados se cargarán aquí dinámicamente -->
+          <div class="cargando">Cargando vehículos...</div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Modal para agregar denuncias -->
+  <div id="modalDenuncia" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Agregar Nueva Denuncia</h2>
+        <span class="close" onclick="cerrarModalDenuncia()">&times;</span>
+      </div>
+      <form id="formDenuncia" class="modal-form">
+
+        <!-- Selector de método de ubicación -->
+        <div class="form-group">
+          <label>Seleccionar ubicación:</label>
+          <div class="selector-metodo">
+            <button type="button" class="btn-metodo active" data-metodo="manual"
+              onclick="cambiarMetodoUbicacion('manual')">
+              <i class="fa-solid fa-keyboard"></i> Ingresar Manualmente
+            </button>
+            <button type="button" class="btn-metodo" data-metodo="mapa" onclick="cambiarMetodoUbicacion('mapa')">
+              <i class="fa-solid fa-map-marker-alt"></i> Seleccionar en Mapa
+            </button>
+          </div>
+        </div>
+
+        <!-- Método Manual -->
+        <div id="metodo-manual" class="metodo-ubicacion">
+          <div class="form-group">
+            <label for="direccion">Dirección:</label>
+            <input type="text" id="direccion" name="direccion" placeholder="Ej: Av. Bernardo O'Higgins 123" required>
+          </div>
+
+          <div class="form-group">
+            <label for="direccion_secundaria">Dirección Secundaria (opcional):</label>
+            <input type="text" id="direccion_secundaria" name="direccion_secundaria"
+              placeholder="Ej: Entre calles San Juan y Los Alerces">
+          </div>
+        </div>
+
+        <!-- Método Mapa -->
+        <div id="metodo-mapa" class="metodo-ubicacion" style="display: none;">
+          <div class="instrucciones-mapa">
+            <p><i class="fa-solid fa-info-circle"></i> Haz clic en el mapa para seleccionar la ubicación</p>
+          </div>
+          <div class="mini-mapa-contenedor">
+            <div id="mini-mapa" class="mini-mapa"></div>
+          </div>
+          <div class="form-group">
+            <label>Dirección seleccionada:</label>
+            <div id="direccion-seleccionada" class="direccion-seleccionada">
+              <span class="texto-direccion vacia">No se ha seleccionado ubicación</span>
+              <button type="button" class="btn-limpiar-ubicacion" onclick="limpiarUbicacionMapa()">
+                <i class="fa-solid fa-times"></i>
+              </button>
+            </div>
+            <!-- Eliminamos los campos ocultos de lat/lng ya que no los guardaremos en la BD -->
+          </div>
+        </div>
+
+        <!-- Campos comunes -->
+        <div class="form-group">
+          <label for="detalle">Detalle de la Denuncia:</label>
+          <textarea id="detalle" name="detalle" rows="4" placeholder="Describa los detalles de la denuncia..."
+            required></textarea>
+        </div>
+
+        <div class="form-group">
+          <label for="requerimiento">Tipo de Requerimiento:</label>
+          <select id="requerimiento" name="requerimiento" required>
+            <option value="">Seleccione un requerimiento</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="cuadrante">Cuadrante:</label>
+          <select id="cuadrante" name="cuadrante" required>
+            <option value="">Seleccione cuadrante</option>
+            <option value="1">Cuadrante 1</option>
+            <option value="2">Cuadrante 2</option>
+            <option value="3">Cuadrante 3</option>
+            <option value="4">Cuadrante 4</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="visibilidad_camaras">
+            <input type="checkbox" id="visibilidad_camaras" name="visibilidad_camaras">
+            Visibilidad en Cámaras
+          </label>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" onclick="cerrarModalDenuncia()" class="btn-cancelar">Cancelar</button>
+          <button type="submit" class="btn-guardar">Guardar Denuncia</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      // ✅ MOSTRAR BIENVENIDA EN INDEX (no en login)
+      {% if mostrar_bienvenida and usuario_nombre %}
+      Swal.fire({
+        icon: 'success',
+        title: `¡Bienvenido/a {{ usuario_rol }}! 🎉`,
+        text: '{{ usuario_nombre|escapejs }}',
+        confirmButtonText: 'Comenzar',
+        confirmButtonColor: '#28a745',
+        background: '#1e1e1e',
+        color: 'white',
+        timer: 4000,
+        timerProgressBar: true
       });
-    </script>
+      {% endif %}
 
+      // Cargar datos iniciales
+      cargarDenunciasDelDia();
+      cargarVehiculosAsignados();
+      cargarRequerimientos();
+      inicializarMapa();
+    });
+  </script>
 
-
-    <!-- Ejecución de Scripts -->
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
-    <script src="{% static 'JavaScript/mapa.js' %}"></script>
-    <script src="{% static 'JavaScript/redirecciones.js' %}"></script>
+  <!-- Ejecución de Scripts -->
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+  <script src="{% static 'JavaScript/redirecciones.js' %}"></script>
+  <script src="{% static 'JavaScript/index-funcionalidades.js' %}"></script>
 </body>
 
 </html>

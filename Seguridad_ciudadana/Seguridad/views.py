@@ -1,3 +1,4 @@
+import random
 import re
 from django.contrib import messages  # type: ignore
 from django.shortcuts import render, redirect, get_object_or_404  # type: ignore
@@ -35,6 +36,55 @@ def index(request):
 
     return render(request, 'index.html', context)
 
+@csrf_exempt
+@login_required
+def api_asignaciones_vehiculos_web(request):
+    """API para obtener asignaciones de vehículos con información completa"""
+    try:
+        if request.method == 'GET':
+            # Obtener asignaciones activas con todas las relaciones
+            asignaciones = AsignacionVehiculo.objects.filter(
+                activo=1  # Solo asignaciones activas
+            ).select_related(
+                'id_vehiculo__id_tipo_vehiculo',
+                'id_vehiculo__id_estado_vehiculo',
+                'id_usuario',
+                'id_usuario__id_rol',
+                'id_usuario__id_turno'
+            )
+            
+            data = []
+            for asignacion in asignaciones:
+                # Obtener radio asignado si existe
+                radio_asignado = AsignacionRadio.objects.filter(
+                    id_usuario=asignacion.id_usuario,
+                    fecha_devolucion__isnull=True
+                ).select_related('id_radio').first()
+                
+                data.append({
+                    'id_asignacion': asignacion.id,
+                    'patente_vehiculo': asignacion.id_vehiculo.patente_vehiculo,
+                    'marca_vehiculo': asignacion.id_vehiculo.marca_vehiculo,
+                    'modelo_vehiculo': asignacion.id_vehiculo.modelo_vehiculo,
+                    'tipo_vehiculo': asignacion.id_vehiculo.id_tipo_vehiculo.nombre_tipo_vehiculo,
+                    'estado_vehiculo': asignacion.id_vehiculo.id_estado_vehiculo.nombre_estado,
+                    'conductor_nombre': f"{asignacion.id_usuario.nombre_usuario} {asignacion.id_usuario.apellido_pat_usuario}",
+                    'conductor_rol': asignacion.id_usuario.id_rol.nombre_rol,
+                    'turno': asignacion.id_usuario.id_turno.nombre_turno if asignacion.id_usuario.id_turno else 'Sin turno',
+                    'radio_asignado': radio_asignado.id_radio.nombre_radio if radio_asignado else 'Sin radio',
+                    'disponibilidad': 'Disponible' if asignacion.activo == 1 else 'No disponible',
+                    'fecha_asignacion': asignacion.fecha_asignacion.isoformat(),
+                    'kilometraje_recorrido': asignacion.kilometraje_recorrido,
+                    # Coordenadas de ejemplo - en producción esto vendría de GPS
+                    'latitud': -33.5925 + (random.random() - 0.5) * 0.01,
+                    'longitud': -70.7003 + (random.random() - 0.5) * 0.01
+                })
+            
+            return JsonResponse(data, safe=False)
+            
+    except Exception as e:
+        print(f"❌ Error en api_asignaciones_vehiculos_web: {str(e)}")
+        return JsonResponse({'error': str(e)}, status=500)
 
 @login_required
 def cerrar_sesion(request):

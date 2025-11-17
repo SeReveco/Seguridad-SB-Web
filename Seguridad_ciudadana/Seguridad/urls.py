@@ -10,6 +10,7 @@ urlpatterns = [
     path('Admin/usuarios/', views.admin_usuarios, name='admin_usuarios'),
     path('Admin/vehiculos/', views.admin_vehiculos, name='admin_vehiculos'),
     path('Admin/radios/', views.admin_radios, name='admin_radios'),
+    path('api/asignaciones-vehiculos-web/', views.api_asignaciones_vehiculos_web, name='api_asignaciones_vehiculos_web'),
     
     # APIs para requerimientos
     path('api/requerimientos/', views.api_requerimientos, name='api_requerimientos'),
