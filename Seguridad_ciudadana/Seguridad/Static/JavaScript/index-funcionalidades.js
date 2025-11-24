@@ -3,6 +3,7 @@ let mapa;
 let miniMapa;
 let marcadoresDenuncias = [];
 let marcadoresVehiculos = [];
+let movilesDisponibles = [];
 let marcadorUbicacion = null;
 let requerimientos = [];
 let metodoUbicacionActual = 'manual';
@@ -102,7 +103,7 @@ const CUADRANTES_SAN_BERNARDO = [
 function inicializarMapa() {
     mapa = L.map('map').setView([-33.593, -70.698], 14);
     
-    // Cargar tiles de OpenStreetMap (de tu código original)
+    // Cargar tiles de OpenStreetMap
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
         maxZoom: 19, 
@@ -112,7 +113,7 @@ function inicializarMapa() {
     // Agregar cuadrantes
     agregarCuadrantesAlMapa();
     
-    // Cargar rutas existentes (de tu código original)
+    // Cargar rutas existentes (vacío por ahora)
     cargarRutas();
 }
 
@@ -154,9 +155,8 @@ function agregarCuadrantesAlMapa() {
     });
 }
 
-// Cargar rutas existentes (de tu código original, adaptada)
+// Cargar rutas existentes (vacío - sin ruta de ejemplo)
 function cargarRutas() {
-    // Por ahora es un ejemplo - puedes conectar con tu API real
     console.log('Cargando rutas...');
     
     // Limpiar rutas existentes
@@ -165,54 +165,11 @@ function cargarRutas() {
     }
     rutasLayer = L.layerGroup().addTo(mapa);
     
-    // Ejemplo de ruta de demostración (adaptado de tu código)
-    const rutaEjemplo = [
-        L.latLng(-33.590, -70.700),
-        L.latLng(-33.595, -70.705),
-        L.latLng(-33.600, -70.695)
-    ];
-
-    const controlRuta = L.Routing.control({
-        waypoints: rutaEjemplo,
-        routeWhileDragging: false,
-        language: 'es',
-        showAlternatives: false,
-        lineOptions: {
-            styles: [{color: 'blue', opacity: 0.6, weight: 5}]
-        },
-        createMarker: function(i, waypoint, n) {
-            if (i === 0) {
-                return L.marker(waypoint.latLng, {
-                    icon: L.icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34],
-                        shadowSize: [41, 41]
-                    })
-                }).bindPopup('Inicio: Ruta Patrulla 1');
-            } else if (i === n - 1) {
-                return L.marker(waypoint.latLng, {
-                    icon: L.icon({
-                        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-                        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
-                        iconSize: [25, 41],
-                        iconAnchor: [12, 41],
-                        popupAnchor: [1, -34],
-                        shadowSize: [41, 41]
-                    })
-                }).bindPopup('Fin: Ruta Patrulla 1');
-            }
-            return false; // No crear marcadores para puntos intermedios
-        }
-    }).addTo(mapa);
-    
-    // Agregar al layer group para poder limpiarlo después
-    rutasLayer.addLayer(controlRuta);
+    // Aquí puedes cargar rutas reales desde tu API cuando las tengas
+    // Por ahora se queda vacío
 }
 
-// Función para agregar nueva ruta (de tu código original)
+// Función para agregar nueva ruta
 function agregarNuevaRuta() {
     const nombre = prompt('Nombre de la ruta:');
     const vehiculo = prompt('Vehículo:');
@@ -268,6 +225,7 @@ function abrirModalDenuncia() {
     document.getElementById('modalDenuncia').style.display = 'block';
 }
 
+// Actualizar la función de cierre del modal para limpiar todos los campos
 function cerrarModalDenuncia() {
     document.getElementById('modalDenuncia').style.display = 'none';
     document.getElementById('formDenuncia').reset();
@@ -315,45 +273,66 @@ function cambiarMetodoUbicacion(metodo) {
     actualizarValidacionUbicacion();
 }
 
-// Inicializar mini mapa para selección
+// Inicializar mini mapa para selección - CORREGIDO
 function inicializarMiniMapa() {
-    miniMapa = L.map('mini-mapa').setView([-33.593, -70.698], 14);
-    
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
-    }).addTo(miniMapa);
-    
-    // Agregar cuadrantes al mini mapa también
-    CUADRANTES_SAN_BERNARDO.forEach(cuadrante => {
-        L.polygon(cuadrante.coordinates, {
-            color: cuadrante.color,
-            weight: 1,
-            opacity: 0.5,
-            fillOpacity: 0.05
-        }).addTo(miniMapa);
-    });
-    
-    // Agregar evento de clic al mapa
-    miniMapa.on('click', function(e) {
-        seleccionarUbicacionEnMapa(e.latlng.lat, e.latlng.lng);
-    });
-    
-    // Agregar control de escala
-    L.control.scale().addTo(miniMapa);
+    // Esperar un momento para que el contenedor esté visible
+    setTimeout(() => {
+        if (!miniMapa) {
+            miniMapa = L.map('mini-mapa').setView([-33.593, -70.698], 14);
+            
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(miniMapa);
+            
+            // Agregar cuadrantes al mini mapa también
+            CUADRANTES_SAN_BERNARDO.forEach(cuadrante => {
+                L.polygon(cuadrante.coordinates, {
+                    color: cuadrante.color,
+                    weight: 1,
+                    opacity: 0.5,
+                    fillOpacity: 0.05
+                }).addTo(miniMapa);
+            });
+            
+            // Agregar evento de clic al mapa - CORREGIDO
+            miniMapa.on('click', function(e) {
+                seleccionarUbicacionEnMapa(e.latlng.lat, e.latlng.lng);
+            });
+            
+            // Agregar control de escala
+            L.control.scale().addTo(miniMapa);
+            
+            // Forzar actualización del mapa
+            setTimeout(() => {
+                miniMapa.invalidateSize();
+            }, 100);
+        } else {
+            // Si ya existe, forzar actualización del tamaño
+            setTimeout(() => {
+                miniMapa.invalidateSize();
+            }, 100);
+        }
+    }, 100);
 }
 
-// Seleccionar ubicación en el mapa
+/// Actualizar la función de selección de ubicación para incluir cuadrante
 async function seleccionarUbicacionEnMapa(lat, lng) {
+    console.log('Coordenadas click:', lat, lng);
+    
     // Limpiar marcador anterior
     if (marcadorUbicacion) {
         miniMapa.removeLayer(marcadorUbicacion);
     }
     
-    // Crear nuevo marcador
+    // Crear nuevo marcador en las coordenadas exactas del click
     marcadorUbicacion = L.marker([lat, lng], {
-        icon: L.divIcon({
-            className: 'marcador-ubicacion',
-            iconSize: [20, 20]
+        icon: L.icon({
+            iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+            shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+            iconSize: [25, 41],
+            iconAnchor: [12, 41],
+            popupAnchor: [1, -34],
+            shadowSize: [41, 41]
         })
     }).addTo(miniMapa);
     
@@ -373,6 +352,7 @@ async function seleccionarUbicacionEnMapa(lat, lng) {
     const cuadranteId = determinarCuadrante(lat, lng);
     if (cuadranteId) {
         document.getElementById('cuadrante').value = cuadranteId;
+        console.log('Cuadrante detectado:', cuadranteId);
     }
     
     // Centrar mapa en la ubicación seleccionada
@@ -499,21 +479,61 @@ async function cargarRequerimientos() {
     }
 }
 
-// Cargar denuncias del día
+// Cargar móviles disponibles - CORREGIDO
+async function cargarMovilesDisponibles() {
+    try {
+        const response = await fetch('/api/vehiculos-web/');
+        if (response.ok) {
+            const vehiculos = await response.json();
+            console.log('Vehículos recibidos:', vehiculos); // Para debug
+            
+            // Mostrar TODOS los vehículos primero para debug
+            const select = document.getElementById('movil');
+            select.innerHTML = '<option value="">Seleccione un móvil (opcional)</option>';
+            
+            vehiculos.forEach(vehiculo => {
+                const option = document.createElement('option');
+                option.value = vehiculo.id_vehiculo;
+                
+                // Usar los campos correctos según tu API
+                const estado = vehiculo.nombre_estado_vehiculo || vehiculo.estado_vehiculo || 'Desconocido';
+                const patente = vehiculo.patente_vehiculo || 'Sin patente';
+                const marca = vehiculo.marca_vehiculo || 'Sin marca';
+                const modelo = vehiculo.modelo_vehiculo || 'Sin modelo';
+                
+                option.textContent = `${patente} - ${marca} ${modelo} (${estado})`;
+                select.appendChild(option);
+            });
+            
+            // Si no hay vehículos, mostrar mensaje
+            if (vehiculos.length === 0) {
+                const option = document.createElement('option');
+                option.value = '';
+                option.textContent = 'No hay vehículos disponibles';
+                option.disabled = true;
+                select.appendChild(option);
+            }
+        } else {
+            console.error('Error en respuesta de vehículos:', response.status);
+            const select = document.getElementById('movil');
+            select.innerHTML = '<option value="">Error cargando vehículos</option>';
+        }
+    } catch (error) {
+        console.error('Error cargando móviles:', error);
+        const select = document.getElementById('movil');
+        select.innerHTML = '<option value="">Error al cargar vehículos</option>';
+    }
+}
+
+// Cargar denuncias del día - CORREGIDA
 async function cargarDenunciasDelDia() {
     try {
-        const response = await fetch('/api/denuncias/');
+        const response = await fetch('/api/denuncias-hoy/');
         if (response.ok) {
             const denuncias = await response.json();
-            const hoy = new Date().toISOString().split('T')[0];
-            
-            // Filtrar denuncias de hoy
-            const denunciasHoy = denuncias.filter(denuncia => 
-                denuncia.fecha_denuncia.startsWith(hoy)
-            );
-            
-            mostrarDenunciasEnLista(denunciasHoy);
+            mostrarDenunciasEnLista(denuncias);
         } else {
+            console.error('Error en respuesta de denuncias:', response.status);
             document.getElementById('lista-denuncias-hoy').innerHTML = 
                 '<div class="sin-datos">Error cargando denuncias</div>';
         }
@@ -612,6 +632,58 @@ function mostrarDenunciaEnMapa(id) {
     mapa.setView([lat, lng], 16);
 }
 
+// Cargar denuncias del día
+async function cargarDenunciasDelDia() {
+    try {
+        const response = await fetch('/api/denuncias-hoy/');
+        if (response.ok) {
+            const denuncias = await response.json();
+            mostrarDenunciasEnLista(denuncias);
+        } else {
+            document.getElementById('lista-denuncias-hoy').innerHTML = 
+                '<div class="sin-datos">Error cargando denuncias</div>';
+        }
+    } catch (error) {
+        console.error('Error cargando denuncias:', error);
+        document.getElementById('lista-denuncias-hoy').innerHTML = 
+            '<div class="sin-datos">Error al cargar denuncias</div>';
+    }
+}
+
+// Mostrar denuncias en la lista
+function mostrarDenunciasEnLista(denuncias) {
+    const contenedor = document.getElementById('lista-denuncias-hoy');
+    
+    if (denuncias.length === 0) {
+        contenedor.innerHTML = '<div class="sin-datos">No hay denuncias hoy</div>';
+        return;
+    }
+    
+    contenedor.innerHTML = denuncias.map(denuncia => `
+        <div class="item-denuncia" data-id="${denuncia.id_denuncia}">
+            <div class="info-principal">${denuncia.direccion_denuncia}</div>
+            <div class="info-secundaria">
+                <strong>Ciudadano:</strong> ${denuncia.nombre_ciudadano} - ${denuncia.telefono_ciudadano}
+            </div>
+            <div class="info-secundaria">${denuncia.detalle_denuncia?.substring(0, 100) || 'Sin detalles'}...</div>
+            <div class="info-secundaria">
+                <strong>Requerimiento:</strong> ${denuncia.nombre_requerimiento}
+            </div>
+            ${denuncia.movil_asignado ? `
+                <div class="info-secundaria">
+                    <strong>Móvil:</strong> ${denuncia.movil_asignado.patente} - ${denuncia.movil_asignado.marca} ${denuncia.movil_asignado.modelo}
+                </div>
+            ` : ''}
+            <div class="estado estado-${denuncia.estado_denuncia?.toLowerCase().replace(' ', '-') || 'pendiente'}">
+                ${denuncia.estado_denuncia || 'Pendiente'}
+            </div>
+            <button class="btn-ver-mapa" onclick="mostrarDenunciaEnMapa(${denuncia.id_denuncia})">
+                <i class="fa-solid fa-map-marker-alt"></i> Ver en Mapa
+            </button>
+        </div>
+    `).join('');
+}
+
 // Mostrar vehículo en el mapa principal
 function mostrarVehiculoEnMapa(id) {
     // Limpiar marcadores anteriores de vehículos
@@ -648,7 +720,7 @@ function mostrarVehiculoEnMapa(id) {
     mapa.setView([lat, lng], 16);
 }
 
-// Manejar envío del formulario de denuncia
+// Manejar envío del formulario de denuncia - ACTUALIZADO
 document.getElementById('formDenuncia').addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -680,22 +752,55 @@ document.getElementById('formDenuncia').addEventListener('submit', async functio
         }
     }
     
+    // Validar campos requeridos
+    const nombreCiudadano = formData.get('nombre_ciudadano');
+    const telefonoCiudadano = formData.get('telefono_ciudadano');
+    const cuadrante = formData.get('cuadrante');
+    const movil = formData.get('movil');
+    
+    if (!nombreCiudadano.trim() || !telefonoCiudadano.trim() || !cuadrante) {
+        Swal.fire({
+            icon: 'error',
+            title: 'Campos requeridos',
+            text: 'Por favor, complete todos los campos obligatorios',
+            confirmButtonText: 'Aceptar'
+        });
+        return;
+    }
+    
+    // Preparar datos para la denuncia
     const denunciaData = {
+        // Información del ciudadano
+        nombre_ciudadano: nombreCiudadano,
+        telefono_ciudadano: telefonoCiudadano,
+        
+        // Ubicación
         direccion_denuncia: direccionPrincipal,
         direccion_denuncia_1: formData.get('direccion_secundaria') || direccionPrincipal,
+        cuadrante_denuncia: parseInt(cuadrante),
+        
+        // Detalles de la denuncia
         detalle_denuncia: formData.get('detalle'),
         id_requerimiento_id: parseInt(formData.get('requerimiento')),
-        cuadrante_denuncia: parseInt(formData.get('cuadrante')) || 1,
+        id_vehiculo: parseInt(movil), // Móvil asignado
+        
+        // Estado y configuración
+        estado_denuncia: 'pendiente', // Estado inicial
         visibilidad_camaras_denuncia: formData.get('visibilidad_camaras') === 'on',
+        
+        // Fechas y horas (se generan automáticamente)
         fecha_denuncia: new Date().toISOString().split('T')[0],
         hora_denuncia: new Date().toISOString(),
-        id_usuario: 1, // Esto debería venir del usuario logueado
-        id_ciudadano: 1, // Esto debería venir del contexto
-        estado_denuncia: 'pendiente'
+        
+        // Usuario que crea la denuncia (debería venir de la sesión)
+        id_usuario: 1, // Esto debería ser el ID del usuario logueado
+        
+        // Ciudadano (en la web se crea un ciudadano temporal)
+        id_ciudadano: null // Se creará un ciudadano temporal o se usará uno existente
     };
     
     try {
-        const response = await fetch('/api/denuncias/', {
+        const response = await fetch('/api/denuncias-web/', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -742,10 +847,11 @@ setInterval(() => {
     cargarVehiculosAsignados();
 }, 30000);
 
-// Inicializar cuando el DOM esté listo
+// Inicializar cuando el DOM esté listo - ACTUALIZADO
 document.addEventListener('DOMContentLoaded', function() {
     inicializarMapa();
     cargarRequerimientos();
+    cargarMovilesDisponibles(); // Nueva función
     cargarDenunciasDelDia();
     cargarVehiculosAsignados();
     

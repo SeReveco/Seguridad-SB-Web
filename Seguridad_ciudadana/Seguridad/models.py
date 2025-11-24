@@ -65,7 +65,7 @@ class Ciudadano(models.Model):
     telefono_movil_ciudadano = models.CharField(max_length=13)
     fecha_creacion_ciudadano = models.DateTimeField(default=timezone.now)
     fecha_actualizacion_ciudadano = models.DateTimeField(auto_now=True)
-    password_ciudadano = models.CharField(max_length=225)  # CORREGIDO: sin ñ
+    password_ciudadano = models.CharField(max_length=225)
     ultimo_inicio_ciudadano = models.DateTimeField(null=True, blank=True)
     is_active_ciudadano = models.BooleanField(default=True)
 

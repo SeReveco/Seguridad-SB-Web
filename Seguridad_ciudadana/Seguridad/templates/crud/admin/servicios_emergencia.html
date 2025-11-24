@@ -1,0 +1,296 @@
+{% load static %}
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{% static 'CSS/navbar.css' %}">
+  <link rel="stylesheet" href="{% static 'CSS/crud/servicios_emergencia.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="icon" type="image/png" href="{% static 'Img/logo_san_bernardo2.png' %}">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+  <script src="https://kit.fontawesome.com/6a284d15f6.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <title>Servicios de Emergencia - Sistema de Seguridad</title>
+</head>
+
+<body>
+
+  <nav id="navbar" class="navbar">
+
+    <!-- Botón del menú desplegable -->
+    <div class="dropdown">
+      <i id="boton-opciones" role="button" class="fa-solid fa-bars dropdown-toggle" onclick="toggleDropdown()">
+        <div class="dropdown-menu" id="dropdownMenu">
+          <a href="{% url 'index' %}" class="dropdown-item">
+            <i class="fa-solid fa-map"></i> Mapa
+          </a>
+          <a href="" class="dropdown-item">
+            <i class="fa-solid fa-list"></i> Historial de Alertas
+          </a>
+          <a href="" class="dropdown-item">
+            <i class="fa-solid fa-chart-pie"></i> Graficos
+          </a>
+        </div>
+      </i>
+    </div>
+
+    <h2 class="titulo-pagina">Servicios de Emergencia "San Bernardo"</h2>
+
+    <!-- Botón del menú Usuario -->
+    <div class="dropdown2">
+      <i id="boton-usuario" role="button" class="fa-solid fa-user dropdown-toggle2" onclick="toggleDropdown2()">
+        <div class="dropdown-menu2" id="dropdownUsuario">
+
+          {% if user.is_authenticated %}
+          <div class="user-info">
+            <strong>{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</strong>
+            <small>{{ user.id_rol.nombre_rol }}</small>
+          </div>
+          <div class="dropdown-divider"></div>
+          {% endif %}
+
+          <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
+            <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+          </a>
+
+          <a href="{% url 'Admin' %}" class="dropdown-item2">
+            <i class="fa-solid fa-list"></i> Panel de Administración
+          </a>
+
+        </div>
+      </i>
+    </div>
+
+  </nav>
+
+  <!-- SECCIÓN PRINCIPAL -->
+  <div class="servicios-emergencia-section">
+
+    <!-- TÍTULO PRINCIPAL -->
+    <h1 class="section-title">Gestión de Servicios de Emergencia</h1>
+
+    <!-- BOTONES DE ACCIÓN -->
+    <div class="servicios-actions">
+      <div class="servicios-container">
+        <div class="servicios-header">
+          <button class="btn-agregar-servicio" onclick="abrirModalServicio()">
+            <i class="fa-solid fa-plus"></i> Agregar Nuevo Servicio
+          </button>
+        </div>
+      </div>
+
+      <div class="servicios-container">
+        <div class="servicios-header">
+          <button class="btn-actualizar-servicio" onclick="abrirModalActualizarServicio()">
+            <i class="fa-solid fa-pen-to-square"></i> Actualizar Servicio Existente
+          </button>
+        </div>
+      </div>
+
+      <div class="servicios-container">
+        <div class="servicios-header">
+          <button class="btn-eliminar-servicio" onclick="abrirModalEliminarServicio()">
+            <i class="fa-solid fa-trash"></i> Eliminar Servicio Existente
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ESTADÍSTICAS -->
+    <div class="servicios-stats">
+      <div class="stat-card total-servicios">
+        <i class="fas fa-ambulance"></i>
+        <div class="stat-info">
+          <div class="stat-number" id="total-servicios">{{ total_servicios }}</div>
+          <div class="stat-label">Total Servicios</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LISTA DE SERVICIOS -->
+    <div class="servicios-lista" id="servicios-lista">
+      <div class="lista-header">
+        <h3><i class="fa-solid fa-list"></i> Servicios de Emergencia Existentes</h3>
+        <div class="header-actions">
+          <div class="search-container">
+            <input type="text" id="buscar-servicios" placeholder="Buscar servicios..." class="search-input"
+              onkeyup="filtrarServicios()">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          </div>
+          <button class="btn-descargar-excel" onclick="descargarExcel()">
+            <i class="fa-solid fa-file-excel"></i> Descargar Excel
+          </button>
+        </div>
+      </div>
+      <div id="lista-servicios" class="servicios-grid">
+        <!-- Los servicios se cargarán aquí dinámicamente -->
+      </div>
+    </div>
+
+  </div>
+
+  <!-- MODAL AGREGAR SERVICIO -->
+  <div id="modal-servicio" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-plus"></i> Agregar Nuevo Servicio de Emergencia</h2>
+        <span class="close" onclick="cerrarModalServicio()">&times;</span>
+      </div>
+
+      <form id="form-servicio" class="modal-body">
+        {% csrf_token %}
+
+        <div class="form-section">
+          <h4><i class="fa-solid fa-info-circle"></i> Información del Servicio</h4>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="nombre-servicio"><i class="fa-solid fa-signature"></i> Nombre del Servicio:</label>
+              <input type="text" id="nombre-servicio" placeholder="Ej: Bomberos, Carabineros, SAMU" required>
+              <div class="invalid-feedback">Por favor ingresa el nombre del servicio</div>
+            </div>
+
+            <div class="form-group">
+              <label for="codigo-servicio"><i class="fa-solid fa-code"></i> Código del Servicio:</label>
+              <input type="text" id="codigo-servicio" placeholder="Ej: BOM, CAR, SAM" required>
+              <div class="invalid-feedback">Por favor ingresa el código del servicio</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancelar" onclick="cerrarModalServicio()">
+            <i class="fa-solid fa-xmark"></i> Cancelar
+          </button>
+          <button type="button" class="btn-guardar" onclick="guardarServicio()">
+            <i class="fa-solid fa-floppy-disk"></i> Guardar Servicio
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL ACTUALIZAR SERVICIO -->
+  <div id="modal-actualizar-servicio" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-pen-to-square"></i> Actualizar Servicio Existente</h2>
+        <span class="close" onclick="cerrarModalActualizarServicio()">&times;</span>
+      </div>
+
+      <form id="form-actualizar-servicio" class="modal-body">
+        {% csrf_token %}
+
+        <!-- Sección de búsqueda -->
+        <div class="form-section">
+          <h4><i class="fa-solid fa-magnifying-glass"></i> Buscar Servicio</h4>
+          <div class="search-container">
+            <input type="text" id="buscar-servicio-actualizar" placeholder="Escriba para buscar servicios..."
+              class="search-input" onkeyup="buscarServiciosActualizar()">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          </div>
+          <div id="lista-servicios-actualizar" class="servicios-list-search"></div>
+        </div>
+
+        <!-- Sección de edición -->
+        <div id="form-edicion-actualizar" class="form-section" style="display: none;">
+          <h4><i class="fa-solid fa-edit"></i> Editar Información del Servicio</h4>
+
+          <input type="hidden" id="servicio-id-actualizar">
+
+          <div class="form-row">
+            <div class="form-group">
+              <label for="nuevo-nombre-servicio">Nombre del Servicio:</label>
+              <input type="text" id="nuevo-nombre-servicio" placeholder="Nuevo nombre del servicio" required>
+            </div>
+
+            <div class="form-group">
+              <label for="nuevo-codigo-servicio">Código del Servicio:</label>
+              <input type="text" id="nuevo-codigo-servicio" placeholder="Nuevo código del servicio" required>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancelar" onclick="cerrarModalActualizarServicio()">
+            <i class="fa-solid fa-xmark"></i> Cancelar
+          </button>
+          <button type="button" id="btn-actualizar-servicio" class="btn-actualizar" disabled
+            onclick="actualizarServicio()">
+            <i class="fa-solid fa-floppy-disk"></i> Actualizar Servicio
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL ELIMINAR SERVICIO -->
+  <div id="modal-eliminar-servicio" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2><i class="fa-solid fa-trash"></i> Eliminar Servicio de Emergencia</h2>
+        <span class="close" onclick="cerrarModalEliminarServicio()">&times;</span>
+      </div>
+
+      <div class="modal-body">
+        {% csrf_token %}
+
+        <div class="form-section">
+          <h4><i class="fa-solid fa-magnifying-glass"></i> Buscar Servicio a Eliminar</h4>
+          <div class="search-container">
+            <input type="text" id="buscar-servicio-eliminar" placeholder="Escriba para buscar servicios..."
+              class="search-input" onkeyup="buscarServiciosEliminar()">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          </div>
+          <div id="lista-servicios-eliminar" class="servicios-list-search"></div>
+        </div>
+
+        <!-- Información del servicio seleccionado -->
+        <div id="info-servicio-eliminar" class="form-section" style="display: none;">
+          <h4><i class="fa-solid fa-triangle-exclamation"></i> Servicio Seleccionado para Eliminar</h4>
+
+          <div class="servicio-seleccionado-info">
+            <div class="info-row">
+              <div class="info-label">Nombre:</div>
+              <div class="info-value" id="nombre-servicio-eliminar"></div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Código:</div>
+              <div class="info-value" id="codigo-servicio-eliminar"></div>
+            </div>
+          </div>
+
+          <div class="advertencia-eliminacion">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <div>
+              <strong>¡ADVERTENCIA!</strong>
+              <p>Esta acción eliminará permanentemente el servicio de emergencia del sistema.</p>
+              <p class="texto-peligro">Esta acción no se puede deshacer.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn-cancelar" onclick="cerrarModalEliminarServicio()">
+            <i class="fa-solid fa-xmark"></i> Cancelar
+          </button>
+          <button type="button" id="btn-eliminar-servicio-confirmar" class="btn-eliminar-confirmar" disabled
+            onclick="confirmarEliminacionServicio()">
+            <i class="fa-solid fa-trash"></i> Eliminar Servicio
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="{% static 'JavaScript/redirecciones.js' %}"></script>
+  <script src="{% static 'JavaScript/crud/servicios_emergencia/agregar_servicios_emergencia.js' %}"></script>
+  <script src="{% static 'JavaScript/crud/servicios_emergencia/actualizar_servicios_emergencia.js' %}"></script>
+  <script src="{% static 'JavaScript/crud/servicios_emergencia/eliminar_servicios_emergencia.js' %}"></script>
+  <script src="{% static 'JavaScript/crud/servicios_emergencia/listar_servicios_emergencia.js' %}"></script>
+</body>
+
+</html>

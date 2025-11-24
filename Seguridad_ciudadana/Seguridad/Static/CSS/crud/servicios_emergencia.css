@@ -1,0 +1,1190 @@
+/* 🎨 ESTILOS PARA LA GESTIÓN DE SERVICIOS DE EMERGENCIA */
+
+/* Sección de Servicios */
+.servicios-emergencia-section {
+    padding: 20px;
+    margin: 20px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.section-title {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 30px;
+    font-size: 2em;
+    font-weight: 600;
+}
+
+/* Botones de Acción */
+.servicios-actions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.servicios-container {
+    background: white;
+    border-radius: 10px;
+    padding: 0;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.servicios-container:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+}
+
+.servicios-header {
+    padding: 0;
+}
+
+.btn-agregar-servicio {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border: none;
+    padding: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    width: 100%;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-actualizar-servicio {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border: none;
+    padding: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    width: 100%;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-eliminar-servicio {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    border: none;
+    padding: 20px;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 600;
+    width: 100%;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.btn-agregar-servicio:hover {
+    background: linear-gradient(135deg, #218838, #1e9e8a);
+    transform: translateY(-2px);
+}
+
+.btn-actualizar-servicio:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
+    transform: translateY(-2px);
+}
+
+.btn-eliminar-servicio:hover {
+    background: linear-gradient(135deg, #c82333, #bd2130);
+    transform: translateY(-2px);
+}
+
+/* Estadísticas */
+.servicios-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    background: white;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    transition: transform 0.3s ease;
+}
+
+.stat-card:hover {
+    transform: translateY(-3px);
+}
+
+.stat-card i {
+    font-size: 2.5em;
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+}
+
+.stat-number {
+    font-size: 2em;
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.stat-label {
+    font-size: 1em;
+    color: #6c757d;
+    font-weight: 600;
+}
+
+/* Colores específicos para estadísticas */
+.stat-card.total-servicios i { color: #dc3545; }
+.stat-card.total-servicios { border-left: 4px solid #dc3545; }
+
+/* Lista de Servicios */
+.servicios-lista {
+    margin-top: 30px;
+}
+
+.lista-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 20px;
+    padding: 0 10px;
+}
+
+.lista-header h3 {
+    color: #333;
+    margin: 0;
+    font-size: 1.5em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+/* Botón de descargar Excel - VERSIÓN MEJORADA */
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: nowrap;
+}
+
+.btn-descargar-excel {
+    background: linear-gradient(135deg, #217346, #1d6f42);
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    height: 42px;
+    box-shadow: 0 2px 4px rgba(33, 115, 70, 0.2);
+}
+
+.btn-descargar-excel:hover {
+    background: linear-gradient(135deg, #1d6f42, #165a32);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(33, 115, 70, 0.3);
+}
+
+.btn-descargar-excel:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 2px rgba(33, 115, 70, 0.2);
+}
+
+.btn-descargar-excel:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+/* Campo de búsqueda más compacto */
+.header-actions .search-container {
+    margin-bottom: 0;
+    min-width: 250px;
+}
+
+.header-actions .search-input {
+    padding: 10px 40px 10px 12px;
+    font-size: 13px;
+    height: 42px;
+    box-sizing: border-box;
+}
+
+.header-actions .search-icon {
+    right: 12px;
+    font-size: 14px;
+}
+
+/* Grid de Servicios */
+.servicios-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 20px;
+}
+
+.servicio-card {
+    background: white;
+    border-radius: 10px;
+    padding: 25px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+    border-left: 4px solid #dc3545;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.servicio-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+
+.servicio-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.servicio-nombre {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: #2c3e50;
+    margin: 0;
+    flex: 1;
+    line-height: 1.3;
+}
+
+.servicio-codigo {
+    background: #dc3545;
+    color: white;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.8em;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-left: 10px;
+    white-space: nowrap;
+}
+
+.servicio-info {
+    margin-bottom: 20px;
+}
+
+.servicio-dato {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 0.95em;
+    padding: 8px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.servicio-dato:last-child {
+    border-bottom: none;
+}
+
+.servicio-dato strong {
+    color: #495057;
+    min-width: 120px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.servicio-dato span {
+    color: #6c757d;
+    text-align: right;
+    flex: 1;
+}
+
+.servicio-acciones {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+
+.btn-editar-servicio {
+    background: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background 0.3s ease;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.btn-eliminar-servicio-card {
+    background: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background 0.3s ease;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+}
+
+.btn-editar-servicio:hover {
+    background: #0056b3;
+}
+
+.btn-eliminar-servicio-card:hover {
+    background: #c82333;
+}
+
+/* MODALES */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    backdrop-filter: blur(5px);
+}
+
+.modal-content {
+    background-color: #fefefe;
+    margin: 2% auto;
+    padding: 0;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+    animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+    from {
+        opacity: 0;
+        transform: translateY(-50px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.modal-header {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    padding: 20px;
+    border-radius: 12px 12px 0 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.close {
+    color: white;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: color 0.3s ease;
+}
+
+.close:hover {
+    color: #f8f9fa;
+}
+
+.modal-body {
+    padding: 30px;
+}
+
+/* Formularios */
+.form-section {
+    margin-bottom: 25px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #007bff;
+}
+
+.form-section h4 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 1.2em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+.form-group label {
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    padding: 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+/* Búsqueda */
+.search-container {
+    position: relative;
+    margin-bottom: 15px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 45px 12px 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+}
+
+/* Lista de Resultados de Búsqueda */
+.servicios-list-search {
+    max-height: 300px;
+    overflow-y: auto;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    background: white;
+    margin-top: 10px;
+}
+
+.servicio-item-search {
+    padding: 15px;
+    border-bottom: 1px solid #f1f3f4;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.servicio-item-search:hover {
+    background: #f8f9fa;
+}
+
+.servicio-item-search.selected {
+    background: #e3f2fd;
+    border-left: 4px solid #007bff;
+}
+
+.servicio-info-search {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.servicio-nombre-search {
+    font-weight: 600;
+    color: #2c3e50;
+}
+
+.servicio-codigo-search {
+    font-size: 0.9em;
+    color: #6c757d;
+    background: #e9ecef;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* ============================================= */
+/* ESTILOS ESPECÍFICOS PARA MODAL ELIMINAR */
+/* ============================================= */
+
+/* Items de servicio para eliminar */
+.servicio-item-eliminar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    border-bottom: 1px solid #f1f3f4;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.servicio-item-eliminar:hover {
+    background: #f8f9fa;
+    transform: translateX(5px);
+}
+
+.servicio-item-eliminar.selected {
+    background: #ffe6e6;
+    border-left: 4px solid #dc3545;
+    box-shadow: 0 2px 8px rgba(220, 53, 69, 0.1);
+    animation: shake 0.5s ease-in-out;
+}
+
+.servicio-item-eliminar:last-child {
+    border-bottom: none;
+}
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+}
+
+/* Información del servicio */
+.servicio-info-eliminar {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.servicio-info-eliminar strong {
+    color: #2c3e50;
+    font-size: 1.1em;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.codigo-eliminar {
+    color: #6c757d;
+    font-size: 0.9em;
+    background: #e9ecef;
+    padding: 4px 8px;
+    border-radius: 12px;
+    align-self: flex-start;
+    font-weight: 500;
+}
+
+/* Botón de selección */
+.btn-seleccionar-eliminar {
+    background: #28a745;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+}
+
+.btn-seleccionar-eliminar:hover {
+    background: #218838;
+    transform: translateY(-1px);
+}
+
+.servicio-item-eliminar.selected .btn-seleccionar-eliminar {
+    background: #dc3545;
+}
+
+.servicio-item-eliminar.selected .btn-seleccionar-eliminar:hover {
+    background: #c82333;
+}
+
+/* Estados de carga para eliminar */
+.loading-eliminar {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.loading-eliminar i {
+    font-size: 2em;
+    margin-bottom: 10px;
+    display: block;
+    color: #dc3545;
+    animation: spin 1s linear infinite;
+}
+
+.error-eliminar {
+    text-align: center;
+    padding: 40px 20px;
+    color: #dc3545;
+    background: #f8d7da;
+    border-radius: 8px;
+    margin: 10px;
+}
+
+.error-eliminar i {
+    font-size: 2em;
+    margin-bottom: 10px;
+    display: block;
+}
+
+.sin-servicios-eliminar {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px dashed #dee2e6;
+    margin: 10px;
+}
+
+.sin-servicios-eliminar i {
+    font-size: 3em;
+    margin-bottom: 15px;
+    display: block;
+}
+
+.no-resultados-eliminar {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin: 10px;
+}
+
+.no-resultados-eliminar i {
+    font-size: 2em;
+    margin-bottom: 10px;
+    display: block;
+}
+
+/* Información del servicio seleccionado para eliminar */
+#info-servicio-eliminar {
+    background: #fff5f5;
+    border: 2px solid #f8d7da;
+    border-radius: 8px;
+    padding: 25px;
+    margin-top: 20px;
+    animation: fadeIn 0.5s ease-out;
+}
+
+#info-servicio-eliminar h4 {
+    color: #dc3545;
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#info-servicio-eliminar h4 i {
+    color: #dc3545;
+}
+
+.servicio-seleccionado-info {
+    background: white;
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 20px;
+    border: 1px solid #f1f3f4;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.info-row:last-child {
+    border-bottom: none;
+}
+
+.info-label {
+    font-weight: 600;
+    color: #495057;
+    min-width: 100px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-value {
+    color: #2c3e50;
+    font-weight: 500;
+    text-align: right;
+    flex: 1;
+}
+
+/* Advertencia de eliminación */
+.advertencia-eliminacion {
+    background: linear-gradient(135deg, #fff5f5, #ffe6e6);
+    border: 2px solid #f8d7da;
+    border-radius: 8px;
+    padding: 20px;
+    display: flex;
+    align-items: flex-start;
+    gap: 15px;
+    animation: pulseWarning 2s infinite;
+}
+
+@keyframes pulseWarning {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.1);
+    }
+    50% {
+        box-shadow: 0 0 0 10px rgba(220, 53, 69, 0);
+    }
+}
+
+.advertencia-eliminacion i {
+    color: #dc3545;
+    font-size: 1.5em;
+    margin-top: 2px;
+    flex-shrink: 0;
+}
+
+.advertencia-eliminacion div {
+    flex: 1;
+}
+
+.advertencia-eliminacion strong {
+    color: #721c24;
+    display: block;
+    margin-bottom: 8px;
+    font-size: 1.1em;
+}
+
+.advertencia-eliminacion p {
+    color: #856404;
+    margin-bottom: 5px;
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+
+.texto-peligro {
+    color: #dc3545 !important;
+    font-weight: 700;
+    margin-top: 10px !important;
+    font-size: 1em !important;
+}
+
+/* Footer de Modales */
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 15px;
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 0 0 12px 12px;
+    border-top: 1px solid #e9ecef;
+}
+
+.btn-cancelar {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-guardar {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-actualizar {
+    background: linear-gradient(135deg, #007bff, #0056b3);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn-eliminar-confirmar {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-eliminar-confirmar:hover:not(:disabled) {
+    background: linear-gradient(135deg, #c82333, #bd2130);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(220, 53, 69, 0.3);
+}
+
+.btn-cancelar:hover {
+    background: #5a6268;
+    transform: translateY(-1px);
+}
+
+.btn-guardar:hover {
+    background: linear-gradient(135deg, #218838, #1e9e8a);
+    transform: translateY(-1px);
+}
+
+.btn-actualizar:hover {
+    background: linear-gradient(135deg, #0056b3, #004085);
+    transform: translateY(-1px);
+}
+
+.btn-eliminar-confirmar:hover {
+    background: linear-gradient(135deg, #c82333, #bd2130);
+    transform: translateY(-1px);
+}
+
+.btn-guardar:disabled,
+.btn-actualizar:disabled,
+.btn-eliminar-confirmar:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Estados de carga */
+.loading-servicios {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+}
+
+.loading-servicios i {
+    font-size: 2em;
+    margin-bottom: 10px;
+    display: block;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Mensajes cuando no hay datos */
+.sin-servicios {
+    text-align: center;
+    padding: 40px;
+    color: #6c757d;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 2px dashed #dee2e6;
+    grid-column: 1 / -1;
+}
+
+.sin-servicios i {
+    font-size: 3em;
+    margin-bottom: 15px;
+    display: block;
+    color: #6c757d;
+}
+
+.no-resultados {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+/* Animaciones adicionales */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.stat-card {
+    animation: fadeIn 0.5s ease-out;
+}
+
+/* Scrollbar personalizado */
+.servicios-list-search::-webkit-scrollbar {
+    width: 8px;
+}
+
+.servicios-list-search::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.servicios-list-search::-webkit-scrollbar-thumb {
+    background: #dc3545;
+    border-radius: 4px;
+}
+
+.servicios-list-search::-webkit-scrollbar-thumb:hover {
+    background: #c82333;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+    .lista-header {
+        gap: 15px;
+    }
+    
+    .header-actions {
+        gap: 10px;
+    }
+    
+    .header-actions .search-container {
+        min-width: 200px;
+    }
+}
+
+@media (max-width: 768px) {
+    .servicios-actions {
+        grid-template-columns: 1fr;
+    }
+    
+    .servicios-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .servicios-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .servicio-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .servicio-acciones {
+        flex-direction: column;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer button {
+        width: 100%;
+    }
+    
+    .lista-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+    
+    .lista-header h3 {
+        text-align: center;
+        justify-content: center;
+    }
+    
+    .header-actions {
+        flex-direction: column;
+        width: 100%;
+        gap: 10px;
+    }
+    
+    .header-actions .search-container {
+        min-width: 100%;
+        width: 100%;
+    }
+    
+    .btn-descargar-excel {
+        width: 100%;
+        justify-content: center;
+        height: 44px;
+        font-size: 14px;
+    }
+    
+    .header-actions .search-input {
+        width: 100%;
+        height: 44px;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    /* Responsive para modal eliminar */
+    .servicio-item-eliminar {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .btn-seleccionar-eliminar {
+        align-self: stretch;
+        justify-content: center;
+    }
+    
+    .servicio-info-eliminar {
+        width: 100%;
+    }
+    
+    .info-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .info-value {
+        text-align: left;
+        width: 100%;
+    }
+    
+    .advertencia-eliminacion {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .advertencia-eliminacion i {
+        align-self: center;
+    }
+}
+
+/* Para móviles pequeños */
+@media (max-width: 480px) {
+    .servicios-emergencia-section {
+        padding: 15px;
+        margin: 10px;
+    }
+    
+    .section-title {
+        font-size: 1.5em;
+    }
+    
+    .servicio-card {
+        padding: 20px;
+    }
+    
+    .modal-body {
+        padding: 20px;
+    }
+    
+    .form-section {
+        padding: 15px;
+    }
+    
+    .lista-header {
+        gap: 12px;
+    }
+    
+    .lista-header h3 {
+        font-size: 1.3em;
+    }
+    
+    .btn-descargar-excel {
+        padding: 12px 16px;
+        font-size: 13px;
+    }
+    
+    .header-actions .search-input {
+        font-size: 14px;
+    }
+}

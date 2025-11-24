@@ -114,7 +114,10 @@ async function cargarElementosParaEliminar(tipo) {
     }
     
     const response = await fetch(url);
-    if (!response.ok) throw new Error(`Error HTTP: ${response.status}`);
+    if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || `Error HTTP: ${response.status}`);
+    }
     
     elementosParaEliminar = await response.json();
     console.log(`✅ ${elementosParaEliminar.length} ${tipo}s cargados`);
@@ -148,16 +151,17 @@ function mostrarInterfazEliminacion(tipo) {
     `;
     
     elementosParaEliminar.forEach(elemento => {
+        const elementoId = obtenerIdElemento(elemento, tipo);
         const infoAdicional = obtenerInfoAdicional(elemento, tipo);
         
         html += `
-            <div class="elemento-item-eliminar" data-id="${elemento.id || elemento.id_requerimiento || elemento.id_subgrupo_denuncia || elemento.id_grupo_denuncia || elemento.id_familia_denuncia}">
+            <div class="elemento-item-eliminar" data-id="${elementoId}">
                 <div class="elemento-info-eliminar">
-                    <strong>${elemento.nombre || elemento.nombre_requerimiento || elemento.nombre_subgrupo_denuncia || elemento.nombre_grupo_denuncia || elemento.nombre_familia_denuncia}</strong>
+                    <strong>${obtenerNombreElemento(elemento, tipo)}</strong>
                     ${infoAdicional}
                 </div>
                 <div class="elemento-acciones-eliminar">
-                    <button type="button" class="btn-seleccionar-eliminar" onclick="seleccionarElementoEliminar('${tipo}', ${elemento.id || elemento.id_requerimiento || elemento.id_subgrupo_denuncia || elemento.id_grupo_denuncia || elemento.id_familia_denuncia})">
+                    <button type="button" class="btn-seleccionar-eliminar" onclick="seleccionarElementoEliminar('${tipo}', ${elementoId})">
                         <i class="fa-solid fa-check"></i> Seleccionar
                     </button>
                 </div>
@@ -185,20 +189,52 @@ function mostrarInterfazEliminacion(tipo) {
     contenedor.innerHTML = html;
 }
 
-// ✅ OBTENER INFORMACIÓN ADICIONAL PARA CADA ELEMENTO
+// ✅ OBTENER ID DEL ELEMENTO SEGÚN TIPO
+function obtenerIdElemento(elemento, tipo) {
+    switch(tipo) {
+        case 'requerimiento':
+            return elemento.id_requerimiento;
+        case 'subgrupo':
+            return elemento.id_subgrupo_denuncia;
+        case 'grupo':
+            return elemento.id_grupo_denuncia;
+        case 'familia':
+            return elemento.id_familia_denuncia;
+        default:
+            return elemento.id;
+    }
+}
+
+// ✅ OBTENER NOMBRE DEL ELEMENTO SEGÚN TIPO
+function obtenerNombreElemento(elemento, tipo) {
+    switch(tipo) {
+        case 'requerimiento':
+            return elemento.nombre_requerimiento;
+        case 'subgrupo':
+            return elemento.nombre_subgrupo_denuncia;
+        case 'grupo':
+            return elemento.nombre_grupo_denuncia;
+        case 'familia':
+            return elemento.nombre_familia_denuncia;
+        default:
+            return elemento.nombre;
+    }
+}
+
+// ✅ CORREGIDO: OBTENER INFORMACIÓN ADICIONAL PARA CADA ELEMENTO
 function obtenerInfoAdicional(elemento, tipo) {
     switch(tipo) {
         case 'requerimiento':
             return `
                 <div class="info-adicional-eliminar">
-                    <span class="clasificacion-badge ${elemento.clasificacion_requerimiento?.toLowerCase() || 'media'}">
+                    <span class="clasificacion-badge ${(elemento.clasificacion_requerimiento || 'media').toLowerCase()}">
                         ${elemento.clasificacion_requerimiento || 'Sin clasificación'}
                     </span>
                     <span class="codigo-elemento">${elemento.codigo_requerimiento || 'Sin código'}</span>
                 </div>
                 ${elemento.familia_nombre ? `
                 <div class="jerarquia-eliminar">
-                    ${elemento.familia_nombre} → ${elemento.grupo_nombre} → ${elemento.subgrupo_nombre}
+                    ${elemento.familia_nombre || 'Sin familia'} → ${elemento.grupo_nombre || 'Sin grupo'} → ${elemento.subgrupo_nombre || 'Sin subgrupo'}
                 </div>
                 ` : ''}
             `;
@@ -208,6 +244,12 @@ function obtenerInfoAdicional(elemento, tipo) {
                 <div class="info-adicional-eliminar">
                     <span class="codigo-elemento">${elemento.codigo_subgrupo || 'Sin código'}</span>
                 </div>
+                ${elemento.id_grupo_denuncia ? `
+                <div class="jerarquia-eliminar">
+                    ID Grupo: ${elemento.id_grupo_denuncia}
+                    ${elemento.nombre_grupo_denuncia ? ` - ${elemento.nombre_grupo_denuncia}` : ''}
+                </div>
+                ` : '<div class="jerarquia-eliminar">Sin grupo asignado</div>'}
             `;
             
         case 'grupo':
@@ -215,6 +257,12 @@ function obtenerInfoAdicional(elemento, tipo) {
                 <div class="info-adicional-eliminar">
                     <span class="codigo-elemento">${elemento.codigo_grupo || 'Sin código'}</span>
                 </div>
+                ${elemento.id_familia_denuncia ? `
+                <div class="jerarquia-eliminar">
+                    ID Familia: ${elemento.id_familia_denuncia}
+                    ${elemento.nombre_familia_denuncia ? ` - ${elemento.nombre_familia_denuncia}` : ''}
+                </div>
+                ` : '<div class="jerarquia-eliminar">Sin familia asignada</div>'}
             `;
             
         case 'familia':
@@ -240,19 +288,77 @@ function obtenerNombreTipo(tipo) {
     return nombres[tipo] || tipo;
 }
 
-// ✅ FILTRAR ELEMENTOS EN LA LISTA
+// ✅ FILTRAR ELEMENTOS EN LA LISTA - CORREGIDA
 function filtrarElementos(tipo) {
     const searchTerm = document.getElementById(`buscar-${tipo}`).value.toLowerCase().trim();
     const items = document.querySelectorAll(`#lista-${tipo}s-eliminar .elemento-item-eliminar`);
     
+    console.log(`🔍 Buscando: "${searchTerm}" en ${items.length} elementos`);
+    
     items.forEach(item => {
-        const texto = item.textContent.toLowerCase();
-        if (texto.includes(searchTerm)) {
-            item.style.display = 'flex';
+        // Obtener información específica del elemento para buscar
+        const elementoId = item.getAttribute('data-id');
+        const elemento = elementosParaEliminar.find(e => {
+            const id = obtenerIdElemento(e, tipo);
+            return id == elementoId;
+        });
+        
+        if (elemento) {
+            // Buscar en múltiples campos del elemento
+            const camposBusqueda = [
+                obtenerNombreElemento(elemento, tipo),
+                elemento.codigo_requerimiento || elemento.codigo_subgrupo || elemento.codigo_grupo || elemento.codigo_familia || '',
+                elemento.clasificacion_requerimiento || '',
+                elemento.familia_nombre || '',
+                elemento.grupo_nombre || '',
+                elemento.subgrupo_nombre || '',
+                elemento.nombre_grupo_denuncia || '',
+                elemento.nombre_familia_denuncia || ''
+            ];
+            
+            const textoBusqueda = camposBusqueda.join(' ').toLowerCase();
+            const coincide = textoBusqueda.includes(searchTerm);
+            
+            if (coincide) {
+                item.style.display = 'flex';
+                item.classList.add('resultado-busqueda');
+            } else {
+                item.style.display = 'none';
+                item.classList.remove('resultado-busqueda');
+            }
         } else {
+            // Si no encontramos el elemento, ocultarlo por seguridad
             item.style.display = 'none';
         }
     });
+    
+    // Mostrar mensaje si no hay resultados
+    const resultadosVisibles = document.querySelectorAll(`#lista-${tipo}s-eliminar .elemento-item-eliminar[style="display: flex;"]`).length;
+    const contenedorLista = document.getElementById(`lista-${tipo}s-eliminar`);
+    
+    if (searchTerm && resultadosVisibles === 0) {
+        // Si ya existe un mensaje de no resultados, no hacer nada
+        if (!contenedorLista.querySelector('.sin-resultados-busqueda')) {
+            const mensajeNoResultados = document.createElement('div');
+            mensajeNoResultados.className = 'sin-resultados-busqueda';
+            mensajeNoResultados.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #6c757d;">
+                    <i class="fa-solid fa-search" style="font-size: 2em; margin-bottom: 10px;"></i>
+                    <p>No se encontraron resultados para "<strong>${searchTerm}</strong>"</p>
+                    <small>Intente con otros términos de búsqueda</small>
+                </div>
+            `;
+            contenedorLista.appendChild(mensajeNoResultados);
+        }
+    } else {
+        // Remover mensaje de no resultados si existe
+        const mensajeExistente = contenedorLista.querySelector('.sin-resultados-busqueda');
+        if (mensajeExistente) {
+            mensajeExistente.remove();
+        }
+    }
+    
+    console.log(`✅ Búsqueda completada. ${resultadosVisibles} resultados encontrados`);
 }
 
 // ✅ SELECCIONAR ELEMENTO PARA ELIMINAR
@@ -270,20 +376,20 @@ function seleccionarElementoEliminar(tipo, id) {
         elementoItem.classList.add('selected');
     }
     
-    // Encontrar el elemento en la lista
-    elementoSeleccionadoEliminar = elementosParaEliminar.find(elemento => 
-        elemento.id === id || 
-        elemento.id_requerimiento === id ||
-        elemento.id_subgrupo_denuncia === id ||
-        elemento.id_grupo_denuncia === id ||
-        elemento.id_familia_denuncia === id
-    );
+    // Encontrar el elemento en la lista usando la función de ID correcta
+    elementoSeleccionadoEliminar = elementosParaEliminar.find(elemento => {
+        const elementoId = obtenerIdElemento(elemento, tipo);
+        return elementoId == id;
+    });
     
     if (elementoSeleccionadoEliminar) {
         // Habilitar botón de eliminar
         document.getElementById('btn-eliminar-confirmar').disabled = false;
         
         console.log(`✅ ${obtenerNombreTipo(tipo)} seleccionado:`, elementoSeleccionadoEliminar);
+    } else {
+        console.error('❌ Elemento no encontrado en la lista');
+        mostrarError('No se pudo encontrar el elemento seleccionado');
     }
 }
 
@@ -295,11 +401,8 @@ async function confirmarEliminacion() {
     }
     
     const tipoNombre = obtenerNombreTipo(tipoEliminacionActual);
-    const nombreElemento = elementoSeleccionadoEliminar.nombre || 
-                          elementoSeleccionadoEliminar.nombre_requerimiento ||
-                          elementoSeleccionadoEliminar.nombre_subgrupo_denuncia ||
-                          elementoSeleccionadoEliminar.nombre_grupo_denuncia ||
-                          elementoSeleccionadoEliminar.nombre_familia_denuncia;
+    const nombreElemento = obtenerNombreElemento(elementoSeleccionadoEliminar, tipoEliminacionActual);
+    const elementoId = obtenerIdElemento(elementoSeleccionadoEliminar, tipoEliminacionActual);
     
     // Mostrar confirmación
     const resultado = await Swal.fire({
@@ -309,7 +412,9 @@ async function confirmarEliminacion() {
                 <p>Está a punto de eliminar el siguiente elemento:</p>
                 <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0;">
                     <strong>${tipoNombre}:</strong> ${nombreElemento}<br>
-                    <strong>ID:</strong> ${elementoSeleccionadoEliminar.id || elementoSeleccionadoEliminar.id_requerimiento || elementoSeleccionadoEliminar.id_subgrupo_denuncia || elementoSeleccionadoEliminar.id_grupo_denuncia || elementoSeleccionadoEliminar.id_familia_denuncia}
+                    <strong>ID:</strong> ${elementoId}
+                    ${elementoSeleccionadoEliminar.codigo_requerimiento || elementoSeleccionadoEliminar.codigo_subgrupo || elementoSeleccionadoEliminar.codigo_grupo || elementoSeleccionadoEliminar.codigo_familia ? 
+                    `<br><strong>Código:</strong> ${elementoSeleccionadoEliminar.codigo_requerimiento || elementoSeleccionadoEliminar.codigo_subgrupo || elementoSeleccionadoEliminar.codigo_grupo || elementoSeleccionadoEliminar.codigo_familia}` : ''}
                 </div>
                 <p style="color: #dc3545; font-weight: bold;">
                     <i class="fa-solid fa-triangle-exclamation"></i>
@@ -322,7 +427,9 @@ async function confirmarEliminacion() {
         confirmButtonColor: '#dc3545',
         cancelButtonColor: '#6c757d',
         confirmButtonText: 'Sí, eliminar',
-        cancelButtonText: 'Cancelar'
+        cancelButtonText: 'Cancelar',
+        backdrop: true,
+        allowOutsideClick: () => !Swal.isLoading()
     });
     
     if (resultado.isConfirmed) {
@@ -334,43 +441,45 @@ async function confirmarEliminacion() {
 async function ejecutarEliminacion() {
     if (!elementoSeleccionadoEliminar || !tipoEliminacionActual) return;
     
-    const id = elementoSeleccionadoEliminar.id || 
-               elementoSeleccionadoEliminar.id_requerimiento ||
-               elementoSeleccionadoEliminar.id_subgrupo_denuncia ||
-               elementoSeleccionadoEliminar.id_grupo_denuncia ||
-               elementoSeleccionadoEliminar.id_familia_denuncia;
-    
+    const elementoId = obtenerIdElemento(elementoSeleccionadoEliminar, tipoEliminacionActual);
     const tipoNombre = obtenerNombreTipo(tipoEliminacionActual);
-    const nombreElemento = elementoSeleccionadoEliminar.nombre || 
-                          elementoSeleccionadoEliminar.nombre_requerimiento ||
-                          elementoSeleccionadoEliminar.nombre_subgrupo_denuncia ||
-                          elementoSeleccionadoEliminar.nombre_grupo_denuncia ||
-                          elementoSeleccionadoEliminar.nombre_familia_denuncia;
+    const nombreElemento = obtenerNombreElemento(elementoSeleccionadoEliminar, tipoEliminacionActual);
     
     try {
         // Determinar la URL según el tipo
         let url = '';
         switch(tipoEliminacionActual) {
             case 'requerimiento':
-                url = `/api/requerimientos/${id}/`;
+                url = `/api/requerimientos/${elementoId}/`;
                 break;
             case 'subgrupo':
-                url = `/api/subgrupos/${id}/`;
+                url = `/api/subgrupos/${elementoId}/`;
                 break;
             case 'grupo':
-                url = `/api/grupos/${id}/`;
+                url = `/api/grupos/${elementoId}/`;
                 break;
             case 'familia':
-                url = `/api/familias/${id}/`;
+                url = `/api/familias/${elementoId}/`;
                 break;
         }
         
         console.log(`🗑️ Eliminando ${tipoEliminacionActual} en: ${url}`);
         
+        // Mostrar loading
+        Swal.fire({
+            title: 'Eliminando...',
+            text: `Por favor espere mientras se elimina el ${tipoNombre}`,
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
         const response = await fetch(url, {
             method: 'DELETE',
             headers: {
-                'X-CSRFToken': getCSRFToken()
+                'X-CSRFToken': getCSRFToken(),
+                'Content-Type': 'application/json'
             }
         });
         
@@ -379,28 +488,46 @@ async function ejecutarEliminacion() {
             throw new Error(errorData.error || `Error ${response.status}`);
         }
         
+        // Cerrar loading
+        Swal.close();
+        
         // Mostrar éxito y recargar
         Swal.fire({
             title: '¡Eliminado!',
             html: `
                 <p>El ${tipoNombre} <strong>"${nombreElemento}"</strong> ha sido eliminado correctamente.</p>
+                <p>La página se recargará automáticamente...</p>
             `,
             icon: 'success',
             confirmButtonText: 'Aceptar',
-            timer: 2000,
+            timer: 3000,
+            timerProgressBar: true,
             didClose: () => {
                 // Recargar la página
                 window.location.reload();
             }
         });
         
+        // Recargar automáticamente después del timer
+        setTimeout(() => {
+            window.location.reload();
+        }, 3000);
+        
     } catch (error) {
         console.error('❌ Error eliminando elemento:', error);
+        
+        // Cerrar loading si está abierto
+        Swal.close();
         
         let mensajeError = `Error al eliminar el ${tipoNombre}: ${error.message}`;
         
         // Mensajes más específicos para errores comunes
-        if (error.message.includes('violates foreign key constraint')) {
+        if (error.message.includes('violates foreign key constraint') || 
+            error.message.includes('tiene elementos asociados') ||
+            error.message.includes('tiene grupos asociados') ||
+            error.message.includes('tiene subgrupos asociados') ||
+            error.message.includes('tiene requerimientos asociados') ||
+            error.message.includes('tiene denuncias asociadas')) {
             mensajeError = `No se puede eliminar este ${tipoNombre} porque tiene elementos dependientes. Elimine primero los elementos asociados.`;
         }
         
@@ -421,19 +548,8 @@ function cerrarModalEliminar() {
 
 // ✅ FUNCIONES DE UTILIDAD
 function getCSRFToken() {
-    const name = 'csrftoken';
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
-            }
-        }
-    }
-    return cookieValue;
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    return csrfToken ? csrfToken.value : '';
 }
 
 function mostrarError(mensaje) {
@@ -452,3 +568,13 @@ window.onclick = function(event) {
         cerrarModalEliminar();
     }
 }
+
+// Permitir cerrar con ESC
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        const modal = document.getElementById('modal-eliminar');
+        if (modal.style.display === 'block') {
+            cerrarModalEliminar();
+        }
+    }
+});

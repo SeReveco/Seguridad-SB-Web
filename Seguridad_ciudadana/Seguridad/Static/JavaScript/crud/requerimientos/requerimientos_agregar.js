@@ -1,4 +1,4 @@
-// Variables globales
+// Variables globales para almacenar datos
 let familias = [];
 let grupos = [];
 let subgrupos = [];
@@ -15,8 +15,11 @@ document.addEventListener('DOMContentLoaded', function() {
 async function cargarDatosIniciales() {
     try {
         console.log('📥 Cargando datos iniciales...');
-        await cargarFamilias();
-        await cargarTodosLosRequerimientos();
+        await Promise.all([
+            cargarFamilias(),
+            cargarTodosLosRequerimientos()
+        ]);
+        actualizarEstadisticas();
         console.log('✅ Datos iniciales cargados correctamente');
     } catch (error) {
         console.error('❌ Error cargando datos iniciales:', error);
@@ -24,28 +27,51 @@ async function cargarDatosIniciales() {
     }
 }
 
-// Función mejorada para mostrar errores
+// ✅ FUNCIÓN: Actualizar estadísticas
+function actualizarEstadisticas() {
+    try {
+        document.getElementById('total-familias').textContent = familias.length;
+        document.getElementById('total-grupos').textContent = grupos.length;
+        document.getElementById('total-subgrupos').textContent = subgrupos.length;
+        document.getElementById('total-requerimientos').textContent = requerimientos.length;
+        
+        console.log('📊 Estadísticas actualizadas:', {
+            familias: familias.length,
+            grupos: grupos.length,
+            subgrupos: subgrupos.length,
+            requerimientos: requerimientos.length
+        });
+    } catch (error) {
+        console.error('❌ Error actualizando estadísticas:', error);
+    }
+}
+
+// ✅ FUNCIÓN: Mostrar error con SweetAlert2
 function mostrarError(mensaje) {
     Swal.fire({
         icon: 'error',
         title: 'Error',
         text: mensaje,
-        confirmButtonText: 'Entendido'
+        confirmButtonText: 'Entendido',
+        background: '#f8f9fa',
+        confirmButtonColor: '#dc3545'
     });
 }
 
-// Función mejorada para mostrar éxito
+// ✅ FUNCIÓN: Mostrar éxito con SweetAlert2
 function mostrarExito(mensaje) {
     Swal.fire({
         icon: 'success',
         title: 'Éxito',
         text: mensaje,
         confirmButtonText: 'Continuar',
-        timer: 3000
+        timer: 3000,
+        background: '#f8f9fa',
+        confirmButtonColor: '#28a745'
     });
 }
 
-// Cargar familias desde la API
+// ✅ FUNCIÓN: Cargar familias desde la API
 async function cargarFamilias() {
     try {
         console.log('📥 Cargando familias...');
@@ -63,167 +89,247 @@ async function cargarFamilias() {
         
         familias.forEach(familia => {
             const option = document.createElement('option');
-            option.value = familia.id_familia_denuncia || familia.id;
-            option.textContent = familia.nombre_familia_denuncia;
+            option.value = familia.id;
+            option.textContent = `${familia.nombre_familia_denuncia} (${familia.codigo_familia})`;
             selectFamilia.appendChild(option);
         });
+        
     } catch (error) {
         console.error('❌ Error cargando familias:', error);
         throw error;
     }
 }
 
-// Cargar grupos basados en familia seleccionada
+// ✅ FUNCIÓN: Cargar grupos basados en familia seleccionada
 async function cargarGrupos() {
     try {
-        const familiaId = document.getElementById('select-familia').value;
+        const familiaSelect = document.getElementById('select-familia');
+        const familiaId = familiaSelect.value;
         const selectGrupo = document.getElementById('select-grupo');
         const btnNuevoGrupo = document.querySelector('button[onclick="mostrarInput(\'grupo\')"]');
         
-        if (!familiaId) {
+        console.log('🔧 Cargando grupos para familia:', familiaId);
+
+        if (!familiaId || familiaId === '') {
             selectGrupo.innerHTML = '<option value="">Primero seleccione una familia</option>';
             selectGrupo.disabled = true;
-            btnNuevoGrupo.disabled = true;
-            habilitarBotonGuardar();
+            if (btnNuevoGrupo) btnNuevoGrupo.disabled = true;
+            limpiarNivelesInferiores();
             return;
         }
+
+        const familiaIdNum = parseInt(familiaId);
+        if (isNaN(familiaIdNum)) {
+            throw new Error('ID de familia inválido');
+        }
+
+        console.log(`📥 Haciendo request a: /api/grupos/?familia_id=${familiaIdNum}`);
+        const response = await fetch(`/api/grupos/?familia_id=${familiaIdNum}`);
         
-        console.log(`📥 Cargando grupos para familia ${familiaId}...`);
-        const response = await fetch(`/api/grupos/?familia_id=${familiaId}`);
+        console.log('🔧 Response status:', response.status);
         
         if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+            const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
         
         grupos = await response.json();
         console.log('✅ Grupos cargados:', grupos);
         
         selectGrupo.innerHTML = '<option value="">Seleccionar Grupo</option>';
-        grupos.forEach(grupo => {
-            const option = document.createElement('option');
-            option.value = grupo.id_grupo_denuncia || grupo.id;
-            option.textContent = grupo.nombre_grupo_denuncia;
-            selectGrupo.appendChild(option);
-        });
+        
+        if (grupos.length === 0) {
+            selectGrupo.innerHTML += '<option value="" disabled>No hay grupos para esta familia</option>';
+        } else {
+            grupos.forEach(grupo => {
+                const option = document.createElement('option');
+                option.value = grupo.id_grupo_denuncia;
+                option.textContent = `${grupo.nombre_grupo_denuncia} (${grupo.codigo_grupo})`;
+                selectGrupo.appendChild(option);
+            });
+        }
         
         selectGrupo.disabled = false;
-        btnNuevoGrupo.disabled = false;
+        if (btnNuevoGrupo) btnNuevoGrupo.disabled = false;
         
-        // Limpiar niveles inferiores
-        document.getElementById('select-subgrupo').innerHTML = '<option value="">Primero seleccione un grupo</option>';
-        document.getElementById('select-subgrupo').disabled = true;
-        document.getElementById('select-requerimiento').innerHTML = '<option value="">Primero seleccione un subgrupo</option>';
-        document.getElementById('select-requerimiento').disabled = true;
-        
-        habilitarBotonGuardar();
+        limpiarNivelesInferiores();
         
     } catch (error) {
         console.error('❌ Error cargando grupos:', error);
         mostrarError('Error cargando grupos: ' + error.message);
+        
+        const selectGrupo = document.getElementById('select-grupo');
+        selectGrupo.innerHTML = '<option value="">Error al cargar grupos</option>';
+        selectGrupo.disabled = true;
+        limpiarNivelesInferiores();
     }
 }
 
-// Cargar subgrupos basados en grupo seleccionado
+// ✅ FUNCIÓN: Cargar subgrupos basados en grupo seleccionado
 async function cargarSubgrupos() {
     try {
-        const grupoId = document.getElementById('select-grupo').value;
+        const grupoSelect = document.getElementById('select-grupo');
+        const grupoId = grupoSelect.value;
         const selectSubgrupo = document.getElementById('select-subgrupo');
         const btnNuevoSubgrupo = document.querySelector('button[onclick="mostrarInput(\'subgrupo\')"]');
         
-        console.log(`🔧 Cargando subgrupos para grupo: ${grupoId}`);
-        
-        if (!grupoId) {
+        console.log('🔧 Cargando subgrupos para grupo:', grupoId);
+
+        if (!grupoId || grupoId === '') {
             selectSubgrupo.innerHTML = '<option value="">Primero seleccione un grupo</option>';
             selectSubgrupo.disabled = true;
-            btnNuevoSubgrupo.disabled = true;
-            habilitarBotonGuardar();
+            if (btnNuevoSubgrupo) btnNuevoSubgrupo.disabled = true;
+            limpiarRequerimientos();
             return;
         }
-        
-        const response = await fetch(`/api/subgrupos/?grupo_id=${grupoId}`);
+
+        const grupoIdNum = parseInt(grupoId);
+        if (isNaN(grupoIdNum)) {
+            throw new Error('ID de grupo inválido');
+        }
+
+        console.log(`📥 Haciendo request a: /api/subgrupos/?grupo_id=${grupoIdNum}`);
+        const response = await fetch(`/api/subgrupos/?grupo_id=${grupoIdNum}`);
         
         console.log('🔧 Response status:', response.status);
         
         if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+            const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
         
-        const subgruposData = await response.json();
-        console.log('🔧 Subgrupos recibidos:', subgruposData);
+        subgrupos = await response.json();
+        console.log('✅ Subgrupos cargados:', subgrupos);
         
         selectSubgrupo.innerHTML = '<option value="">Seleccionar Subgrupo</option>';
         
-        if (subgruposData.length === 0) {
+        if (subgrupos.length === 0) {
             selectSubgrupo.innerHTML += '<option value="" disabled>No hay subgrupos para este grupo</option>';
         } else {
-            subgruposData.forEach(subgrupo => {
+            subgrupos.forEach(subgrupo => {
                 const option = document.createElement('option');
-                option.value = subgrupo.id_subgrupo_denuncia || subgrupo.id;
-                option.textContent = subgrupo.nombre_subgrupo_denuncia || subgrupo.nombre;
+                option.value = subgrupo.id;
+                option.textContent = `${subgrupo.nombre_subgrupo_denuncia} (${subgrupo.codigo_subgrupo})`;
                 selectSubgrupo.appendChild(option);
             });
         }
         
         selectSubgrupo.disabled = false;
-        btnNuevoSubgrupo.disabled = false;
+        if (btnNuevoSubgrupo) btnNuevoSubgrupo.disabled = false;
         
-        // Limpiar requerimiento
-        document.getElementById('select-requerimiento').innerHTML = '<option value="">Primero seleccione un subgrupo</option>';
-        document.getElementById('select-requerimiento').disabled = true;
-        
-        habilitarBotonGuardar();
+        limpiarRequerimientos();
         
     } catch (error) {
         console.error('❌ Error cargando subgrupos:', error);
         mostrarError('Error cargando subgrupos: ' + error.message);
+        
+        const selectSubgrupo = document.getElementById('select-subgrupo');
+        selectSubgrupo.innerHTML = '<option value="">Error al cargar subgrupos</option>';
+        selectSubgrupo.disabled = true;
+        limpiarRequerimientos();
     }
 }
 
-// Habilitar requerimiento cuando se selecciona subgrupo
-async function habilitarRequerimiento() {
+// ✅ FUNCIÓN: Cargar requerimientos basados en subgrupo seleccionado
+async function cargarRequerimientos() {
     try {
-        const subgrupoId = document.getElementById('select-subgrupo').value;
+        const subgrupoSelect = document.getElementById('select-subgrupo');
+        const subgrupoId = subgrupoSelect.value;
         const selectRequerimiento = document.getElementById('select-requerimiento');
         const btnNuevoRequerimiento = document.querySelector('button[onclick="mostrarInput(\'requerimiento\')"]');
         
-        if (!subgrupoId) {
+        console.log('🔧 Cargando requerimientos para subgrupo:', subgrupoId);
+
+        if (!subgrupoId || subgrupoId === '') {
             selectRequerimiento.innerHTML = '<option value="">Primero seleccione un subgrupo</option>';
             selectRequerimiento.disabled = true;
-            btnNuevoRequerimiento.disabled = true;
+            if (btnNuevoRequerimiento) btnNuevoRequerimiento.disabled = true;
+            ocultarInputRequerimiento();
             habilitarBotonGuardar();
             return;
         }
+
+        const subgrupoIdNum = parseInt(subgrupoId);
+        if (isNaN(subgrupoIdNum)) {
+            throw new Error('ID de subgrupo inválido');
+        }
+
+        console.log(`📥 Haciendo request a: /api/requerimientos/?subgrupo_id=${subgrupoIdNum}`);
+        const response = await fetch(`/api/requerimientos/?subgrupo_id=${subgrupoIdNum}`);
         
-        console.log(`📥 Cargando requerimientos para subgrupo ${subgrupoId}...`);
-        const response = await fetch(`/api/requerimientos/?subgrupo_id=${subgrupoId}`);
+        console.log('🔧 Response status:', response.status);
         
         if (!response.ok) {
-            throw new Error(`Error HTTP: ${response.status}`);
+            const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
         
-        requerimientos = await response.json();
-        console.log('✅ Requerimientos cargados:', requerimientos);
+        const requerimientosData = await response.json();
+        console.log('✅ Requerimientos cargados:', requerimientosData);
         
         selectRequerimiento.innerHTML = '<option value="">Seleccionar Requerimiento</option>';
-        requerimientos.forEach(req => {
-            const option = document.createElement('option');
-            option.value = req.id_requerimiento || req.id;
-            option.textContent = `${req.nombre_requerimiento} (${req.clasificacion_requerimiento})`;
-            selectRequerimiento.appendChild(option);
-        });
+        
+        if (requerimientosData.length === 0) {
+            selectRequerimiento.innerHTML += '<option value="" disabled>No hay requerimientos para este subgrupo</option>';
+        } else {
+            requerimientosData.forEach(req => {
+                const option = document.createElement('option');
+                option.value = req.id;
+                option.textContent = `${req.nombre_requerimiento} (${req.clasificacion_requerimiento})`;
+                option.setAttribute('data-descripcion', req.descripcion_requerimiento || '');
+                selectRequerimiento.appendChild(option);
+            });
+        }
         
         selectRequerimiento.disabled = false;
-        btnNuevoRequerimiento.disabled = false;
+        if (btnNuevoRequerimiento) btnNuevoRequerimiento.disabled = false;
         
         habilitarBotonGuardar();
         
     } catch (error) {
         console.error('❌ Error cargando requerimientos:', error);
         mostrarError('Error cargando requerimientos: ' + error.message);
+        
+        const selectRequerimiento = document.getElementById('select-requerimiento');
+        selectRequerimiento.innerHTML = '<option value="">Error al cargar requerimientos</option>';
+        selectRequerimiento.disabled = true;
     }
 }
 
-// Mostrar/ocultar inputs para nuevos elementos
+// ✅ FUNCIÓN: Limpiar niveles inferiores (subgrupos y requerimientos)
+function limpiarNivelesInferiores() {
+    const selectSubgrupo = document.getElementById('select-subgrupo');
+    const btnNuevoSubgrupo = document.querySelector('button[onclick="mostrarInput(\'subgrupo\')"]');
+    
+    selectSubgrupo.innerHTML = '<option value="">Primero seleccione un grupo</option>';
+    selectSubgrupo.disabled = true;
+    if (btnNuevoSubgrupo) btnNuevoSubgrupo.disabled = true;
+    
+    limpiarRequerimientos();
+}
+
+// ✅ FUNCIÓN: Limpiar requerimientos
+function limpiarRequerimientos() {
+    const selectRequerimiento = document.getElementById('select-requerimiento');
+    const btnNuevoRequerimiento = document.querySelector('button[onclick="mostrarInput(\'requerimiento\')"]');
+    
+    selectRequerimiento.innerHTML = '<option value="">Primero seleccione un subgrupo</option>';
+    selectRequerimiento.disabled = true;
+    if (btnNuevoRequerimiento) btnNuevoRequerimiento.disabled = true;
+    
+    ocultarInputRequerimiento();
+    habilitarBotonGuardar();
+}
+
+// ✅ FUNCIÓN: Ocultar input de requerimiento
+function ocultarInputRequerimiento() {
+    const inputRequerimiento = document.getElementById('input-requerimiento');
+    inputRequerimiento.style.display = 'none';
+    document.getElementById('nuevo-requerimiento').value = '';
+    document.getElementById('descripcion-requerimiento').value = '';
+}
+
+// ✅ FUNCIÓN: Mostrar/ocultar inputs para nuevos elementos
 function mostrarInput(tipo) {
     const inputDiv = document.getElementById(`input-${tipo}`);
     const todosInputs = document.querySelectorAll('.input-nuevo');
@@ -236,7 +342,13 @@ function mostrarInput(tipo) {
     // Mostrar el input seleccionado
     inputDiv.style.display = 'block';
     
-    // Si es requerimiento, actualizar el estado del botón guardar
+    // Enfocar el primer input
+    const primerInput = inputDiv.querySelector('input');
+    if (primerInput) {
+        primerInput.focus();
+    }
+    
+    // Si es requerimiento, actualizar el estado del botón
     if (tipo === 'requerimiento') {
         setTimeout(() => {
             habilitarBotonGuardar();
@@ -244,15 +356,17 @@ function mostrarInput(tipo) {
     }
 }
 
-// Agregar nueva familia
+// ✅ FUNCIÓN: Agregar nueva familia
 async function agregarFamilia() {
-    const nombre = document.getElementById('nueva-familia').value.trim();
+    const nombreInput = document.getElementById('nueva-familia');
+    const nombre = nombreInput.value.trim();
     
     if (!nombre) {
         mostrarError('Ingrese un nombre para la familia');
+        nombreInput.focus();
         return;
     }
-    
+
     try {
         console.log(`➕ Agregando nueva familia: ${nombre}`);
         
@@ -266,36 +380,22 @@ async function agregarFamilia() {
                 nombre: nombre 
             })
         });
-        
-        console.log('🔧 DEBUG Familia - Respuesta:', {
-            status: response.status,
-            ok: response.ok
-        });
-        
+
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Error response:', errorText);
-            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
-        
+
         const nuevaFamilia = await response.json();
         console.log('✅ Familia agregada:', nuevaFamilia);
         
-        // Validar respuesta
-        if (!nuevaFamilia.id_familia_denuncia && !nuevaFamilia.id) {
-            throw new Error('El servidor no devolvió un ID válido');
-        }
-        
         // Limpiar formulario
-        document.getElementById('nueva-familia').value = '';
+        nombreInput.value = '';
         document.getElementById('input-familia').style.display = 'none';
         
-        // Recargar familias
+        // Recargar y seleccionar la nueva familia
         await cargarFamilias();
-        
-        // Seleccionar la nueva familia
-        const familiaId = nuevaFamilia.id_familia_denuncia || nuevaFamilia.id;
-        document.getElementById('select-familia').value = familiaId;
+        document.getElementById('select-familia').value = nuevaFamilia.id;
         
         // Cargar grupos para la nueva familia
         await cargarGrupos();
@@ -308,16 +408,23 @@ async function agregarFamilia() {
     }
 }
 
-// Agregar nuevo grupo
+// ✅ FUNCIÓN: Agregar nuevo grupo
 async function agregarGrupo() {
-    const nombre = document.getElementById('nuevo-grupo').value.trim();
+    const nombreInput = document.getElementById('nuevo-grupo');
+    const nombre = nombreInput.value.trim();
     const familiaId = document.getElementById('select-familia').value;
     
-    if (!nombre || !familiaId) {
-        mostrarError('Ingrese un nombre y seleccione una familia');
+    if (!nombre) {
+        mostrarError('Ingrese un nombre para el grupo');
+        nombreInput.focus();
         return;
     }
     
+    if (!familiaId) {
+        mostrarError('Seleccione una familia primero');
+        return;
+    }
+
     try {
         console.log(`➕ Agregando nuevo grupo: ${nombre} para familia ${familiaId}`);
         
@@ -329,39 +436,25 @@ async function agregarGrupo() {
             },
             body: JSON.stringify({ 
                 nombre: nombre,
-                familia_id: familiaId
+                familia_id: parseInt(familiaId)
             })
         });
-        
-        console.log('🔧 DEBUG Grupo - Respuesta:', {
-            status: response.status,
-            ok: response.ok
-        });
-        
+
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Error response:', errorText);
-            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
-        
+
         const nuevoGrupo = await response.json();
         console.log('✅ Grupo agregado:', nuevoGrupo);
         
-        // Validar respuesta
-        if (!nuevoGrupo.id_grupo_denuncia && !nuevoGrupo.id) {
-            throw new Error('El servidor no devolvió un ID válido');
-        }
-        
         // Limpiar formulario
-        document.getElementById('nuevo-grupo').value = '';
+        nombreInput.value = '';
         document.getElementById('input-grupo').style.display = 'none';
         
-        // Recargar grupos
+        // Recargar y seleccionar el nuevo grupo
         await cargarGrupos();
-        
-        // Seleccionar el nuevo grupo
-        const grupoId = nuevoGrupo.id_grupo_denuncia || nuevoGrupo.id;
-        document.getElementById('select-grupo').value = grupoId;
+        document.getElementById('select-grupo').value = nuevoGrupo.id_grupo_denuncia;
         
         // Cargar subgrupos para el nuevo grupo
         await cargarSubgrupos();
@@ -374,16 +467,23 @@ async function agregarGrupo() {
     }
 }
 
-// Agregar nuevo subgrupo
+// ✅ FUNCIÓN: Agregar nuevo subgrupo
 async function agregarSubgrupo() {
-    const nombre = document.getElementById('nuevo-subgrupo').value.trim();
+    const nombreInput = document.getElementById('nuevo-subgrupo');
+    const nombre = nombreInput.value.trim();
     const grupoId = document.getElementById('select-grupo').value;
     
-    if (!nombre || !grupoId) {
-        mostrarError('Ingrese un nombre y seleccione un grupo');
+    if (!nombre) {
+        mostrarError('Ingrese un nombre para el subgrupo');
+        nombreInput.focus();
         return;
     }
     
+    if (!grupoId) {
+        mostrarError('Seleccione un grupo primero');
+        return;
+    }
+
     try {
         console.log(`➕ Agregando nuevo subgrupo: ${nombre} para grupo ${grupoId}`);
         
@@ -395,38 +495,28 @@ async function agregarSubgrupo() {
             },
             body: JSON.stringify({ 
                 nombre: nombre,
-                grupo_id: grupoId
+                grupo_id: parseInt(grupoId)
             })
         });
-        
+
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('❌ Error response text:', errorText);
-            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
-        
+
         const nuevoSubgrupo = await response.json();
         console.log('✅ Subgrupo agregado:', nuevoSubgrupo);
         
-        // Validar que el subgrupo tenga los campos esperados
-        if (!nuevoSubgrupo.id_subgrupo_denuncia && !nuevoSubgrupo.id) {
-            console.error('❌ El servidor no devolvió un ID válido:', nuevoSubgrupo);
-            throw new Error('El servidor no devolvió un ID válido para el subgrupo');
-        }
-        
         // Limpiar formulario
-        document.getElementById('nuevo-subgrupo').value = '';
+        nombreInput.value = '';
         document.getElementById('input-subgrupo').style.display = 'none';
         
-        // Recargar los subgrupos
+        // Recargar y seleccionar el nuevo subgrupo
         await cargarSubgrupos();
+        document.getElementById('select-subgrupo').value = nuevoSubgrupo.id;
         
-        // Seleccionar el nuevo subgrupo
-        const subgrupoId = nuevoSubgrupo.id_subgrupo_denuncia || nuevoSubgrupo.id;
-        document.getElementById('select-subgrupo').value = subgrupoId;
-        
-        // Habilitar requerimientos
-        await habilitarRequerimiento();
+        // Cargar requerimientos para el nuevo subgrupo
+        await cargarRequerimientos();
         
         mostrarExito('Subgrupo agregado correctamente');
         
@@ -436,9 +526,10 @@ async function agregarSubgrupo() {
     }
 }
 
-// ✅ NUEVA FUNCIÓN: Agregar Requerimiento (botón específico)
+// ✅ FUNCIÓN: Agregar nuevo requerimiento - CORREGIDA (CAMPOS EXACTOS)
 async function agregarRequerimiento() {
-    const nombre = document.getElementById('nuevo-requerimiento').value.trim();
+    const nombreInput = document.getElementById('nuevo-requerimiento');
+    const nombre = nombreInput.value.trim();
     const subgrupoId = document.getElementById('select-subgrupo').value;
     const clasificacion = document.getElementById('clasificacion-requerimiento').value;
     const descripcion = document.getElementById('descripcion-requerimiento').value.trim();
@@ -452,14 +543,15 @@ async function agregarRequerimiento() {
     
     if (!nombre) {
         mostrarError('Ingrese un nombre para el requerimiento');
+        nombreInput.focus();
         return;
     }
     
     if (!subgrupoId) {
-        mostrarError('Debe seleccionar un subgrupo primero');
+        mostrarError('Seleccione un subgrupo primero');
         return;
     }
-    
+
     try {
         console.log(`➕ Agregando nuevo requerimiento: ${nombre} para subgrupo ${subgrupoId}`);
         
@@ -473,6 +565,7 @@ async function agregarRequerimiento() {
             }
         });
 
+        // ✅ CORREGIDO: Enviar los campos EXACTOS que espera el backend
         const response = await fetch('/api/requerimientos/', {
             method: 'POST',
             headers: {
@@ -480,16 +573,19 @@ async function agregarRequerimiento() {
                 'X-CSRFToken': getCSRFToken()
             },
             body: JSON.stringify({ 
-                nombre: nombre,
-                subgrupo_id: subgrupoId,
-                clasificacion: clasificacion,
-                descripcion: descripcion
+                nombre: nombre,  // ✅ Campo que espera el backend
+                subgrupo_id: parseInt(subgrupoId),  // ✅ Campo que espera el backend (subgrupo_id)
+                clasificacion: clasificacion,  // ✅ Campo que espera el backend
+                descripcion: descripcion  // ✅ Campo que espera el backend
             })
         });
 
+        console.log('🔧 Response status:', response.status);
+
         if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
+            const errorData = await response.json();
+            console.error('❌ Error response:', errorData);
+            throw new Error(errorData.error || `Error HTTP: ${response.status}`);
         }
 
         const nuevoRequerimiento = await response.json();
@@ -498,234 +594,263 @@ async function agregarRequerimiento() {
         // Cerrar loading
         Swal.close();
 
-        // Mostrar éxito con temporizador para recargar
-        Swal.fire({
-            icon: 'success',
-            title: '¡Éxito!',
-            text: 'Requerimiento creado correctamente. La página se recargará en 2 segundos...',
-            timer: 2000,
-            showConfirmButton: false,
-            timerProgressBar: true,
-            didClose: () => {
-                // Recargar la página para mostrar el nuevo requerimiento en la lista
-                location.reload();
-            }
-        });
-
-        // También recargar después del timer por si acaso
-        setTimeout(() => {
-            location.reload();
-        }, 2000);
-
+        // Limpiar formulario
+        nombreInput.value = '';
+        document.getElementById('descripcion-requerimiento').value = '';
+        document.getElementById('input-requerimiento').style.display = 'none';
+        
+        // Recargar requerimientos
+        await cargarRequerimientos();
+        
+        // Recargar lista principal
+        await cargarTodosLosRequerimientos();
+        
+        mostrarExito('Requerimiento agregado correctamente');
+        
     } catch (error) {
-        console.error('❌ Error creando requerimiento:', error);
+        console.error('❌ Error agregando requerimiento:', error);
         Swal.close();
-        mostrarError('Error al crear el requerimiento: ' + error.message);
+        mostrarError('Error al agregar requerimiento: ' + error.message);
     }
 }
 
-// Función para guardar el requerimiento completo (ACTUALIZADA CON RECARGA)
+// ✅ FUNCIÓN: Guardar requerimiento completo (formulario principal)
 async function guardarRequerimientoCompleto(event) {
     event.preventDefault();
     
+    const requerimientoId = document.getElementById('select-requerimiento').value;
     const inputRequerimientoVisible = document.getElementById('input-requerimiento').style.display !== 'none';
     const nuevoRequerimientoNombre = document.getElementById('nuevo-requerimiento').value.trim();
-    const requerimientoSeleccionado = document.getElementById('select-requerimiento').value;
     
-    console.log('🔧 Debug guardarRequerimientoCompleto:', {
+    console.log('🔧 Estado guardarRequerimientoCompleto:', {
+        requerimientoId,
         inputRequerimientoVisible,
-        nuevoRequerimientoNombre,
-        requerimientoSeleccionado
+        nuevoRequerimientoNombre
     });
 
-    // Caso 1: Hay un nuevo requerimiento escrito
-    if (inputRequerimientoVisible && nuevoRequerimientoNombre) {
-        console.log('📝 Creando nuevo requerimiento...');
-        
-        try {
-            // Mostrar loading
-            Swal.fire({
-                title: 'Creando requerimiento...',
-                text: 'Por favor espere',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            // Crear el nuevo requerimiento
-            const subgrupoId = document.getElementById('select-subgrupo').value;
-            const clasificacion = document.getElementById('clasificacion-requerimiento').value;
-            const descripcion = document.getElementById('descripcion-requerimiento').value.trim();
-
-            const response = await fetch('/api/requerimientos/', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': getCSRFToken()
-                },
-                body: JSON.stringify({ 
-                    nombre: nuevoRequerimientoNombre,
-                    subgrupo_id: subgrupoId,
-                    clasificacion: clasificacion,
-                    descripcion: descripcion
-                })
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Error HTTP: ${response.status} - ${errorText}`);
-            }
-
-            const nuevoRequerimiento = await response.json();
-            console.log('✅ Nuevo requerimiento creado:', nuevoRequerimiento);
-
-            // Cerrar loading
-            Swal.close();
-
-            // Mostrar éxito con temporizador para recargar
-            Swal.fire({
-                icon: 'success',
-                title: '¡Éxito!',
-                text: 'Requerimiento creado y guardado correctamente. La página se recargará en 2 segundos...',
-                timer: 2000,
-                showConfirmButton: false,
-                timerProgressBar: true,
-                didClose: () => {
-                    // Recargar la página para mostrar el nuevo requerimiento en la lista
-                    location.reload();
-                }
-            });
-
-            // También recargar después del timer por si acaso
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-
-        } catch (error) {
-            console.error('❌ Error creando requerimiento:', error);
-            Swal.close();
-            mostrarError('Error al crear el requerimiento: ' + error.message);
-        }
-    }
-    // Caso 2: Hay un requerimiento seleccionado del dropdown
-    else if (requerimientoSeleccionado) {
-        console.log('💾 Guardando requerimiento existente...');
-        
-        try {
-            // Mostrar loading
-            Swal.fire({
-                title: 'Guardando...',
-                text: 'Por favor espere',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            // Simular un pequeño delay para que se vea el loading
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Cerrar loading
-            Swal.close();
-
-            // Cerrar modal
-            cerrarModalRequerimiento();
-
-            // Mostrar éxito con temporizador para recargar
-            Swal.fire({
-                icon: 'success',
-                title: '¡Éxito!',
-                text: 'Requerimiento guardado correctamente. La página se recargará en 2 segundos...',
-                timer: 2000,
-                showConfirmButton: false,
-                timerProgressBar: true,
-                didClose: () => {
-                    // Recargar la página para actualizar la lista
-                    location.reload();
-                }
-            });
-
-            // También recargar después del timer por si acaso
-            setTimeout(() => {
-                location.reload();
-            }, 2000);
-
-        } catch (error) {
-            console.error('❌ Error guardando requerimiento:', error);
-            Swal.close();
-            mostrarError('Error al guardar el requerimiento: ' + error.message);
-        }
-    }
-    // Caso 3: No hay nada seleccionado ni escrito
-    else {
-        Swal.fire({
-            icon: 'warning',
-            title: 'Requerimiento no configurado',
-            text: 'Debe seleccionar un requerimiento existente o crear uno nuevo',
-            confirmButtonText: 'Entendido'
-        });
+    // Validar que se haya seleccionado o creado un requerimiento
+    if (!requerimientoId && (!inputRequerimientoVisible || !nuevoRequerimientoNombre)) {
+        mostrarError('Debe seleccionar un requerimiento existente o crear uno nuevo');
         return;
+    }
+
+    // Si se está creando un nuevo requerimiento, usar esa función
+    if (inputRequerimientoVisible && nuevoRequerimientoNombre) {
+        await agregarRequerimiento();
+    } else if (requerimientoId) {
+        // Si se seleccionó un requerimiento existente, simplemente cerrar el modal
+        mostrarExito('Requerimiento seleccionado correctamente');
+        cerrarModalRequerimiento();
+        
+        // Recargar la lista principal después de un breve delay
+        setTimeout(() => {
+            cargarTodosLosRequerimientos();
+        }, 1000);
     }
 }
 
-// ✅ CARGAR TODOS LOS REQUERIMIENTOS ACTUALIZADO - NUEVO FORMATO TARJETAS
+// ✅ FUNCIÓN: Cargar todos los requerimientos para la lista principal
 async function cargarTodosLosRequerimientos() {
     try {
-        console.log('📥 Cargando todos los requerimientos para lista...');
+        console.log('📥 Cargando todos los requerimientos...');
         const response = await fetch('/api/requerimientos/');
         
         if (!response.ok) {
             throw new Error(`Error HTTP: ${response.status}`);
         }
         
-        const todosRequerimientos = await response.json();
-        console.log('✅ Todos los requerimientos cargados:', todosRequerimientos);
+        requerimientos = await response.json();
+        console.log('✅ Todos los requerimientos cargados:', requerimientos);
         
-        const lista = document.getElementById('lista-requerimientos');
-        if (!lista) {
-            console.error('❌ Contenedor lista-requerimientos no encontrado');
-            return;
-        }
-        
-        lista.innerHTML = '';
-        
-        if (todosRequerimientos.length === 0) {
-            lista.innerHTML = `
-                <div class="sin-requerimientos">
-                    <i class="fa-solid fa-inbox"></i>
-                    <h4>No hay requerimientos registrados</h4>
-                    <p>Utilice el botón "Agregar Nuevo Requerimiento" para crear el primero.</p>
-                </div>
-            `;
-            return;
-        }
-        
-        // Crear contenedor grid para las tarjetas
-        const gridContainer = document.createElement('div');
-        gridContainer.className = 'lista-requerimientos-grid';
-        
-        todosRequerimientos.forEach((req, index) => {
-            const card = crearTarjetaRequerimiento(req, index);
-            gridContainer.appendChild(card);
-        });
-        
-        lista.appendChild(gridContainer);
-        
-        console.log('✅ Lista de requerimientos renderizada en formato tarjetas');
+        renderizarListaRequerimientos();
+        actualizarEstadisticas();
         
     } catch (error) {
         console.error('❌ Error cargando requerimientos:', error);
-        mostrarError('Error cargando la lista de requerimientos: ' + error.message);
+        throw error;
     }
 }
 
-// Funciones del modal
+// ✅ FUNCIÓN: Renderizar lista de requerimientos
+function renderizarListaRequerimientos() {
+    const lista = document.getElementById('lista-requerimientos');
+    
+    if (!lista) {
+        console.error('❌ Contenedor lista-requerimientos no encontrado');
+        return;
+    }
+    
+    lista.innerHTML = '';
+    
+    if (requerimientos.length === 0) {
+        lista.innerHTML = `
+            <div class="sin-requerimientos">
+                <i class="fa-solid fa-inbox"></i>
+                <h4>No hay requerimientos registrados</h4>
+                <p>Utilice el botón "Agregar Nuevo Requerimiento" para crear el primero.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    // Crear contenedor grid para las tarjetas
+    const gridContainer = document.createElement('div');
+    gridContainer.className = 'lista-requerimientos-grid';
+    
+    requerimientos.forEach((req, index) => {
+        const card = crearTarjetaRequerimiento(req, index);
+        gridContainer.appendChild(card);
+    });
+    
+    lista.appendChild(gridContainer);
+}
+
+// ✅ FUNCIÓN: Crear tarjeta de requerimiento
+function crearTarjetaRequerimiento(requerimiento, index) {
+    const card = document.createElement('div');
+    card.className = 'requerimiento-card';
+    card.style.animationDelay = `${index * 0.1}s`;
+    
+    const clasificacion = requerimiento.clasificacion_requerimiento || 'Sin clasificación';
+    const claseClasificacion = `clasificacion-${clasificacion.toLowerCase()}`;
+    
+    card.innerHTML = `
+        <div class="requerimiento-header">
+            <h3 class="requerimiento-nombre">${requerimiento.nombre_requerimiento}</h3>
+            <span class="requerimiento-clasificacion ${claseClasificacion}">
+                ${clasificacion}
+            </span>
+        </div>
+        <div class="requerimiento-info">
+            <div class="requerimiento-dato">
+                <strong><i class="fa-solid fa-hashtag"></i> Código:</strong>
+                <span class="codigo-requerimiento">${requerimiento.codigo_requerimiento || 'N/A'}</span>
+            </div>
+            <div class="requerimiento-dato">
+                <strong><i class="fa-solid fa-sitemap"></i> Familia:</strong>
+                <span>${requerimiento.familia_nombre || 'Sin familia'}</span>
+            </div>
+            <div class="requerimiento-dato">
+                <strong><i class="fa-solid fa-layer-group"></i> Grupo:</strong>
+                <span>${requerimiento.grupo_nombre || 'Sin grupo'}</span>
+            </div>
+            <div class="requerimiento-dato">
+                <strong><i class="fa-solid fa-stream"></i> Subgrupo:</strong>
+                <span>${requerimiento.subgrupo_nombre || 'Sin subgrupo'}</span>
+            </div>
+            ${requerimiento.descripcion_requerimiento ? `
+            <div class="requerimiento-dato descripcion">
+                <strong><i class="fa-solid fa-file-lines"></i> Descripción:</strong>
+                <span class="texto-descripcion">${requerimiento.descripcion_requerimiento}</span>
+            </div>
+            ` : ''}
+        </div>
+        <div class="requerimiento-acciones">
+            <button class="btn-editar-requerimiento" onclick="editarRequerimiento(${requerimiento.id})">
+                <i class="fa-solid fa-pen"></i> Editar
+            </button>
+            <button class="btn-eliminar-requerimiento-card" onclick="eliminarRequerimiento(${requerimiento.id})">
+                <i class="fa-solid fa-trash"></i> Eliminar
+            </button>
+        </div>
+    `;
+    
+    return card;
+}
+
+// ✅ FUNCIÓN: Filtrar requerimientos en la lista
+function filtrarRequerimientos() {
+    const searchTerm = document.getElementById('buscar-requerimientos').value.toLowerCase();
+    const cards = document.querySelectorAll('.requerimiento-card');
+    
+    let resultados = 0;
+    
+    cards.forEach(card => {
+        const texto = card.textContent.toLowerCase();
+        if (texto.includes(searchTerm)) {
+            card.style.display = 'block';
+            resultados++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+    
+    // Mostrar mensaje si no hay resultados
+    if (resultados === 0 && searchTerm) {
+        const lista = document.getElementById('lista-requerimientos');
+        const mensajeNoResultados = document.createElement('div');
+        mensajeNoResultados.className = 'no-resultados';
+        mensajeNoResultados.innerHTML = `
+            <i class="fa-solid fa-search"></i>
+            <h4>No se encontraron resultados</h4>
+            <p>No hay requerimientos que coincidan con "${searchTerm}"</p>
+        `;
+        // Solo agregar el mensaje si no existe ya
+        if (!document.querySelector('.no-resultados')) {
+            lista.appendChild(mensajeNoResultados);
+        }
+    } else {
+        // Remover mensaje de no resultados si existe
+        const mensajeNoResultados = document.querySelector('.no-resultados');
+        if (mensajeNoResultados) {
+            mensajeNoResultados.remove();
+        }
+    }
+}
+
+// ✅ FUNCIÓN: Obtener token CSRF
+function getCSRFToken() {
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]');
+    return csrfToken ? csrfToken.value : '';
+}
+
+// ✅ FUNCIÓN: Inicializar event listeners
+function inicializarEventListeners() {
+    console.log('🔧 Inicializando event listeners...');
+    
+    // Event listeners para los selects en cascada
+    document.getElementById('select-familia').addEventListener('change', cargarGrupos);
+    document.getElementById('select-grupo').addEventListener('change', cargarSubgrupos);
+    document.getElementById('select-subgrupo').addEventListener('change', cargarRequerimientos);
+    
+    // Event listener para búsqueda
+    document.getElementById('buscar-requerimientos').addEventListener('input', filtrarRequerimientos);
+    
+    // Event listeners para inputs de nuevos elementos
+    document.getElementById('nuevo-requerimiento').addEventListener('input', habilitarBotonGuardar);
+    document.getElementById('select-requerimiento').addEventListener('change', habilitarBotonGuardar);
+}
+
+// ✅ FUNCIÓN: Habilitar/deshabilitar botón guardar
+function habilitarBotonGuardar() {
+    const requerimientoId = document.getElementById('select-requerimiento').value;
+    const inputRequerimientoVisible = document.getElementById('input-requerimiento').style.display !== 'none';
+    const nuevoRequerimientoNombre = document.getElementById('nuevo-requerimiento').value.trim();
+    const btnGuardar = document.getElementById('btn-guardar-requerimiento');
+    
+    if (!btnGuardar) return;
+    
+    const puedeGuardar = requerimientoId || (inputRequerimientoVisible && nuevoRequerimientoNombre);
+    btnGuardar.disabled = !puedeGuardar;
+    
+    console.log('🔧 Estado botón guardar:', {
+        puedeGuardar,
+        requerimientoId,
+        inputRequerimientoVisible,
+        nuevoRequerimientoNombre
+    });
+}
+
+// ✅ FUNCIONES DEL MODAL
 function abrirModalRequerimiento() {
     document.getElementById('modal-requerimiento').style.display = 'block';
-    // Inicializar el estado del botón cuando se abre el modal
+    // Resetear el formulario
+    document.getElementById('form-requerimiento').reset();
+    limpiarNivelesInferiores();
+    
+    // Cargar datos iniciales del modal
     setTimeout(() => {
-        habilitarBotonGuardar();
+        cargarFamilias().catch(console.error);
     }, 100);
 }
 
@@ -741,12 +866,7 @@ function cerrarModalRequerimiento() {
     habilitarBotonGuardar();
 }
 
-// Obtener token CSRF
-function getCSRFToken() {
-    return document.querySelector('[name=csrfmiddlewaretoken]').value;
-}
-
-// Cerrar modal al hacer clic fuera
+// ✅ Cerrar modal al hacer clic fuera
 window.onclick = function(event) {
     const modal = document.getElementById('modal-requerimiento');
     if (event.target === modal) {
@@ -754,161 +874,18 @@ window.onclick = function(event) {
     }
 }
 
-// Función para habilitar el botón de guardar (ACTUALIZADA)
-function habilitarBotonGuardar() {
-    const requerimientoId = document.getElementById('select-requerimiento').value;
-    const inputRequerimientoVisible = document.getElementById('input-requerimiento').style.display !== 'none';
-    const nuevoRequerimientoNombre = document.getElementById('nuevo-requerimiento').value.trim();
-    const btnGuardar = document.querySelector('.btn-guardar');
-    
-    if (!btnGuardar) {
-        console.error('❌ Botón guardar no encontrado');
-        return;
-    }
-    
-    // Habilitar si:
-    // - Hay un requerimiento seleccionado O
-    // - El input de nuevo requerimiento está visible Y tiene texto
-    const puedeGuardar = requerimientoId || (inputRequerimientoVisible && nuevoRequerimientoNombre);
-    
-    console.log('🔧 Estado botón guardar:', {
-        puedeGuardar,
-        requerimientoId,
-        inputRequerimientoVisible,
-        nuevoRequerimientoNombre
-    });
-    
-    if (puedeGuardar) {
-        btnGuardar.disabled = false;
-        btnGuardar.style.backgroundColor = '#28a745';
-        btnGuardar.style.cursor = 'pointer';
-    } else {
-        btnGuardar.disabled = true;
-        btnGuardar.style.backgroundColor = '#6c757d';
-        btnGuardar.style.cursor = 'not-allowed';
-    }
+// ✅ Funciones placeholder para editar y eliminar (se implementarán en otros archivos)
+function editarRequerimiento(id) {
+    console.log('Editar requerimiento:', id);
+    // Esta función se implementará en requerimientos_actualizar.js
 }
 
-// Función para inicializar event listeners
-function inicializarEventListeners() {
-    console.log('🔧 Inicializando event listeners...');
-    
-    // Escuchar cambios en el input de nuevo requerimiento
-    const nuevoRequerimientoInput = document.getElementById('nuevo-requerimiento');
-    if (nuevoRequerimientoInput) {
-        nuevoRequerimientoInput.addEventListener('input', habilitarBotonGuardar);
-        console.log('✅ Event listener agregado a nuevo-requerimiento');
-    } else {
-        console.error('❌ Input nuevo-requerimiento no encontrado');
-    }
-    
-    // Escuchar cambios en el select de requerimiento
-    const selectRequerimiento = document.getElementById('select-requerimiento');
-    if (selectRequerimiento) {
-        selectRequerimiento.addEventListener('change', habilitarBotonGuardar);
-        console.log('✅ Event listener agregado a select-requerimiento');
-    } else {
-        console.error('❌ Select select-requerimiento no encontrado');
-    }
-    
-    // Escuchar cambios en otros selects que afectan el estado
-    const selectFamilia = document.getElementById('select-familia');
-    if (selectFamilia) {
-        selectFamilia.addEventListener('change', habilitarBotonGuardar);
-    }
-    
-    const selectGrupo = document.getElementById('select-grupo');
-    if (selectGrupo) {
-        selectGrupo.addEventListener('change', habilitarBotonGuardar);
-    }
-    
-    const selectSubgrupo = document.getElementById('select-subgrupo');
-    if (selectSubgrupo) {
-        selectSubgrupo.addEventListener('change', habilitarBotonGuardar);
-    }
-    
-    // Inicializar el botón guardar
-    const btnGuardar = document.querySelector('.btn-guardar');
-    if (btnGuardar) {
-        btnGuardar.disabled = true;
-        btnGuardar.style.backgroundColor = '#6c757d';
-        btnGuardar.style.cursor = 'not-allowed';
-        console.log('✅ Botón guardar inicializado');
-    } else {
-        console.error('❌ Botón guardar no encontrado');
-    }
+function eliminarRequerimiento(id) {
+    console.log('Eliminar requerimiento:', id);
+    // Esta función se implementará en requerimientos_eliminar.js
 }
 
-// ✅ FUNCIÓN PARA CREAR TARJETA DE REQUERIMIENTO - VERSIÓN ACTUALIZADA
-function crearTarjetaRequerimiento(requerimiento, index) {
-    const card = document.createElement('div');
-    card.className = 'requerimiento-card';
-    card.style.animationDelay = `${index * 0.1}s`;
-    
-    // ✅ USAR LOS NUEVOS CAMPOS DE JERARQUÍA
-    const familia = requerimiento.familia_nombre || 'Sin familia';
-    const grupo = requerimiento.grupo_nombre || 'Sin grupo';
-    const subgrupo = requerimiento.subgrupo_nombre || 'Sin subgrupo';
-    const codigo = requerimiento.codigo_requerimiento || 'N/A';
-    const clasificacion = requerimiento.clasificacion_requerimiento || 'Sin clasificación';
-    const descripcion = requerimiento.descripcion_requerimiento || '';
-    
-    card.innerHTML = `
-        <div class="requerimiento-header">
-            <h3 class="requerimiento-nombre">${requerimiento.nombre_requerimiento}</h3>
-            <span class="requerimiento-clasificacion clasificacion-${clasificacion.toLowerCase()}">
-                ${clasificacion}
-            </span>
-        </div>
-        <div class="requerimiento-info">
-            <div class="requerimiento-dato">
-                <strong><i class="fa-solid fa-hashtag"></i> Código:</strong>
-                <span class="codigo-requerimiento">${codigo}</span>
-            </div>
-            <div class="requerimiento-dato">
-                <strong><i class="fa-solid fa-sitemap"></i> Familia:</strong>
-                <span>${familia}</span>
-            </div>
-            <div class="requerimiento-dato">
-                <strong><i class="fa-solid fa-layer-group"></i> Grupo:</strong>
-                <span>${grupo}</span>
-            </div>
-            <div class="requerimiento-dato">
-                <strong><i class="fa-solid fa-stream"></i> Subgrupo:</strong>
-                <span>${subgrupo}</span>
-            </div>
-            ${descripcion ? `
-            <div class="requerimiento-dato descripcion">
-                <strong><i class="fa-solid fa-file-lines"></i> Descripción:</strong>
-                <span class="texto-descripcion">${descripcion}</span>
-            </div>
-            ` : ''}
-        </div>
-    `;
-    
-    return card;
-}
-
-// ✅ FUNCIÓN PARA EDITAR DESDE LISTA (compatibilidad)
-function editarRequerimientoDesdeLista(idRequerimiento) {
-    console.log('✏️ Editando requerimiento desde lista:', idRequerimiento);
-    
-    // Abrir el modal de actualización si existe la función
-    if (typeof abrirModalActualizarRequerimiento === 'function') {
-        abrirModalActualizarRequerimiento();
-        
-        // Buscar y seleccionar automáticamente el requerimiento
-        setTimeout(() => {
-            const requerimiento = todosRequerimientos.find(req => req.id_requerimiento === idRequerimiento);
-            if (requerimiento && typeof seleccionarRequerimientoActualizar === 'function') {
-                // Simular la selección en el modal de actualización
-                const elemento = document.querySelector(`[data-requerimiento-id="${requerimiento.id_requerimiento}"]`);
-                if (elemento) {
-                    seleccionarRequerimientoActualizar(requerimiento, elemento);
-                }
-            }
-        }, 500);
-    } else {
-        console.warn('⚠️ Función abrirModalActualizarRequerimiento no disponible');
-    }
+// ✅ CORRECCIÓN: Función para habilitar requerimiento (mantener compatibilidad con HTML)
+function habilitarRequerimiento() {
+    cargarRequerimientos();
 }

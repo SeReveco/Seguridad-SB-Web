@@ -705,3 +705,59 @@ body::before {
 .lista-contenido::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
+
+/* Estilos para las secciones del formulario */
+.seccion-formulario {
+    margin-bottom: 2rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.seccion-formulario:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+}
+
+.seccion-formulario h3 {
+    color: #009FE3;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e9ecef;
+}
+
+/* Mejoras para campos de teléfono */
+input[type="tel"] {
+    font-family: 'Poppins', sans-serif;
+}
+
+/* Indicador de campos requeridos */
+.form-group label:after {
+    content: " *";
+    color: #dc3545;
+}
+
+.form-group label:not([for="visibilidad_camaras"]):after {
+    content: " *";
+    color: #dc3545;
+}
+
+/* Quitar el asterisco del checkbox */
+.form-group label[for="visibilidad_camaras"]:after {
+    content: none;
+}
+
+/* Mejoras responsive para el modal */
+@media (max-width: 768px) {
+    .seccion-formulario {
+        margin-bottom: 1.5rem;
+        padding-bottom: 1rem;
+    }
+    
+    .seccion-formulario h3 {
+        font-size: 1rem;
+    }
+}

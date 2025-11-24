@@ -11,6 +11,8 @@ urlpatterns = [
     path('Admin/vehiculos/', views.admin_vehiculos, name='admin_vehiculos'),
     path('Admin/radios/', views.admin_radios, name='admin_radios'),
     path('api/asignaciones-vehiculos-web/', views.api_asignaciones_vehiculos_web, name='api_asignaciones_vehiculos_web'),
+    path('api/denuncias-web/', views.api_denuncias_web, name='api_denuncias_web'),
+    path('api/denuncias-hoy/', views.api_denuncias_hoy, name='api_denuncias_hoy'),
     
     # APIs para requerimientos
     path('api/requerimientos/', views.api_requerimientos, name='api_requerimientos'),
@@ -43,6 +45,15 @@ urlpatterns = [
     path('api/radios-web/<int:radio_id>/editar/', views.api_editar_radio, name='api_editar_radio'),
     path('api/radios-web/<int:radio_id>/eliminar/', views.api_eliminar_radio, name='api_eliminar_radio'),
     path('api/radios-web/<int:radio_id>/obtener/', views.api_obtener_radio, name='api_obtener_radio'),
+    
+    # ========== CRUD SERVICIOS EMERGENCIA ==========
+    path('Admin/servicios-emergencia/', views.admin_servicios_emergencia, name='admin_servicios_emergencia'),
+    path('servicios-emergencia/', views.listar_servicios_emergencia, name='servicios_emergencia'),
+    path('api/servicios-emergencia-web/', views.api_servicios_emergencia_web, name='api_servicios_emergencia_web'),
+    path('api/servicios-emergencia-web/crear/', views.api_crear_servicio_emergencia, name='api_crear_servicio_emergencia'),
+    path('api/servicios-emergencia-web/<int:servicio_id>/editar/', views.api_editar_servicio_emergencia, name='api_editar_servicio_emergencia'),
+    path('api/servicios-emergencia-web/<int:servicio_id>/eliminar/', views.api_eliminar_servicio_emergencia, name='api_eliminar_servicio_emergencia'),
+    path('api/servicios-emergencia-web/<int:servicio_id>/obtener/', views.api_obtener_servicio_emergencia, name='api_obtener_servicio_emergencia'),
     
     # APIs para usuarios
     path('api/usuarios/', views.api_usuarios, name='api_usuarios'),

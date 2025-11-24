@@ -42,7 +42,7 @@
       </i>
     </div>
 
-    <h2 class="titulo-pagina">Rutas Seguridad Ciudadana "San Bernardo"</h2>
+    <h2 class="titulo-pagina">Seguridad Ciudadana "San Bernardo"</h2>
 
     <!-- Botón del menú Usuario -->
     <div class="dropdown2">
@@ -121,84 +121,118 @@
       </div>
       <form id="formDenuncia" class="modal-form">
 
-        <!-- Selector de método de ubicación -->
-        <div class="form-group">
-          <label>Seleccionar ubicación:</label>
-          <div class="selector-metodo">
-            <button type="button" class="btn-metodo active" data-metodo="manual"
-              onclick="cambiarMetodoUbicacion('manual')">
-              <i class="fa-solid fa-keyboard"></i> Ingresar Manualmente
-            </button>
-            <button type="button" class="btn-metodo" data-metodo="mapa" onclick="cambiarMetodoUbicacion('mapa')">
-              <i class="fa-solid fa-map-marker-alt"></i> Seleccionar en Mapa
-            </button>
+        <!-- Información del Ciudadano -->
+        <div class="seccion-formulario">
+          <h3><i class="fa-solid fa-user"></i> Información del Ciudadano</h3>
+
+          <div class="form-group">
+            <label for="nombre_ciudadano">Nombre del Ciudadano *</label>
+            <input type="text" id="nombre_ciudadano" name="nombre_ciudadano" required>
+          </div>
+
+          <div class="form-group">
+            <label for="telefono_ciudadano">Teléfono del Ciudadano *</label>
+            <input type="tel" id="telefono_ciudadano" name="telefono_ciudadano" required>
           </div>
         </div>
 
-        <!-- Método Manual -->
-        <div id="metodo-manual" class="metodo-ubicacion">
-          <div class="form-group">
-            <label for="direccion">Dirección:</label>
-            <input type="text" id="direccion" name="direccion" placeholder="Ej: Av. Bernardo O'Higgins 123" required>
-          </div>
+        <!-- Ubicación de la Denuncia -->
+        <div class="seccion-formulario">
+          <h3><i class="fa-solid fa-location-dot"></i> Ubicación</h3>
 
           <div class="form-group">
-            <label for="direccion_secundaria">Dirección Secundaria (opcional):</label>
-            <input type="text" id="direccion_secundaria" name="direccion_secundaria"
-              placeholder="Ej: Entre calles San Juan y Los Alerces">
-          </div>
-        </div>
-
-        <!-- Método Mapa -->
-        <div id="metodo-mapa" class="metodo-ubicacion" style="display: none;">
-          <div class="instrucciones-mapa">
-            <p><i class="fa-solid fa-info-circle"></i> Haz clic en el mapa para seleccionar la ubicación</p>
-          </div>
-          <div class="mini-mapa-contenedor">
-            <div id="mini-mapa" class="mini-mapa"></div>
-          </div>
-          <div class="form-group">
-            <label>Dirección seleccionada:</label>
-            <div id="direccion-seleccionada" class="direccion-seleccionada">
-              <span class="texto-direccion vacia">No se ha seleccionado ubicación</span>
-              <button type="button" class="btn-limpiar-ubicacion" onclick="limpiarUbicacionMapa()">
-                <i class="fa-solid fa-times"></i>
+            <label>Seleccionar ubicación:</label>
+            <div class="selector-metodo">
+              <button type="button" class="btn-metodo active" data-metodo="manual"
+                onclick="cambiarMetodoUbicacion('manual')">
+                <i class="fa-solid fa-keyboard"></i> Ingresar Manualmente
+              </button>
+              <button type="button" class="btn-metodo" data-metodo="mapa" onclick="cambiarMetodoUbicacion('mapa')">
+                <i class="fa-solid fa-map-marker-alt"></i> Seleccionar en Mapa
               </button>
             </div>
-            <!-- Eliminamos los campos ocultos de lat/lng ya que no los guardaremos en la BD -->
+          </div>
+
+          <!-- Método Manual -->
+          <div id="metodo-manual" class="metodo-ubicacion">
+            <div class="form-group">
+              <label for="direccion">Dirección Principal *</label>
+              <input type="text" id="direccion" name="direccion" placeholder="Ej: Av. Bernardo O'Higgins 123" required>
+            </div>
+
+            <div class="form-group">
+              <label for="direccion_secundaria">Dirección Secundaria (opcional)</label>
+              <input type="text" id="direccion_secundaria" name="direccion_secundaria"
+                placeholder="Ej: Entre calles San Juan y Los Alerces">
+            </div>
+          </div>
+
+          <!-- Método Mapa -->
+          <div id="metodo-mapa" class="metodo-ubicacion" style="display: none;">
+            <div class="instrucciones-mapa">
+              <p><i class="fa-solid fa-info-circle"></i> Haz clic en el mapa para seleccionar la ubicación</p>
+            </div>
+            <div class="mini-mapa-contenedor">
+              <div id="mini-mapa" class="mini-mapa"></div>
+            </div>
+            <div class="form-group">
+              <label>Dirección seleccionada:</label>
+              <div id="direccion-seleccionada" class="direccion-seleccionada">
+                <span class="texto-direccion vacia">No se ha seleccionado ubicación</span>
+                <button type="button" class="btn-limpiar-ubicacion" onclick="limpiarUbicacionMapa()">
+                  <i class="fa-solid fa-times"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cuadrante (se llena automáticamente) -->
+          <div class="form-group">
+            <label for="cuadrante">Cuadrante *</label>
+            <select id="cuadrante" name="cuadrante" required>
+              <option value="">Seleccione cuadrante</option>
+              <option value="80">Cuadrante 80 - Centro</option>
+              <option value="81">Cuadrante 81 - Nororiente</option>
+              <option value="82">Cuadrante 82 - Norponiente</option>
+              <option value="83">Cuadrante 83 - Suroriente</option>
+              <option value="84">Cuadrante 84 - Surponiente</option>
+              <option value="85">Cuadrante 85 - Extremo Norte</option>
+              <option value="86">Cuadrante 86 - Extremo Sur</option>
+            </select>
           </div>
         </div>
 
-        <!-- Campos comunes -->
-        <div class="form-group">
-          <label for="detalle">Detalle de la Denuncia:</label>
-          <textarea id="detalle" name="detalle" rows="4" placeholder="Describa los detalles de la denuncia..."
-            required></textarea>
-        </div>
+        <!-- Detalles de la Denuncia -->
+        <div class="seccion-formulario">
+          <h3><i class="fa-solid fa-circle-info"></i> Detalles de la Denuncia</h3>
 
-        <div class="form-group">
-          <label for="requerimiento">Tipo de Requerimiento:</label>
-          <select id="requerimiento" name="requerimiento" required>
-            <option value="">Seleccione un requerimiento</option>
-          </select>
-        </div>
+          <div class="form-group">
+            <label for="requerimiento">Tipo de Requerimiento *</label>
+            <select id="requerimiento" name="requerimiento" required>
+              <option value="">Seleccione un requerimiento</option>
+            </select>
+          </div>
 
-        <div class="form-group">
-          <label for="cuadrante">Cuadrante:</label>
-          <select id="cuadrante" name="cuadrante" required>
-            <option value="">Seleccione cuadrante</option>
-            <option value="1">Cuadrante 1</option>
-            <option value="2">Cuadrante 2</option>
-            <option value="3">Cuadrante 3</option>
-            <option value="4">Cuadrante 4</option>
-          </select>
-        </div>
+          <div class="form-group">
+            <label for="detalle">Detalle de la Denuncia *</label>
+            <textarea id="detalle" name="detalle" rows="4" placeholder="Describa los detalles de la denuncia..."
+              required></textarea>
+          </div>
 
-        <div class="form-group">
-          <label for="visibilidad_camaras">
-            <input type="checkbox" id="visibilidad_camaras" name="visibilidad_camaras">
-            Visibilidad en Cámaras
-          </label>
+          <div class="form-group">
+            <label for="movil">Móvil a Asignar (opcional)</label>
+            <select id="movil" name="movil">
+              <option value="">Seleccione un móvil (opcional)</option>
+              <!-- Los móviles se cargarán dinámicamente -->
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="visibilidad_camaras">
+              <input type="checkbox" id="visibilidad_camaras" name="visibilidad_camaras">
+              Visibilidad en Cámaras
+            </label>
+          </div>
         </div>
 
         <div class="form-actions">

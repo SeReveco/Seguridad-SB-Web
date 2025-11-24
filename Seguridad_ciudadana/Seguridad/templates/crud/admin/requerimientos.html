@@ -12,6 +12,7 @@
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
   <script src="https://kit.fontawesome.com/6a284d15f6.js" crossorigin="anonymous"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <title>Ruta en San Bernardo</title>
 </head>
 
@@ -58,7 +59,7 @@
           </a>
 
           <a href="{% url 'Admin' %}" class="dropdown-item2">
-            <i class="fa-solid fa-list"></i> Historial de Alertas
+            <i class="fa-solid fa-list"></i> Panel de Administración
           </a>
 
         </div>
@@ -135,12 +136,29 @@
     <div class="requerimientos-lista" id="requerimientos-lista">
       <div class="lista-header">
         <h3><i class="fa-solid fa-list"></i> Requerimientos Existentes</h3>
-        <div class="search-container">
-          <input type="text" id="buscar-requerimientos" placeholder="Buscar requerimientos..." class="search-input"
-            onkeyup="filtrarRequerimientos()">
-          <i class="fa-solid fa-magnifying-glass search-icon"></i>
+        <div class="search-export-container">
+          <div class="search-container">
+            <input type="text" id="buscar-requerimientos" placeholder="Buscar requerimientos..." class="search-input"
+              onkeyup="filtrarRequerimientos()">
+            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+          </div>
+
+          <!-- Botón de filtros -->
+          <button id="btn-filtrar-requerimientos" class="btn-filtrar-requerimientos">
+            <i class="fa-solid fa-filter"></i> Filtrar
+          </button>
+
+          <!-- Botón de exportar -->
+          <button id="btn-exportar-excel" class="btn-exportar-excel" title="Exportar a Excel">
+            <i class="fa-solid fa-file-excel"></i> Exportar Excel
+          </button>
         </div>
       </div>
+
+      <!-- Contador de resultados -->
+      <div class="contador-resultados" id="contador-resultados"></div>
+
+      <!-- Tabla de requerimientos -->
       <div id="lista-requerimientos">
         <!-- Los requerimientos se cargarán aquí dinámicamente -->
       </div>
@@ -265,7 +283,7 @@
     </div>
   </div>
 
-  <!-- MODAL ACTUALIZAR REQUERIMIENTO - DISEÑO ESPECÍFICO -->
+  <!-- MODAL ACTUALIZAR REQUERIMIENTO-->
   <div id="modal-actualizar-requerimiento" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -290,7 +308,7 @@
         <!-- Sección de información del requerimiento seleccionado -->
         <div id="info-requerimiento-actualizar" class="form-section" style="display: none;">
           <h4><i class="fa-solid fa-info-circle"></i> Requerimiento Seleccionado</h4>
-          
+
           <div class="requerimiento-seleccionado-info">
             <div class="info-row">
               <div class="info-label">Nombre:</div>
@@ -312,13 +330,13 @@
         <!-- Sección de edición - DISEÑO ESPECÍFICO -->
         <div id="form-edicion-actualizar" class="form-section" style="display: none;">
           <h4><i class="fa-solid fa-edit"></i> Editor Información</h4>
-          
+
           <!-- Tabla de campos -->
           <div class="editor-table">
             <div class="editor-row">
               <div class="editor-label">Nuevo Nombre:</div>
               <div class="editor-input">
-                <input type="text" id="nuevo-nombre-requerimiento" 
+                <input type="text" id="nuevo-nombre-requerimiento"
                   placeholder="Ingrese el nuevo nombre del requerimiento">
               </div>
             </div>
@@ -337,8 +355,8 @@
           <!-- Descripción -->
           <div class="editor-description">
             <div class="editor-label">Nueva Descripción:</div>
-            <textarea id="nueva-descripcion-requerimiento" 
-              placeholder="Ingrese la nueva descripción del requerimiento" rows="3"></textarea>
+            <textarea id="nueva-descripcion-requerimiento" placeholder="Ingrese la nueva descripción del requerimiento"
+              rows="3"></textarea>
           </div>
 
           <!-- Cambio de subgrupo -->
@@ -353,7 +371,7 @@
               <select id="select-grupo-actualizar" onchange="cargargruposActualizar()" disabled>
                 <option value="">Seleccionar Grupo</option>
               </select>
-              <select id="select-subgrupo-actualizar" onchange="cargarSubgruposActualizar()" disabled>
+              <select id="select-subgrupo-actualizar">
                 <option value="">Seleccionar Subgrupo</option>
               </select>
             </div>
