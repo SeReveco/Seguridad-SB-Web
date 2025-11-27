@@ -1,4 +1,4 @@
-// 👥 SISTEMA PARA AGREGAR NUEVOS USUARIOS
+// 👥 SISTEMA PARA AGREGAR NUEVOS USUARIOS (VERSIÓN MEJORADA CON FORMATEO DE NOMBRES)
 
 // Variables globales para agregar usuario
 let rolesDisponibles = [];
@@ -7,6 +7,7 @@ let turnosDisponibles = [];
 // ✅ INICIALIZACIÓN
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🔧 Módulo de agregar usuarios inicializado');
+    agregarEstilosCorreoGenerado();
     inicializarEventListenersAgregar();
 });
 
@@ -40,6 +41,138 @@ function inicializarEventListenersAgregar() {
     if (rolSelect) {
         rolSelect.addEventListener('change', filtrarTurnosPorRol);
     }
+
+    // ✅ NUEVO: Formatear nombres y apellidos automáticamente
+    const nombreInput = document.getElementById('nombre-usuario');
+    const apellidoPatInput = document.getElementById('apellido-pat-usuario');
+    const apellidoMatInput = document.getElementById('apellido-mat-usuario');
+    
+    if (nombreInput) {
+        nombreInput.addEventListener('blur', formatearNombrePropio);
+        nombreInput.addEventListener('input', mostrarCorreoGenerado);
+    }
+    
+    if (apellidoPatInput) {
+        apellidoPatInput.addEventListener('blur', formatearNombrePropio);
+        apellidoPatInput.addEventListener('input', mostrarCorreoGenerado);
+    }
+    
+    if (apellidoMatInput) {
+        apellidoMatInput.addEventListener('blur', formatearNombrePropio);
+    }
+}
+
+// ✅ FUNCIÓN PARA FORMATEAR NOMBRES PROPIOS (Primera letra mayúscula, resto minúscula)
+function formatearNombrePropio(e) {
+    const input = e.target;
+    const valor = input.value.trim();
+    
+    if (valor) {
+        // Formatear: Primera letra mayúscula, resto minúsculas
+        const valorFormateado = valor.toLowerCase()
+            .split(' ')
+            .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1))
+            .join(' ');
+        
+        input.value = valorFormateado;
+        
+        // Mostrar mensaje de formateo
+        mostrarMensajeFormateo(input);
+    }
+}
+
+// ✅ FUNCIÓN PARA MOSTRAR MENSAJE DE FORMATEO
+function mostrarMensajeFormateo(input) {
+    // Remover mensaje anterior si existe
+    const idMensaje = `mensaje-formateo-${input.id}`;
+    const mensajeAnterior = document.getElementById(idMensaje);
+    if (mensajeAnterior) {
+        mensajeAnterior.remove();
+    }
+    
+    // Crear nuevo mensaje
+    const mensaje = document.createElement('div');
+    mensaje.id = idMensaje;
+    mensaje.style.cssText = `
+        font-size: 0.7em;
+        color: #6f42c1;
+        margin-top: 3px;
+        font-style: italic;
+    `;
+    mensaje.innerHTML = '<i class="fa-solid fa-magic"></i> Formateado automáticamente';
+    
+    // Insertar después del input
+    input.parentNode.appendChild(mensaje);
+    
+    // Remover mensaje después de 2 segundos
+    setTimeout(() => {
+        if (mensaje.parentNode) {
+            mensaje.remove();
+        }
+    }, 2000);
+}
+
+// ✅ FUNCIÓN PARA MOSTRAR CORREO GENERADO
+function mostrarCorreoGenerado() {
+    const nombre = document.getElementById('nombre-usuario').value.trim();
+    const apellidoPat = document.getElementById('apellido-pat-usuario').value.trim();
+    
+    const correoDisplay = document.getElementById('correo-generado-display');
+    
+    if (nombre && apellidoPat) {
+        const correoGenerado = generarCorreo(nombre, apellidoPat);
+        
+        if (!correoDisplay) {
+            // Crear display del correo si no existe
+            const formRow = document.querySelector('.form-row:has(#telefono-usuario)');
+            const correoHTML = `
+                <div class="form-group">
+                    <label>Correo Electrónico:</label>
+                    <div id="correo-generado-display" class="correo-generado">
+                        <strong>${correoGenerado}</strong>
+                        <small><i class="fa-solid fa-robot"></i> Generado automáticamente</small>
+                    </div>
+                </div>
+            `;
+            if (formRow) {
+                formRow.insertAdjacentHTML('afterend', correoHTML);
+            }
+        } else {
+            // Actualizar correo existente
+            correoDisplay.innerHTML = `
+                <strong>${correoGenerado}</strong>
+                <small><i class="fa-solid fa-robot"></i> Generado automáticamente</small>
+            `;
+            correoDisplay.closest('.form-group').style.display = 'block';
+        }
+    } else if (correoDisplay) {
+        // Ocultar si no hay datos suficientes
+        correoDisplay.closest('.form-group').style.display = 'none';
+    }
+}
+
+// ✅ FUNCIÓN PARA GENERAR CORREO
+function generarCorreo(nombre, apellidoPat) {
+    // Limpiar y normalizar textos
+    const nombreLimpio = limpiarTexto(nombre);
+    const apellidoLimpio = limpiarTexto(apellidoPat);
+    
+    // Tomar primera letra del nombre y apellido completo
+    const primeraLetraNombre = nombreLimpio.charAt(0).toLowerCase();
+    const apellidoCompleto = apellidoLimpio.toLowerCase();
+    
+    // Generar correo
+    return `${primeraLetraNombre}${apellidoCompleto}@sanbernardo.cl`;
+}
+
+// ✅ FUNCIÓN PARA LIMPIAR TEXTO
+function limpiarTexto(texto) {
+    return texto
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-zA-Z\s]/g, '')
+        .replace(/\s+/g, '')
+        .trim();
 }
 
 // ✅ ABRIR MODAL DE AGREGAR USUARIO
@@ -70,6 +203,17 @@ function resetearFormularioAgregar() {
     
     document.getElementById('form-agregar-usuario').reset();
     
+    // Ocultar display de correo
+    const correoDisplay = document.getElementById('correo-generado-display');
+    if (correoDisplay) {
+        correoDisplay.closest('.form-group').style.display = 'none';
+    }
+    
+    // Remover mensajes de formateo
+    document.querySelectorAll('[id^="mensaje-formateo-"]').forEach(mensaje => {
+        mensaje.remove();
+    });
+    
     // Resetear indicadores de contraseña
     const strengthBar = document.querySelector('.strength-bar');
     const strengthText = document.querySelector('.password-strength small');
@@ -83,17 +227,16 @@ function resetearFormularioAgregar() {
     if (matchText) matchText.style.color = '#6c757d';
 }
 
-// ✅ CARGAR DATOS INICIALES PARA AGREGAR (ACTUALIZADO)
+// ✅ CARGAR DATOS INICIALES PARA AGREGAR
 async function cargarDatosInicialesAgregar() {
     try {
         console.log('📥 Cargando datos para formulario de agregar usuario...');
         
-        // ✅ ACTUALIZADO: Roles permitidos para crear (sin Ciudadano)
         rolesDisponibles = [
             { id: 1, nombre: 'Administrador' },
             { id: 2, nombre: 'Operador' },
-            { id: 4, nombre: 'Conductor' },
-            { id: 5, nombre: 'Inspector' }
+            { id: 3, nombre: 'Supervisor' },
+            { id: 4, nombre: 'Inspector' }
         ];
         
         console.log('✅ Datos para agregar usuario cargados correctamente');
@@ -104,7 +247,163 @@ async function cargarDatosInicialesAgregar() {
     }
 }
 
-// ✅ VALIDAR RUT CHILENO (MEJORADO)
+// ✅ GUARDAR NUEVO USUARIO (VERSIÓN MEJORADA)
+async function guardarUsuario(event) {
+    event.preventDefault();
+    console.log('💾 Intentando guardar nuevo usuario...');
+    
+    if (!validarFormularioAgregarUsuario()) {
+        console.error('❌ Validación de formulario falló');
+        return;
+    }
+    
+    try {
+        // Mostrar loading
+        Swal.fire({
+            title: 'Creando usuario...',
+            text: 'Por favor espere',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+        
+        // Obtener datos del formulario (ya formateados automáticamente)
+        const telefonoLimpio = document.getElementById('telefono-usuario').value.replace(/[^0-9]/g, '');
+        const soloNumerosTelefono = telefonoLimpio.startsWith('56') ? telefonoLimpio.substring(2) : telefonoLimpio;
+        
+        const nombre = document.getElementById('nombre-usuario').value.trim();
+        const apellidoPat = document.getElementById('apellido-pat-usuario').value.trim();
+        const apellidoMat = document.getElementById('apellido-mat-usuario').value.trim();
+        
+        // ✅ GENERAR CORREO AUTOMÁTICAMENTE
+        const correoGenerado = generarCorreo(nombre, apellidoPat);
+        
+        const datosUsuario = {
+            nombre_usuario: nombre,
+            apellido_pat_usuario: apellidoPat,
+            apellido_mat_usuario: apellidoMat,
+            rut_usuario: document.getElementById('rut-usuario').value.replace(/[^0-9kK]/g, '').toUpperCase(),
+            telefono_movil_usuario: soloNumerosTelefono,
+            correo_electronico_usuario: correoGenerado,
+            password: document.getElementById('password-usuario').value,
+            id_rol: parseInt(document.getElementById('rol-usuario').value),
+            id_turno: document.getElementById('turno-usuario').value ? parseInt(document.getElementById('turno-usuario').value) : null,
+            estado_usuario: document.getElementById('estado-usuario').value === '1'
+        };
+        
+        console.log('📤 Datos del usuario a guardar:', datosUsuario);
+        
+        // Hacer la petición POST a la API
+        const response = await fetch('/api/usuarios/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify(datosUsuario)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `Error ${response.status}`);
+        }
+        
+        const usuarioCreado = await response.json();
+        console.log('✅ Usuario creado:', usuarioCreado);
+        
+        // Cerrar loading
+        Swal.close();
+        
+        // Mostrar éxito con el correo generado
+        mostrarExito(`Usuario creado correctamente<br><small>Correo: ${correoGenerado}</small>`);
+        
+        // Cerrar modal
+        cerrarModalAgregarUsuario();
+        
+        // Recargar la lista de usuarios
+        if (typeof recargarListaUsuarios === 'function') {
+            recargarListaUsuarios();
+        }
+        
+    } catch (error) {
+        console.error('❌ Error creando usuario:', error);
+        Swal.close();
+        mostrarError('Error al crear el usuario: ' + error.message);
+    }
+}
+
+// ✅ VALIDAR FORMULARIO COMPLETO (MEJORADO)
+function validarFormularioAgregarUsuario() {
+    const nombre = document.getElementById('nombre-usuario').value.trim();
+    const apellidoPat = document.getElementById('apellido-pat-usuario').value.trim();
+    const apellidoMat = document.getElementById('apellido-mat-usuario').value.trim();
+    const rut = document.getElementById('rut-usuario').value;
+    const telefono = document.getElementById('telefono-usuario').value.replace(/[^0-9]/g, '');
+    const password = document.getElementById('password-usuario').value;
+    const confirmar = document.getElementById('confirmar-password').value;
+    const rol = document.getElementById('rol-usuario').value;
+    
+    let valido = true;
+    let mensajesError = [];
+    
+    // Validar campos requeridos
+    if (!nombre || !apellidoPat || !apellidoMat || !rut || !telefono || !password || !confirmar || !rol) {
+        mensajesError.push('Todos los campos obligatorios deben estar completos');
+        valido = false;
+    }
+    
+    // Validar RUT
+    if (rut && !validarRUT(rut)) {
+        mensajesError.push('El RUT ingresado no es válido');
+        valido = false;
+    }
+    
+    // Validar teléfono
+    const soloNumerosTelefono = telefono.startsWith('56') ? telefono.substring(2) : telefono;
+    const regexTelefonoChileno = /^9[0-9]{8}$/;
+    
+    if (telefono && !regexTelefonoChileno.test(soloNumerosTelefono)) {
+        mensajesError.push('El teléfono debe tener formato chileno: 9 1234 5678');
+        valido = false;
+    }
+    
+    // Validar contraseñas
+    if (password !== confirmar) {
+        mensajesError.push('Las contraseñas no coinciden');
+        valido = false;
+    }
+    
+    if (password.length < 8) {
+        mensajesError.push('La contraseña debe tener al menos 8 caracteres');
+        valido = false;
+    }
+    
+    // Validar formato de nombres (solo letras y espacios)
+    const regexSoloLetras = /^[A-Za-zÁáÉéÍíÓóÚúÑñ\s]+$/;
+    if (nombre && !regexSoloLetras.test(nombre)) {
+        mensajesError.push('El nombre solo puede contener letras y espacios');
+        valido = false;
+    }
+    
+    if (apellidoPat && !regexSoloLetras.test(apellidoPat)) {
+        mensajesError.push('El apellido paterno solo puede contener letras y espacios');
+        valido = false;
+    }
+    
+    if (apellidoMat && !regexSoloLetras.test(apellidoMat)) {
+        mensajesError.push('El apellido materno solo puede contener letras y espacios');
+        valido = false;
+    }
+    
+    if (!valido) {
+        mostrarError(mensajesError.join('<br>'));
+    }
+    
+    return valido;
+}
+
+// ✅ VALIDAR RUT CHILENO
 function validarRUT(rut) {
     if (!rut || typeof rut !== 'string') return false;
     
@@ -134,7 +433,7 @@ function validarRUT(rut) {
     return dvCalculado === dv;
 }
 
-// ✅ FORMATEAR RUT CHILENO (MEJORADO)
+// ✅ FORMATEAR RUT CHILENO
 function formatearRUT(e) {
     let input = e.target;
     let value = input.value.replace(/[^0-9kK]/g, '').toUpperCase();
@@ -173,7 +472,7 @@ function validarRUTEnTiempoReal(e) {
     }
 }
 
-// ✅ FORMATEAR TELÉFONO CHILENO (MEJORADO)
+// ✅ FORMATEAR TELÉFONO CHILENO
 function formatearTelefonoChileno(e) {
     let input = e.target;
     let value = input.value.replace(/[^0-9]/g, '');
@@ -294,80 +593,7 @@ function actualizarIndicadorPassword() {
     }
 }
 
-// ✅ VALIDAR FORMULARIO COMPLETO
-function validarFormularioAgregarUsuario() {
-    const formulario = document.getElementById('form-agregar-usuario');
-    const camposRequeridos = formulario.querySelectorAll('[required]');
-    let valido = true;
-    
-    // Validar campos requeridos
-    camposRequeridos.forEach(campo => {
-        if (!campo.value.trim()) {
-            valido = false;
-            campo.style.borderColor = '#dc3545';
-        } else {
-            campo.style.borderColor = '#28a745';
-        }
-    });
-    
-    // Validar RUT
-    const rut = document.getElementById('rut-usuario').value;
-    if (rut && !validarRUT(rut)) {
-        valido = false;
-        document.getElementById('rut-usuario').style.borderColor = '#dc3545';
-        mostrarError('El RUT ingresado no es válido');
-    }
-    
-    // Validar email
-    const email = document.getElementById('correo-usuario').value;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (email && !emailRegex.test(email)) {
-        valido = false;
-        document.getElementById('correo-usuario').style.borderColor = '#dc3545';
-        mostrarError('El formato del correo electrónico no es válido');
-    }
-    
-    // Validar teléfono
-    const telefono = document.getElementById('telefono-usuario').value.replace(/[^0-9]/g, '');
-    const soloNumerosTelefono = telefono.startsWith('56') ? telefono.substring(2) : telefono;
-    const regexTelefonoChileno = /^9[0-9]{8}$/;
-    
-    if (telefono && !regexTelefonoChileno.test(soloNumerosTelefono)) {
-        valido = false;
-        document.getElementById('telefono-usuario').style.borderColor = '#dc3545';
-        mostrarError('El teléfono debe tener formato chileno: 9 1234 5678');
-    }
-    
-    // Validar contraseñas
-    const password = document.getElementById('password-usuario').value;
-    const confirmar = document.getElementById('confirmar-password').value;
-    
-    if (password !== confirmar) {
-        valido = false;
-        document.getElementById('confirmar-password').style.borderColor = '#dc3545';
-        mostrarError('Las contraseñas no coinciden');
-    }
-    
-    // Validar fortaleza de contraseña
-    if (password) {
-        const validacion = validarPassword(password);
-        if (validacion.fuerza < 66) {
-            valido = false;
-            document.getElementById('password-usuario').style.borderColor = '#ffc107';
-            mostrarError('La contraseña es demasiado débil. Use mayúsculas, números y caracteres especiales');
-        }
-    }
-    
-    if (password.length < 8) {
-        valido = false;
-        document.getElementById('password-usuario').style.borderColor = '#dc3545';
-        mostrarError('La contraseña debe tener al menos 8 caracteres');
-    }
-    
-    return valido;
-}
-
-// ✅ FILTRAR TURNOS SEGÚN ROL (ACTUALIZADO SIN CIUDADANO)
+// ✅ FILTRAR TURNOS SEGÚN ROL
 function filtrarTurnosPorRol() {
     const rolSelect = document.getElementById('rol-usuario');
     const turnoSelect = document.getElementById('turno-usuario');
@@ -383,8 +609,8 @@ function filtrarTurnosPorRol() {
         turnoSelect.options[i].disabled = false;
     }
     
-    // ✅ ACTUALIZADO: Si es Inspector (rol 5), mostrar solo turnos de inspectores
-    if (rolSeleccionado === 5) {
+    // ✅ ACTUALIZADO: Si es Inspector (rol 4), mostrar solo turnos de inspectores
+    if (rolSeleccionado === 4) {
         for (let i = 0; i < turnoSelect.options.length; i++) {
             const option = turnoSelect.options[i];
             const value = parseInt(option.value);
@@ -399,7 +625,7 @@ function filtrarTurnosPorRol() {
             turnoSelect.value = '';
         }
     }
-    // ✅ ACTUALIZADO: Para Conductores (rol 4) y otros roles (1, 2), mostrar solo turnos generales
+    // ✅ ACTUALIZADO: Para otros roles (1, 2, 3), mostrar solo turnos generales
     else if (rolSeleccionado) {
         for (let i = 0; i < turnoSelect.options.length; i++) {
             const option = turnoSelect.options[i];
@@ -443,82 +669,43 @@ function ocultarError(errorElement) {
     }
 }
 
-// ✅ GUARDAR NUEVO USUARIO
-async function guardarUsuario(event) {
-    event.preventDefault();
-    console.log('💾 Intentando guardar nuevo usuario...');
-    
-    if (!validarFormularioAgregarUsuario()) {
-        console.error('❌ Validación de formulario falló');
-        return;
-    }
-    
-    try {
-        // Mostrar loading
-        Swal.fire({
-            title: 'Creando usuario...',
-            text: 'Por favor espere',
-            allowOutsideClick: false,
-            didOpen: () => {
-                Swal.showLoading();
-            }
-        });
-        
-        // Obtener datos del formulario
-        const telefonoLimpio = document.getElementById('telefono-usuario').value.replace(/[^0-9]/g, '');
-        const soloNumerosTelefono = telefonoLimpio.startsWith('56') ? telefonoLimpio.substring(2) : telefonoLimpio;
-        
-        const datosUsuario = {
-            nombre_usuario: document.getElementById('nombre-usuario').value.trim(),
-            apellido_pat_usuario: document.getElementById('apellido-pat-usuario').value.trim(),
-            apellido_mat_usuario: document.getElementById('apellido-mat-usuario').value.trim(),
-            rut_usuario: document.getElementById('rut-usuario').value.replace(/[^0-9kK]/g, '').toUpperCase(),
-            telefono_movil_usuario: soloNumerosTelefono,
-            correo_electronico_usuario: document.getElementById('correo-usuario').value.trim(),
-            password_usuario: document.getElementById('password-usuario').value,
-            id_rol: parseInt(document.getElementById('rol-usuario').value),
-            id_turno: document.getElementById('turno-usuario').value ? parseInt(document.getElementById('turno-usuario').value) : null,
-            estado_usuario: document.getElementById('estado-usuario').value === '1'
-        };
-        
-        console.log('📤 Datos del usuario a guardar:', datosUsuario);
-        
-        // Hacer la petición POST a la API
-        const response = await fetch('/api/usuarios/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken()
-            },
-            body: JSON.stringify(datosUsuario)
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `Error ${response.status}`);
+// ✅ AGREGAR ESTILOS CSS PARA EL CORREO GENERADO Y MENSAJES
+function agregarEstilosCorreoGenerado() {
+    const styles = `
+        .correo-generado {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 8px;
         }
-        
-        const usuarioCreado = await response.json();
-        console.log('✅ Usuario creado:', usuarioCreado);
-        
-        // Cerrar loading
-        Swal.close();
-        
-        // Mostrar éxito
-        mostrarExito('Usuario creado correctamente');
-        
-        // Cerrar modal
-        cerrarModalAgregarUsuario();
-        
-        // Recargar la lista de usuarios
-        if (typeof recargarListaUsuarios === 'function') {
-            recargarListaUsuarios();
+        .correo-generado strong {
+            color: #28a745;
+            font-size: 14px;
+            display: block;
         }
-        
-    } catch (error) {
-        console.error('❌ Error creando usuario:', error);
-        Swal.close();
-        mostrarError('Error al crear el usuario: ' + error.message);
+        .correo-generado small {
+            color: #6c757d;
+            display: block;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        .correo-generado i {
+            color: #6f42c1;
+            margin-right: 5px;
+        }
+        .error-message {
+            color: #dc3545;
+            font-size: 0.8em;
+            margin-top: 5px;
+        }
+    `;
+    
+    if (!document.getElementById('estilos-correo-generado')) {
+        const styleSheet = document.createElement('style');
+        styleSheet.id = 'estilos-correo-generado';
+        styleSheet.textContent = styles;
+        document.head.appendChild(styleSheet);
     }
 }
 
@@ -543,7 +730,7 @@ function mostrarError(mensaje) {
     Swal.fire({
         icon: 'error',
         title: 'Error',
-        text: mensaje,
+        html: mensaje,
         confirmButtonText: 'Aceptar'
     });
 }
@@ -552,7 +739,7 @@ function mostrarExito(mensaje) {
     Swal.fire({
         icon: 'success',
         title: '¡Éxito!',
-        text: mensaje,
+        html: mensaje,
         confirmButtonText: 'Aceptar',
         timer: 3000
     });

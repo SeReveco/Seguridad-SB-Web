@@ -33,6 +33,28 @@ function abrirModalEliminarUsuario() {
     }
 }
 
+// ✅ AGREGAR AL FINAL DE usuarios_eliminar.js
+function obtenerRolUsuario(usuario) {
+    // Prioridad 1: Usar rol_nombre si viene del API
+    if (usuario.rol_nombre && usuario.rol_nombre !== '') {
+        return usuario.rol_nombre;
+    }
+    
+    // Prioridad 2: Convertir id_rol usando mapeo directo
+    if (usuario.id_rol !== undefined && usuario.id_rol !== null) {
+        const roles = {
+            1: 'Administrador',
+            2: 'Operador', 
+            3: 'Ciudadano',
+            4: 'Conductor',
+            5: 'Inspector'
+        };
+        return roles[usuario.id_rol] || 'Usuario';
+    }
+    
+    return 'Usuario';
+}
+
 // ✅ CERRAR MODAL ELIMINAR
 function cerrarModalEliminarUsuario() {
     console.log('❌ Cerrando modal de eliminar usuario...');

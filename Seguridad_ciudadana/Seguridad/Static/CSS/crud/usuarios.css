@@ -1,4 +1,4 @@
-/* 🎨 ESTILOS PARA LA GESTIÓN DE USUARIOS */
+/* 🎨 ESTILOS PARA LA GESTIÓN DE USUARIOS (ACTUALIZADO CON FORMATEO DE NOMBRES) */
 
 /* Sección de Usuarios */
 .usuarios-section {
@@ -195,6 +195,7 @@
     text-transform: uppercase;
 }
 
+/* ✅ ACTUALIZADO: Solo 4 roles definitivos */
 .rol-administrador {
     background: #dc3545;
     color: white;
@@ -205,14 +206,14 @@
     color: white;
 }
 
-.rol-conductor {
-    background: #28a745;
+.rol-supervisor {
+    background: #6f42c1;
     color: white;
 }
 
 .rol-inspector {
-    background: #ffc107;
-    color: #212529;
+    background: #28a745;
+    color: white;
 }
 
 .usuario-info {
@@ -431,6 +432,46 @@
     color: #6c757d !important;
     font-size: 0.8em;
     margin-top: 5px;
+}
+
+/* ✅ NUEVO: Estilos para correo generado automáticamente */
+.correo-generado {
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    padding: 12px;
+    margin-top: 8px;
+}
+
+.correo-generado strong {
+    color: #28a745;
+    font-size: 14px;
+    display: block;
+}
+
+.correo-generado small {
+    color: #6c757d;
+    display: block;
+    margin-top: 5px;
+    font-style: italic;
+}
+
+.correo-generado i {
+    color: #6f42c1;
+    margin-right: 5px;
+}
+
+/* ✅ NUEVO: Estilos para mensajes de formateo */
+.formato-automatico {
+    font-size: 0.7em;
+    color: #6f42c1;
+    margin-top: 3px;
+    font-style: italic;
+}
+
+.formato-automatico i {
+    color: #6f42c1;
+    margin-right: 3px;
 }
 
 /* Indicadores de Contraseña */
@@ -841,33 +882,6 @@
     animation: fadeIn 0.5s ease-out;
 }
 
-/* Agrega esto a tu CSS existente */
-.rol-ciudadano {
-    background: #6c757d;
-    color: white;
-}
-
-/* Ajusta el grid para 4 estadísticas */
-.usuarios-stats {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 20px;
-    margin-bottom: 30px;
-}
-
-/* Para móviles */
-@media (max-width: 768px) {
-    .usuarios-stats {
-        grid-template-columns: repeat(2, 1fr);
-    }
-}
-
-@media (max-width: 480px) {
-    .usuarios-stats {
-        grid-template-columns: 1fr;
-    }
-}
-
 /* 🗑️ ESTILOS ESPECÍFICOS PARA ELIMINAR USUARIOS */
 
 /* Estados de búsqueda */
@@ -905,25 +919,6 @@
 .swal2-popup-eliminar .text-danger {
     color: #dc3545 !important;
     font-weight: 600;
-}
-
-/* Estados de los badges en eliminación */
-.rol-badge {
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 0.8em;
-    font-weight: 600;
-    text-transform: uppercase;
-    display: inline-block;
-    margin-bottom: 5px;
-}
-
-.estado-badge {
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 0.8em;
-    font-weight: 600;
-    display: inline-block;
 }
 
 /* Responsive para el modal de eliminación */
@@ -984,4 +979,11 @@
     cursor: not-allowed;
     transform: none !important;
     animation: none;
+}
+
+/* ✅ NUEVO: Estilos para mensajes de error */
+.error-message {
+    color: #dc3545;
+    font-size: 0.8em;
+    margin-top: 5px;
 }
