@@ -2169,7 +2169,7 @@ def api_register_ciudadano(request):
         required_fields = [
             'rut_ciudadano', 'nombre_ciudadano', 'apellido_pat_ciudadano',
             'apellido_mat_ciudadano', 'correo_electronico_ciudadano',
-            'telefono_movil_ciudadano', 'contraseña_ciudadano'
+            'telefono_movil_ciudadano', 'password_ciudadano'
         ]
         
         missing_fields = [field for field in required_fields if field not in data]
@@ -2213,7 +2213,6 @@ def api_register_ciudadano(request):
         
         print(f"✅ No hay duplicados")
         
-        # CREAR CIUDADANO - versión simple primero
         try:
             ciudadano = Ciudadano(
                 rut_ciudadano=data['rut_ciudadano'],
@@ -2222,7 +2221,7 @@ def api_register_ciudadano(request):
                 apellido_mat_ciudadano=data['apellido_mat_ciudadano'],
                 correo_electronico_ciudadano=data['correo_electronico_ciudadano'],
                 telefono_movil_ciudadano=data['telefono_movil_ciudadano'],
-                contraseña_ciudadano=data['contraseña_ciudadano'],  # En producción hashear!
+                password_ciudadano=data['password_ciudadano'],
                 is_active_ciudadano=True
             )
             ciudadano.save()
@@ -2235,7 +2234,6 @@ def api_register_ciudadano(request):
                 'error': f'Error guardando en base de datos: {str(e)}'
             }, status=500)
         
-        # ÉXITO
         print(f"🎉 Registro exitoso para: {data['nombre_ciudadano']}")
         return JsonResponse({
             'success': True,
