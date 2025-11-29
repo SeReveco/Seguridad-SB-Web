@@ -130,7 +130,6 @@ function mostrarCorreoGenerado() {
                     <label>Correo Electrónico:</label>
                     <div id="correo-generado-display" class="correo-generado">
                         <strong>${correoGenerado}</strong>
-                        <small><i class="fa-solid fa-robot"></i> Generado automáticamente</small>
                     </div>
                 </div>
             `;
@@ -138,15 +137,13 @@ function mostrarCorreoGenerado() {
                 formRow.insertAdjacentHTML('afterend', correoHTML);
             }
         } else {
-            // Actualizar correo existente
             correoDisplay.innerHTML = `
                 <strong>${correoGenerado}</strong>
-                <small><i class="fa-solid fa-robot"></i> Generado automáticamente</small>
             `;
             correoDisplay.closest('.form-group').style.display = 'block';
         }
     } else if (correoDisplay) {
-        // Ocultar si no hay datos suficientes
+
         correoDisplay.closest('.form-group').style.display = 'none';
     }
 }
@@ -316,7 +313,7 @@ async function guardarUsuario(event) {
         Swal.close();
         
         // Mostrar éxito con el correo generado
-        mostrarExito(`Usuario creado correctamente<br><small>Correo: ${correoGenerado}</small>`);
+        mostrarExito(`Usuario creado correctamente Correo: ${correoGenerado}`);
         
         // Cerrar modal
         cerrarModalAgregarUsuario();

@@ -1,4 +1,4 @@
-// ✏️ SISTEMA PARA ACTUALIZAR USUARIOS (CORREGIDO)
+// ✏️ SISTEMA PARA ACTUALIZAR USUARIOS (CORREGIDO - SIN CAMPO DE CORREO)
 
 // Variables globales para actualizar usuario
 let todosLosUsuariosActualizar = [];
@@ -33,6 +33,73 @@ function inicializarEventListenersActualizar() {
         nuevaPasswordInput.addEventListener('input', actualizarIndicadorPasswordEdicion);
         confirmarPasswordInput.addEventListener('input', actualizarIndicadorPasswordEdicion);
     }
+
+    // ✅ NUEVO: Formatear nombres y apellidos automáticamente en edición
+    const nombreInput = document.getElementById('editar-nombre');
+    const apellidoPatInput = document.getElementById('editar-apellido-pat');
+    const apellidoMatInput = document.getElementById('editar-apellido-mat');
+    
+    if (nombreInput) {
+        nombreInput.addEventListener('blur', formatearNombrePropioActualizar);
+    }
+    
+    if (apellidoPatInput) {
+        apellidoPatInput.addEventListener('blur', formatearNombrePropioActualizar);
+    }
+    
+    if (apellidoMatInput) {
+        apellidoMatInput.addEventListener('blur', formatearNombrePropioActualizar);
+    }
+}
+
+// ✅ FUNCIÓN PARA FORMATEAR NOMBRES PROPIOS EN ACTUALIZAR
+function formatearNombrePropioActualizar(e) {
+    const input = e.target;
+    const valor = input.value.trim();
+    
+    if (valor) {
+        // Formatear: Primera letra mayúscula, resto minúsculas
+        const valorFormateado = valor.toLowerCase()
+            .split(' ')
+            .map(palabra => palabra.charAt(0).toUpperCase() + palabra.slice(1))
+            .join(' ');
+        
+        input.value = valorFormateado;
+        
+        // Mostrar mensaje de formateo
+        mostrarMensajeFormateoActualizar(input);
+    }
+}
+
+// ✅ FUNCIÓN PARA MOSTRAR MENSAJE DE FORMATEO EN ACTUALIZAR
+function mostrarMensajeFormateoActualizar(input) {
+    // Remover mensaje anterior si existe
+    const idMensaje = `mensaje-formateo-actualizar-${input.id}`;
+    const mensajeAnterior = document.getElementById(idMensaje);
+    if (mensajeAnterior) {
+        mensajeAnterior.remove();
+    }
+    
+    // Crear nuevo mensaje
+    const mensaje = document.createElement('div');
+    mensaje.id = idMensaje;
+    mensaje.style.cssText = `
+        font-size: 0.7em;
+        color: #6f42c1;
+        margin-top: 3px;
+        font-style: italic;
+    `;
+    mensaje.innerHTML = '<i class="fa-solid fa-magic"></i> Formateado automáticamente';
+    
+    // Insertar después del input
+    input.parentNode.appendChild(mensaje);
+    
+    // Remover mensaje después de 2 segundos
+    setTimeout(() => {
+        if (mensaje.parentNode) {
+            mensaje.remove();
+        }
+    }, 2000);
 }
 
 // ✅ ABRIR MODAL ACTUALIZAR USUARIO
@@ -68,6 +135,11 @@ function resetearModalActualizarUsuario() {
     document.getElementById('form-edicion-usuario').style.display = 'none';
     document.getElementById('btn-actualizar-usuario').disabled = true;
     document.getElementById('lista-usuarios-actualizar').innerHTML = '';
+    
+    // Remover mensajes de formateo
+    document.querySelectorAll('[id^="mensaje-formateo-actualizar-"]').forEach(mensaje => {
+        mensaje.remove();
+    });
     
     // Resetear indicadores de contraseña
     const strengthBars = document.querySelectorAll('#form-edicion-usuario .strength-bar');
@@ -224,7 +296,7 @@ function seleccionarUsuarioActualizar(usuarioId) {
     console.log('✅ Usuario seleccionado para actualizar:', usuarioSeleccionadoActualizar);
 }
 
-// ✅ MOSTRAR INFORMACIÓN USUARIO PARA ACTUALIZAR (CORREGIDO)
+// ✅ MOSTRAR INFORMACIÓN USUARIO PARA ACTUALIZAR (CORREGIDO - SIN CAMPO CORREO)
 function mostrarInformacionUsuarioActualizar(usuario) {
     document.getElementById('info-usuario-seleccionado').style.display = 'block';
     document.getElementById('form-edicion-usuario').style.display = 'block';
@@ -252,7 +324,7 @@ function mostrarInformacionUsuarioActualizar(usuario) {
     const telefonoFormateado = formatearTelefonoParaMostrarActualizar(usuario.telefono_movil_usuario);
     document.getElementById('editar-telefono').value = telefonoFormateado;
     
-    document.getElementById('editar-correo').value = usuario.correo_electronico_usuario || '';
+    // ✅ ELIMINADO: Campo de correo electrónico (no se puede editar)
     document.getElementById('editar-rol').value = usuario.id_rol || '';
     
     // ✅ CORREGIDO: Establecer el valor del estado correctamente
@@ -341,7 +413,7 @@ function validarTelefonoEnTiempoRealActualizar(e) {
     }
 }
 
-// ✅ FILTRAR TURNOS POR ROL EN EDICIÓN (ACTUALIZADO SIN CIUDADANO)
+// ✅ FILTRAR TURNOS POR ROL EN EDICIÓN (ACTUALIZADO)
 function filtrarTurnosPorRolEdicion() {
     const rolSelect = document.getElementById('editar-rol');
     const turnoSelect = document.getElementById('editar-turno');
@@ -357,8 +429,8 @@ function filtrarTurnosPorRolEdicion() {
         turnoSelect.options[i].disabled = false;
     }
     
-    // ✅ ACTUALIZADO: Si es Inspector (rol 5), mostrar solo turnos de inspectores
-    if (rolSeleccionado === 5) {
+    // ✅ ACTUALIZADO: Si es Inspector (rol 4), mostrar solo turnos de inspectores
+    if (rolSeleccionado === 4) {
         for (let i = 0; i < turnoSelect.options.length; i++) {
             const option = turnoSelect.options[i];
             const value = parseInt(option.value);
@@ -373,7 +445,7 @@ function filtrarTurnosPorRolEdicion() {
             turnoSelect.value = '';
         }
     }
-    // ✅ ACTUALIZADO: Para Conductores (rol 4) y otros roles (1, 2), mostrar solo turnos generales
+    // ✅ ACTUALIZADO: Para otros roles (1, 2, 3), mostrar solo turnos generales
     else if (rolSeleccionado) {
         for (let i = 0; i < turnoSelect.options.length; i++) {
             const option = turnoSelect.options[i];
@@ -463,29 +535,21 @@ function validarPasswordActualizar(password) {
     return { fuerza, mensaje, color, fortaleza };
 }
 
-// ✅ VALIDAR FORMULARIO ACTUALIZAR
+// ✅ VALIDAR FORMULARIO ACTUALIZAR (ACTUALIZADO - SIN CORREO)
 function validarFormularioActualizarUsuario() {
     const nombre = document.getElementById('editar-nombre').value.trim();
     const apellidoPat = document.getElementById('editar-apellido-pat').value.trim();
     const apellidoMat = document.getElementById('editar-apellido-mat').value.trim();
     const telefono = document.getElementById('editar-telefono').value.replace(/[^0-9]/g, '');
-    const correo = document.getElementById('editar-correo').value.trim();
     const nuevaPassword = document.getElementById('nueva-password').value;
     const confirmarPassword = document.getElementById('confirmar-nueva-password').value;
     
     let valido = true;
     let mensajesError = [];
     
-    // Validar campos requeridos
-    if (!nombre || !apellidoPat || !apellidoMat || !telefono || !correo) {
+    // Validar campos requeridos (correo ya no está en el formulario)
+    if (!nombre || !apellidoPat || !apellidoMat || !telefono) {
         mensajesError.push('Todos los campos obligatorios deben estar completos');
-        valido = false;
-    }
-    
-    // Validar email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (correo && !emailRegex.test(correo)) {
-        mensajesError.push('El formato del correo electrónico no es válido');
         valido = false;
     }
     
@@ -511,6 +575,23 @@ function validarFormularioActualizarUsuario() {
         }
     }
     
+    // Validar formato de nombres (solo letras y espacios)
+    const regexSoloLetras = /^[A-Za-zÁáÉéÍíÓóÚúÑñ\s]+$/;
+    if (nombre && !regexSoloLetras.test(nombre)) {
+        mensajesError.push('El nombre solo puede contener letras y espacios');
+        valido = false;
+    }
+    
+    if (apellidoPat && !regexSoloLetras.test(apellidoPat)) {
+        mensajesError.push('El apellido paterno solo puede contener letras y espacios');
+        valido = false;
+    }
+    
+    if (apellidoMat && !regexSoloLetras.test(apellidoMat)) {
+        mensajesError.push('El apellido materno solo puede contener letras y espacios');
+        valido = false;
+    }
+    
     if (!valido) {
         mostrarError(mensajesError.join('<br>'));
     }
@@ -518,7 +599,7 @@ function validarFormularioActualizarUsuario() {
     return valido;
 }
 
-// ✅ ACTUALIZAR USUARIO EXISTENTE (CON DEBUG MEJORADO)
+// ✅ ACTUALIZAR USUARIO EXISTENTE (ACTUALIZADO - SIN CORREO)
 async function actualizarUsuarioExistente(event) {
     event.preventDefault();
     
@@ -542,7 +623,7 @@ async function actualizarUsuarioExistente(event) {
             }
         });
         
-        // Obtener datos del formulario
+        // Obtener datos del formulario (ya formateados automáticamente)
         const telefonoLimpio = document.getElementById('editar-telefono').value.replace(/[^0-9]/g, '');
         const soloNumerosTelefono = telefonoLimpio.startsWith('56') ? telefonoLimpio.substring(2) : telefonoLimpio;
         
@@ -553,7 +634,7 @@ async function actualizarUsuarioExistente(event) {
             apellido_pat_usuario: document.getElementById('editar-apellido-pat').value.trim(),
             apellido_mat_usuario: document.getElementById('editar-apellido-mat').value.trim(),
             telefono_movil_usuario: soloNumerosTelefono,
-            correo_electronico_usuario: document.getElementById('editar-correo').value.trim(),
+            // ✅ ELIMINADO: correo_electronico_usuario (no se puede editar)
             id_rol: parseInt(document.getElementById('editar-rol').value),
             id_turno: document.getElementById('editar-turno').value ? parseInt(document.getElementById('editar-turno').value) : null,
             estado_usuario: estadoSeleccionado === '1'  // ✅ Convertir a boolean
@@ -573,7 +654,7 @@ async function actualizarUsuarioExistente(event) {
         // Agregar nueva contraseña si se proporcionó
         const nuevaPassword = document.getElementById('nueva-password').value;
         if (nuevaPassword) {
-            datosActualizacion.password_usuario = nuevaPassword;
+            datosActualizacion.password = nuevaPassword;
             console.log('🔐 Contraseña incluida en la actualización');
         }
         
@@ -635,9 +716,8 @@ function getRolClassActualizar(rolNombre) {
     const roles = {
         'Administrador': 'rol-administrador',
         'Operador': 'rol-operador',
-        'Conductor': 'rol-conductor',
-        'Inspector': 'rol-inspector',
-        'Ciudadano': 'rol-ciudadano'
+        'Supervisor': 'rol-supervisor',
+        'Inspector': 'rol-inspector'
     };
     return roles[rolNombre] || 'rol-usuario';
 }

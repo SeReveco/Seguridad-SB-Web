@@ -1,4 +1,4 @@
-/* 🎨 ESTILOS PARA LA GESTIÓN DE USUARIOS (ACTUALIZADO CON FORMATEO DE NOMBRES) */
+/* 🎨 ESTILOS PARA LA GESTIÓN DE USUARIOS (ACTUALIZADO CON COLORES DE ROLES Y TIPOS DE USUARIO) */
 
 /* Sección de Usuarios */
 .usuarios-section {
@@ -155,7 +155,7 @@
 /* Lista de Usuarios */
 .lista-usuarios-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
     gap: 20px;
 }
 
@@ -166,6 +166,8 @@
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     transition: all 0.3s ease;
     border-left: 4px solid #007bff;
+    animation: fadeIn 0.5s ease-out;
+    position: relative;
 }
 
 .usuario-card:hover {
@@ -176,8 +178,9 @@
 .usuario-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: flex-start;
     margin-bottom: 15px;
+    gap: 10px;
 }
 
 .usuario-nombre {
@@ -185,78 +188,126 @@
     font-weight: 600;
     color: #2c3e50;
     margin: 0;
+    flex: 1;
 }
 
+/* ✅ NUEVO: Estilos para los roles con colores específicos */
 .usuario-rol {
-    padding: 4px 8px;
-    border-radius: 12px;
-    font-size: 0.8em;
-    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 15px;
+    font-size: 0.75em;
+    font-weight: 700;
     text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
 }
 
-/* ✅ ACTUALIZADO: Solo 4 roles definitivos */
+/* ✅ ACTUALIZADO: Colores específicos para cada rol */
 .rol-administrador {
-    background: #dc3545;
-    color: white;
+    background-color: #dc3545 !important; /* Rojo */
+    color: white !important;
+    border: 2px solid #c82333;
 }
 
 .rol-operador {
-    background: #007bff;
-    color: white;
+    background-color: #007bff !important; /* Azul */
+    color: white !important;
+    border: 2px solid #0056b3;
 }
 
 .rol-supervisor {
-    background: #6f42c1;
-    color: white;
+    background-color: #ffc107 !important; /* Amarillo */
+    color: #212529 !important;
+    border: 2px solid #e0a800;
 }
 
 .rol-inspector {
-    background: #28a745;
+    background-color: #28a745 !important; /* Verde */
+    color: white !important;
+    border: 2px solid #218838;
+}
+
+/* ✅ NUEVO: Indicadores de tipo de usuario (App Móvil vs Página Web) */
+.usuario-tipo {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.7rem;
+    padding: 3px 8px;
+    border-radius: 10px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.tipo-app {
+    background-color: #28a745;
     color: white;
+    border: 1px solid #218838;
+}
+
+.tipo-web {
+    background-color: #007bff;
+    color: white;
+    border: 1px solid #0056b3;
 }
 
 .usuario-info {
     margin-bottom: 15px;
+    padding-top: 10px;
 }
 
 .usuario-dato {
     display: flex;
     justify-content: space-between;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     font-size: 0.9em;
+    padding: 4px 0;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.usuario-dato:last-child {
+    border-bottom: none;
 }
 
 .usuario-dato strong {
     color: #495057;
+    min-width: 80px;
 }
 
 .usuario-dato span {
     color: #6c757d;
+    text-align: right;
+    flex: 1;
 }
 
 .usuario-estado {
     display: inline-block;
-    padding: 4px 8px;
+    padding: 4px 10px;
     border-radius: 12px;
-    font-size: 0.8em;
+    font-size: 0.75em;
     font-weight: 600;
+    text-transform: uppercase;
 }
 
 .estado-activo {
     background: #d4edda;
     color: #155724;
+    border: 1px solid #c3e6cb;
 }
 
 .estado-inactivo {
     background: #f8d7da;
     color: #721c24;
+    border: 1px solid #f1b0b7;
 }
 
 .usuario-acciones {
     display: flex;
     gap: 10px;
     margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #e9ecef;
 }
 
 .btn-editar-usuario {
@@ -267,8 +318,13 @@
     border-radius: 5px;
     cursor: pointer;
     font-size: 0.8em;
-    transition: background 0.3s ease;
+    transition: all 0.3s ease;
     flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-weight: 600;
 }
 
 .btn-eliminar-usuario-card {
@@ -279,16 +335,260 @@
     border-radius: 5px;
     cursor: pointer;
     font-size: 0.8em;
-    transition: background 0.3s ease;
+    transition: all 0.3s ease;
     flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-weight: 600;
 }
 
 .btn-editar-usuario:hover {
     background: #0056b3;
+    transform: translateY(-1px);
 }
 
 .btn-eliminar-usuario-card:hover {
     background: #c82333;
+    transform: translateY(-1px);
+}
+
+/* Header Actions con Filtros */
+.header-actions {
+    display: flex;
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.search-container {
+    position: relative;
+    flex: 1;
+    min-width: 250px;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px 45px 12px 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #6c757d;
+}
+
+/* Estilos para el botón de filtros mejorado */
+.btn-filtrar-usuarios {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    position: relative;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    white-space: nowrap;
+}
+
+.btn-filtrar-usuarios:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    background: linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%);
+}
+
+.btn-filtrar-usuarios:active {
+    transform: translateY(0);
+}
+
+.filtros-badge {
+    background: #ff4757;
+    color: white;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+/* Botones de acción */
+.btn-limpiar-filtros {
+    background: #6c757d;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-descargar-excel {
+    background: linear-gradient(135deg, #28a745, #20c997);
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-limpiar-filtros:hover {
+    background: #5a6268;
+    transform: translateY(-2px);
+}
+
+.btn-descargar-excel:hover {
+    background: linear-gradient(135deg, #218838, #1e9e8a);
+    transform: translateY(-2px);
+}
+
+/* Contador de resultados */
+.contador-resultados {
+    background: #e3f2fd;
+    padding: 10px 15px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 14px;
+    color: #1976d2;
+    border-left: 4px solid #2196f3;
+}
+
+/* Estilos para el modal de filtros */
+.filtros-modal .swal2-popup {
+    border-radius: 12px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.filtros-container {
+    padding: 10px 0;
+}
+
+.filtro-group {
+    margin-bottom: 20px;
+}
+
+.filtro-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: #333;
+    font-size: 14px;
+}
+
+.filtro-select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 2px solid #e1e5e9;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    background: white;
+}
+
+.filtro-select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.filtros-info {
+    background: #f8f9fa;
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 20px;
+    border-left: 4px solid #667eea;
+}
+
+.filtros-info p {
+    margin: 0;
+    color: #666;
+    font-size: 13px;
+}
+
+.filtros-info i {
+    color: #667eea;
+    margin-right: 5px;
+}
+
+/* Indicador de filtros activos */
+.filtros-activos {
+    background: #e3f2fd;
+    border: 1px solid #bbdefb;
+    border-radius: 6px;
+    padding: 10px;
+    margin-bottom: 15px;
+    display: none;
+}
+
+.filtros-activos.mostrar {
+    display: block;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.filtro-activo {
+    display: inline-flex;
+    align-items: center;
+    background: #667eea;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin: 2px;
+}
+
+.filtro-activo button {
+    background: none;
+    border: none;
+    color: white;
+    margin-left: 5px;
+    cursor: pointer;
+    font-size: 10px;
 }
 
 /* MODALES */
@@ -500,29 +800,6 @@
     margin-bottom: 15px;
 }
 
-.search-input {
-    width: 100%;
-    padding: 12px 45px 12px 15px;
-    border: 2px solid #e9ecef;
-    border-radius: 8px;
-    font-size: 14px;
-    transition: all 0.3s ease;
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: #007bff;
-    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
-}
-
-.search-icon {
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #6c757d;
-}
-
 /* Lista de Resultados de Búsqueda */
 .usuarios-list-search {
     max-height: 200px;
@@ -594,15 +871,15 @@
 
 /* Badges */
 .rol-badge {
-    padding: 4px 8px;
-    border-radius: 12px;
+    padding: 6px 12px;
+    border-radius: 15px;
     font-size: 0.8em;
     font-weight: 600;
     text-transform: uppercase;
 }
 
 .estado-badge {
-    padding: 4px 8px;
+    padding: 4px 10px;
     border-radius: 12px;
     font-size: 0.8em;
     font-weight: 600;
@@ -748,48 +1025,6 @@
     transform: none;
 }
 
-/* Responsive */
-@media (max-width: 768px) {
-    .usuarios-actions {
-        grid-template-columns: 1fr;
-    }
-    
-    .usuarios-stats {
-        grid-template-columns: 1fr;
-    }
-    
-    .lista-usuarios-grid {
-        grid-template-columns: 1fr;
-    }
-    
-    .form-row {
-        grid-template-columns: 1fr;
-    }
-    
-    .usuario-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 10px;
-    }
-    
-    .usuario-acciones {
-        flex-direction: column;
-    }
-    
-    .modal-content {
-        width: 95%;
-        margin: 5% auto;
-    }
-    
-    .modal-footer {
-        flex-direction: column;
-    }
-    
-    .modal-footer button {
-        width: 100%;
-    }
-}
-
 /* Estados de carga */
 .loading-usuarios {
     text-align: center;
@@ -872,14 +1107,6 @@
         opacity: 1;
         transform: translateY(0);
     }
-}
-
-.usuario-card {
-    animation: fadeIn 0.5s ease-out;
-}
-
-.stat-card {
-    animation: fadeIn 0.5s ease-out;
 }
 
 /* 🗑️ ESTILOS ESPECÍFICOS PARA ELIMINAR USUARIOS */
@@ -986,4 +1213,61 @@
     color: #dc3545;
     font-size: 0.8em;
     margin-top: 5px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .usuarios-actions {
+        grid-template-columns: 1fr;
+    }
+    
+    .usuarios-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .lista-usuarios-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    
+    .usuario-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+    }
+    
+    .usuario-acciones {
+        flex-direction: column;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 5% auto;
+    }
+    
+    .modal-footer {
+        flex-direction: column;
+    }
+    
+    .modal-footer button {
+        width: 100%;
+    }
+    
+    .header-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .search-container {
+        min-width: auto;
+    }
+    
+    .btn-filtrar-usuarios,
+    .btn-limpiar-filtros,
+    .btn-descargar-excel {
+        justify-content: center;
+    }
 }
