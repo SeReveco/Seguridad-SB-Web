@@ -63,10 +63,9 @@ urlpatterns = [
         # ========== NUEVAS APIs PARA IONIC ==========
     path('ionic/login/', views.api_login_ionic, name='api_login_ionic'),
     path('ionic/register/', views.api_register_ciudadano, name='api_register_ciudadano'),
-    path('ionic/dashboard/stats/', views.api_dashboard_stats, name='api_dashboard_stats'),
-    path('ionic/vehiculos/', views.api_vehiculos, name='api_vehiculos'),
-    path('ionic/tipos-vehiculos/', views.api_tipos_vehiculos, name='api_tipos_vehiculos'),
-    path('ionic/denuncias/', views.api_denuncias_ionic, name='api_denuncias_ionic'),
-    path('ionic/roles/', views.api_roles_ionic, name='api_roles_ionic'),
-    path('ionic/turnos/', views.api_turnos_ionic, name='api_turnos_ionic'),
+    path('api/trabajador/datos/<int:usuario_id>/', views.ObtenerDatosTrabajador.as_view(), name='obtener_datos_trabajador'),
+    path('api/trabajador/datos/', views.ObtenerDatosTrabajador.as_view(), name='obtener_datos_trabajador_actual'),
+    path('api/trabajador/vehiculos/tipo/<int:tipo_vehiculo_id>/', views.ObtenerVehiculosPorTipo.as_view(), name='obtener_vehiculos_por_tipo'),
+    path('api/trabajador/turno/iniciar/', views.IniciarTurnoTrabajador.as_view(), name='iniciar_turno_trabajador'),
+    path('api/trabajador/turno/finalizar/', views.FinalizarTurnoTrabajador.as_view(), name='finalizar_turno_trabajador'),
 ]

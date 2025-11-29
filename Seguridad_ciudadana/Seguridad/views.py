@@ -1,12 +1,15 @@
+from datetime import date
 import random
 import re
 from django.contrib import messages  # type: ignore
 from django.shortcuts import render, redirect, get_object_or_404  # type: ignore
 from django.contrib.auth import login, authenticate, logout  # type: ignore
+from django.utils.decorators import method_decorator  # type: ignore
 from django.contrib.auth.hashers import make_password, check_password  # type: ignore
 from django.contrib.auth.decorators import login_required  # type: ignore
 from django.http import HttpResponse, JsonResponse  # type: ignore
-from django.utils import timezone  # type: ignore
+from django.utils import timezone
+from django.views import View  # type: ignore
 from .models import (
     EstadoVehiculo, FamiliaDenuncia, GrupoDenuncia, Requerimiento, SubgrupoDenuncia,
     TiposVehiculos, Usuario, Denuncia, Vehiculos,
@@ -2267,200 +2270,177 @@ def api_register_ciudadano(request):
             'error': 'Error interno del servidor'
         }, status=500)
         
-@csrf_exempt
-def api_vehiculos(request):
-    """API para gestión de vehículos"""
-    try:
-        if request.method == 'GET':
-            vehiculos = Vehiculos.objects.all().select_related('id_tipo_vehiculo')
-            data = []
-            for vehiculo in vehiculos:
-                data.append({
-                    'id_vehiculo': vehiculo.id_vehiculo,
-                    'patente_vehiculo': vehiculo.patente_vehiculo,
-                    'marca_vehiculo': vehiculo.marca_vehiculo,
-                    'modelo_vehiculo': vehiculo.modelo_vehiculo,
-                    'codigo_vehiculo': vehiculo.codigo_vehiculo,
-                    'id_tipo_vehiculo': vehiculo.id_tipo_vehiculo.id_tipo_vehiculo,
-                    'nombre_tipo_vehiculo': vehiculo.id_tipo_vehiculo.nombre_tipo_vehiculo,
-                    'estado_vehiculo': vehiculo.estado_vehiculo,
-                    'fecha_creacion': vehiculo.fecha_creacion.isoformat() if vehiculo.fecha_creacion else None
-                })
-            return JsonResponse({'success': True, 'vehiculos': data})
-        
-        elif request.method == 'POST':
-            data = json.loads(request.body)
+@method_decorator(csrf_exempt, name='dispatch')
+class ObtenerDatosTrabajador(View):
+    def get(self, request, usuario_id=None):
+        try:
+            # Si no se proporciona usuario_id, intentar obtener del usuario autenticado
+            if not usuario_id and request.user.is_authenticated:
+                usuario_id = request.user.id_usuario
+            elif not usuario_id:
+                return JsonResponse({'error': 'Usuario no autenticado'}, status=401)
             
-            # Validar campos requeridos
-            campos_requeridos = ['patente_vehiculo', 'marca_vehiculo', 'modelo_vehiculo', 'codigo_vehiculo', 'id_tipo_vehiculo']
-            for campo in campos_requeridos:
-                if not data.get(campo):
-                    return JsonResponse({'success': False, 'error': f'Campo {campo} es requerido'}, status=400)
+            # Obtener usuario
+            usuario = Usuario.objects.get(id_usuario=usuario_id)
             
-            # Verificar patente única
-            if Vehiculos.objects.filter(patente_vehiculo=data['patente_vehiculo']).exists():
-                return JsonResponse({'success': False, 'error': 'La patente ya existe'}, status=400)
+            # Obtener tipos de vehículos
+            tipos_vehiculos = list(TiposVehiculos.objects.all().values('id_tipo_vehiculo', 'nombre_tipo_vehiculo'))
             
-            # Crear vehículo
-            vehiculo = Vehiculos.objects.create(
-                patente_vehiculo=data['patente_vehiculo'],
-                marca_vehiculo=data['marca_vehiculo'],
-                modelo_vehiculo=data['modelo_vehiculo'],
-                codigo_vehiculo=data['codigo_vehiculo'],
-                id_tipo_vehiculo_id=data['id_tipo_vehiculo'],
-                estado_vehiculo=data.get('estado_vehiculo', 'Disponible')
-            )
+            # Obtener radios disponibles (estado_radio = 'disponible')
+            radios_disponibles = list(Radio.objects.filter(
+                estado_radio='disponible'
+            ).values('id_radio', 'nombre_radio', 'codigo_radio', 'descripcion_radio', 'estado_radio'))
             
-            return JsonResponse({
-                'success': True,
-                'vehiculo': {
-                    'id_vehiculo': vehiculo.id_vehiculo,
-                    'patente_vehiculo': vehiculo.patente_vehiculo,
-                    'marca_vehiculo': vehiculo.marca_vehiculo,
-                    'modelo_vehiculo': vehiculo.modelo_vehiculo,
-                    'codigo_vehiculo': vehiculo.codigo_vehiculo,
-                    'estado_vehiculo': vehiculo.estado_vehiculo
+            response_data = {
+                'usuario': {
+                    'id_usuario': usuario.id_usuario,
+                    'nombre': usuario.nombre_usuario,
+                    'apellido': usuario.apellido_pat_usuario,
+                    'rol': usuario.id_rol.nombre_rol if usuario.id_rol else None,
+                    'correo': usuario.correo_electronico_usuario
                 },
-                'message': 'Vehículo creado exitosamente'
-            })
-            
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
-@csrf_exempt
-def api_tipos_vehiculos(request):
-    """API para obtener tipos de vehículos"""
-    try:
-        tipos = TiposVehiculos.objects.all()
-        data = [{
-            'id_tipo_vehiculo': tipo.id_tipo_vehiculo,
-            'nombre_tipo_vehiculo': tipo.nombre_tipo_vehiculo
-        } for tipo in tipos]
-        
-        return JsonResponse({'success': True, 'tipos_vehiculos': data})
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
-@csrf_exempt
-def api_denuncias_ionic(request):
-    """API para gestión de denuncias desde Ionic"""
-    try:
-        if request.method == 'GET':
-            denuncias = Denuncia.objects.all().select_related(
-                'id_usuario', 'id_ciudadano', 'id_requerimiento_id'
-            )
-            data = []
-            for denuncia in denuncias:
-                data.append({
-                    'id_denuncia': denuncia.id_denuncia,
-                    'hora_denuncia': denuncia.hora_denuncia.isoformat(),
-                    'fecha_denuncia': denuncia.fecha_denuncia.isoformat(),
-                    'id_ciudadano': denuncia.id_ciudadano.id_ciudadano,
-                    'nombre_ciudadano': f"{denuncia.id_ciudadano.nombre_ciudadano} {denuncia.id_ciudadano.apellido_pat_ciudadano}",
-                    'direccion_denuncia': denuncia.direccion_denuncia,
-                    'detalle_denuncia': denuncia.detalle_denuncia,
-                    'estado_denuncia': denuncia.estado_denuncia,
-                    'id_requerimiento': denuncia.id_requerimiento_id.id_requerimiento,
-                    'nombre_requerimiento': denuncia.id_requerimiento_id.nombre_requerimiento_denuncia,
-                    'visibilidad_camaras_denuncia': denuncia.visibilidad_camaras_denuncia,
-                    'labor_realizada_denuncia': denuncia.labor_realizada_denuncia,
-                    'fecha_creacion_denuncia': denuncia.fecha_creacion_denuncia.isoformat() if denuncia.fecha_creacion_denuncia else None
-                })
-            return JsonResponse({'success': True, 'denuncias': data})
-        
-        elif request.method == 'POST':
-            data = json.loads(request.body)
-            
-            # Validar campos requeridos
-            campos_requeridos = [
-                'hora_denuncia', 'fecha_denuncia', 'id_ciudadano', 'direccion_denuncia',
-                'id_requerimiento_id', 'detalle_denuncia', 'id_usuario'
-            ]
-            for campo in campos_requeridos:
-                if not data.get(campo):
-                    return JsonResponse({'success': False, 'error': f'Campo {campo} es requerido'}, status=400)
-            
-            # Crear denuncia
-            denuncia = Denuncia.objects.create(
-                hora_denuncia=data['hora_denuncia'],
-                fecha_denuncia=data['fecha_denuncia'],
-                id_ciudadano_id=data['id_ciudadano'],
-                direccion_denuncia=data['direccion_denuncia'],
-                direccion_denuncia_1=data.get('direccion_denuncia_1', ''),
-                cuadrante_denuncia=data.get('cuadrante_denuncia', 0),
-                id_requerimiento_id_id=data['id_requerimiento_id'],
-                detalle_denuncia=data['detalle_denuncia'],
-                id_usuario_id=data['id_usuario'],
-                visibilidad_camaras_denuncia=data.get('visibilidad_camaras_denuncia', False),
-                labor_realizada_denuncia=data.get('labor_realizada_denuncia', ''),
-                hora_llegada_movil_denuncia=data.get('hora_llegada_movil_denuncia'),
-                estado_denuncia=data.get('estado_denuncia', 'Recibido')
-            )
-            
-            return JsonResponse({
-                'success': True,
-                'denuncia': {
-                    'id_denuncia': denuncia.id_denuncia,
-                    'estado_denuncia': denuncia.estado_denuncia,
-                    'fecha_creacion_denuncia': denuncia.fecha_creacion_denuncia.isoformat()
-                },
-                'message': 'Denuncia creada exitosamente'
-            })
-            
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
-@csrf_exempt
-def api_dashboard_stats(request):
-    """API para obtener estadísticas del dashboard"""
-    try:
-        total_usuarios = Usuario.objects.count()
-        total_denuncias = Denuncia.objects.count()
-        vehiculos_activos = Vehiculos.objects.filter(estado_vehiculo='Disponible').count()
-        denuncias_pendientes = Denuncia.objects.filter(estado_denuncia='Recibido').count()
-        
-        return JsonResponse({
-            'success': True,
-            'stats': {
-                'total_usuarios': total_usuarios,
-                'total_denuncias': total_denuncias,
-                'vehiculos_activos': vehiculos_activos,
-                'denuncias_pendientes': denuncias_pendientes
+                'tipos_vehiculos': tipos_vehiculos,
+                'radios_disponibles': radios_disponibles
             }
-        })
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+            
+            return JsonResponse(response_data)
+            
+        except Usuario.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
-# ========== APIs PARA DATOS MAESTROS ==========
+@method_decorator(csrf_exempt, name='dispatch')
+class ObtenerVehiculosPorTipo(View):
+    def get(self, request, tipo_vehiculo_id):
+        try:
+            # Obtener vehículos por tipo que estén disponibles (estado_vehiculo = 1 para disponible)
+            vehiculos = Vehiculos.objects.filter(
+                id_tipo_vehiculo=tipo_vehiculo_id,
+                id_estado_vehiculo=1  # Asumiendo que 1 es "Disponible"
+            ).values('id_vehiculo', 'patente_vehiculo', 'marca_vehiculo', 
+                    'modelo_vehiculo', 'codigo_vehiculo', 'total_kilometraje')
+            
+            vehiculos_list = list(vehiculos)
+            return JsonResponse({'vehiculos': vehiculos_list})
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
-@csrf_exempt
-def api_roles_ionic(request):
-    """API para obtener roles"""
-    try:
-        roles = Roles.objects.all()
-        data = [{
-            'id_rol': rol.id_rol,
-            'nombre_rol': rol.nombre_rol
-        } for rol in roles]
-        
-        return JsonResponse({'success': True, 'roles': data})
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+@method_decorator(csrf_exempt, name='dispatch')
+class IniciarTurnoTrabajador(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            
+            usuario_id = data.get('usuario_id')
+            tipo_vehiculo_id = data.get('tipo_vehiculo_id')
+            vehiculo_id = data.get('vehiculo_id')
+            codigo_vehiculo_manual = data.get('codigo_vehiculo_manual')
+            radio_id = data.get('radio_id')
+            
+            # Validaciones básicas
+            if not usuario_id:
+                return JsonResponse({'error': 'ID de usuario requerido'}, status=400)
+            
+            # Obtener usuario
+            usuario = Usuario.objects.get(id_usuario=usuario_id)
+            
+            # Crear asignación de vehículo si se proporcionó vehículo
+            asignacion_vehiculo = None
+            if vehiculo_id:
+                vehiculo = Vehiculos.objects.get(id_vehiculo=vehiculo_id)
+                asignacion_vehiculo = AsignacionVehiculo.objects.create(
+                    id_usuario=usuario,
+                    id_vehiculo=vehiculo,
+                    fecha_asignacion=date.today(),
+                    kilometraje_inicial=vehiculo.total_kilometraje,
+                    activo=1
+                )
+            elif codigo_vehiculo_manual:
+                # Para códigos manuales, crear un registro especial
+                asignacion_vehiculo = AsignacionVehiculo.objects.create(
+                    id_usuario=usuario,
+                    id_vehiculo=None,  # O crear un vehículo genérico si es necesario
+                    fecha_asignacion=date.today(),
+                    observaciones=f"Vehículo manual: {codigo_vehiculo_manual}",
+                    activo=1
+                )
+            
+            # Crear asignación de radio si se proporcionó radio
+            asignacion_radio = None
+            if radio_id:
+                radio = Radio.objects.get(id_radio=radio_id)
+                asignacion_radio = AsignacionRadio.objects.create(
+                    id_usuario=usuario,
+                    id_radio=radio,
+                    fecha_asignacion=date.today()
+                )
+                
+                # Marcar radio como no disponible
+                radio.estado_radio = 'asignado'
+                radio.save()
+            
+            response_data = {
+                'success': True,
+                'message': 'Turno iniciado correctamente',
+                'asignacion_vehiculo_id': asignacion_vehiculo.id if asignacion_vehiculo else None,
+                'asignacion_radio_id': asignacion_radio.id if asignacion_radio else None,
+                'fecha': date.today().isoformat()
+            }
+            
+            return JsonResponse(response_data)
+            
+        except Usuario.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+        except Vehiculos.DoesNotExist:
+            return JsonResponse({'error': 'Vehículo no encontrado'}, status=404)
+        except Radio.DoesNotExist:
+            return JsonResponse({'error': 'Radio no encontrada'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
 
-@csrf_exempt
-def api_turnos_ionic(request):
-    """API para obtener turnos"""
-    try:
-        turnos = Turnos.objects.all()
-        data = []
-        for turno in turnos:
-            data.append({
-                'id_turno': turno.id_turno,
-                'nombre_turno': turno.nombre_turno,
-                'hora_inicio': turno.hora_inicio.strftime('%H:%M'),
-                'hora_fin': turno.hora_fin.strftime('%H:%M')
-            })
-        
-        return JsonResponse({'success': True, 'turnos': data})
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+@method_decorator(csrf_exempt, name='dispatch')
+class FinalizarTurnoTrabajador(View):
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            
+            usuario_id = data.get('usuario_id')
+            asignacion_vehiculo_id = data.get('asignacion_vehiculo_id')
+            asignacion_radio_id = data.get('asignacion_radio_id')
+            kilometraje_final = data.get('kilometraje_final')
+            
+            # Finalizar asignación de vehículo
+            if asignacion_vehiculo_id:
+                asignacion_vehiculo = AsignacionVehiculo.objects.get(
+                    id=asignacion_vehiculo_id,
+                    id_usuario=usuario_id
+                )
+                if kilometraje_final and asignacion_vehiculo.id_vehiculo:
+                    # Actualizar kilometraje del vehículo
+                    vehiculo = asignacion_vehiculo.id_vehiculo
+                    vehiculo.total_kilometraje = kilometraje_final
+                    vehiculo.save()
+                
+                asignacion_vehiculo.activo = 2  # Marcar como finalizado
+                asignacion_vehiculo.save()
+            
+            # Finalizar asignación de radio
+            if asignacion_radio_id:
+                asignacion_radio = AsignacionRadio.objects.get(
+                    id=asignacion_radio_id,
+                    id_usuario=usuario_id
+                )
+                asignacion_radio.fecha_devolucion = timezone.now()
+                asignacion_radio.save()
+                
+                # Marcar radio como disponible
+                radio = asignacion_radio.id_radio
+                radio.estado_radio = 'disponible'
+                radio.save()
+            
+            return JsonResponse({'success': True, 'message': 'Turno finalizado correctamente'})
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
