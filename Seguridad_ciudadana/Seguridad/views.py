@@ -2425,6 +2425,19 @@ class IniciarTurnoTrabajador(View):
             asignacion_vehiculo = None
             if vehiculo_id:
                 vehiculo = Vehiculos.objects.get(id_vehiculo=vehiculo_id)
+                
+                # Verificar si ya existe una asignación activa para este vehículo
+                asignacion_existente = AsignacionVehiculo.objects.filter(
+                    id_vehiculo=vehiculo_id,
+                    activo=1  # Disponible
+                ).exists()
+                
+                if asignacion_existente:
+                    return JsonResponse({
+                        'error': f'El vehículo {vehiculo.patente_vehiculo} ya tiene una asignación activa'
+                    }, status=400)
+                
+                # Crear nueva asignación de vehículo
                 asignacion_vehiculo = AsignacionVehiculo.objects.create(
                     id_usuario=usuario,
                     id_vehiculo=vehiculo,
@@ -2432,29 +2445,38 @@ class IniciarTurnoTrabajador(View):
                     kilometraje_inicial=vehiculo.total_kilometraje,
                     kilometraje_recorrido=0,  # Iniciar en 0
                     kilometraje_total=vehiculo.total_kilometraje,  # Total inicial = kilometraje del vehículo
-                    activo=1  # Activo/Disponible
+                    activo=1  # Disponible (inicia como disponible)
                 )
                 print(f"✅ Asignación de vehículo creada: {vehiculo.patente_vehiculo}")
                 print(f"📊 Kilometraje inicial: {vehiculo.total_kilometraje}")
+                print(f"🎯 Estado asignación: Disponible")
                 
             elif codigo_vehiculo_manual:
                 # Para códigos manuales, crear un registro especial
                 asignacion_vehiculo = AsignacionVehiculo.objects.create(
                     id_usuario=usuario,
-                    id_vehiculo=None,
+                    id_vehiculo=None,  # Sin vehículo específico
                     fecha_asignacion=date.today(),
                     kilometraje_inicial=0,
                     kilometraje_recorrido=0,
                     kilometraje_total=0,
                     observaciones=f"Vehículo manual: {codigo_vehiculo_manual}",
-                    activo=1
+                    activo=1  # Disponible
                 )
                 print(f"✅ Asignación manual creada: {codigo_vehiculo_manual}")
+                print(f"🎯 Estado asignación: Disponible")
             
             # Crear asignación de radio si se proporcionó radio
             asignacion_radio = None
             if radio_id:
                 radio = Radio.objects.get(id_radio=radio_id)
+                
+                # Verificar si la radio ya está asignada
+                if radio.estado_radio == 'No Disponible':
+                    return JsonResponse({
+                        'error': f'La radio {radio.nombre_radio} ya está asignada'
+                    }, status=400)
+                
                 asignacion_radio = AsignacionRadio.objects.create(
                     id_usuario=usuario,
                     id_radio=radio,
@@ -2463,11 +2485,12 @@ class IniciarTurnoTrabajador(View):
                 )
                 
                 # Marcar radio como no disponible
-                radio.estado_radio = 'No Disponible'  # Cambiar estado a No Disponible
+                radio.estado_radio = 'No Disponible'
                 radio.save()
                 print(f"✅ Asignación de radio creada: {radio.nombre_radio}")
                 print(f"📻 Estado de radio actualizado a: No Disponible")
             
+            # Preparar respuesta
             response_data = {
                 'success': True,
                 'message': 'Turno iniciado correctamente',
@@ -2477,11 +2500,14 @@ class IniciarTurnoTrabajador(View):
                 'detalles': {
                     'vehiculo': f"{vehiculo.patente_vehiculo if vehiculo_id else 'Manual: ' + codigo_vehiculo_manual}",
                     'radio': radio.nombre_radio if radio_id else 'No asignada',
-                    'kilometraje_inicial': vehiculo.total_kilometraje if vehiculo_id else 0
+                    'kilometraje_inicial': vehiculo.total_kilometraje if vehiculo_id else 0,
+                    'estado_asignacion': 'Disponible'
                 }
             }
             
             print("✅ Turno iniciado exitosamente")
+            print(f"📋 Resumen: Vehículo: {response_data['detalles']['vehiculo']}, Radio: {response_data['detalles']['radio']}")
+            
             return JsonResponse(response_data)
             
         except Usuario.DoesNotExist:
@@ -2508,6 +2534,7 @@ class FinalizarTurnoTrabajador(View):
             asignacion_vehiculo_id = data.get('asignacion_vehiculo_id')
             asignacion_radio_id = data.get('asignacion_radio_id')
             kilometraje_final = data.get('kilometraje_final')
+            estado_final = data.get('estado_final', 4)  # Por defecto "No disponible"
             
             cambios_realizados = []
             
@@ -2519,14 +2546,15 @@ class FinalizarTurnoTrabajador(View):
                         id_usuario_id=usuario_id
                     )
                     
+                    # Actualizar kilometraje si se proporciona
                     if kilometraje_final is not None and asignacion_vehiculo.id_vehiculo:
                         # Calcular kilometraje recorrido
-                        kilometraje_recorrido = kilometraje_final - asignacion_vehiculo.kilometraje_inicial
+                        kilometraje_recorrido = max(0, kilometraje_final - asignacion_vehiculo.kilometraje_inicial)
                         
                         # Actualizar asignación
                         asignacion_vehiculo.kilometraje_recorrido = kilometraje_recorrido
                         asignacion_vehiculo.kilometraje_total = kilometraje_final
-                        asignacion_vehiculo.activo = 2  # Marcar como finalizado
+                        asignacion_vehiculo.activo = estado_final  # Usar el estado proporcionado
                         asignacion_vehiculo.save()
                         
                         # Actualizar kilometraje del vehículo
@@ -2534,18 +2562,24 @@ class FinalizarTurnoTrabajador(View):
                         vehiculo.total_kilometraje = kilometraje_final
                         vehiculo.save()
                         
-                        cambios_realizados.append(f"Vehículo: {kilometraje_recorrido} km recorridos")
+                        estado_texto = self.get_estado_texto(estado_final)
+                        cambios_realizados.append(f"Vehículo: {kilometraje_recorrido} km recorridos - Estado: {estado_texto}")
                         print(f"✅ Kilometraje actualizado: {kilometraje_recorrido} km recorridos")
+                        print(f"🎯 Estado vehículo actualizado a: {estado_texto}")
                     
                     else:
-                        asignacion_vehiculo.activo = 2
+                        # Solo actualizar estado sin kilometraje
+                        asignacion_vehiculo.activo = estado_final
                         asignacion_vehiculo.save()
-                        cambios_realizados.append("Vehículo: turno finalizado")
+                        estado_texto = self.get_estado_texto(estado_final)
+                        cambios_realizados.append(f"Vehículo: Estado: {estado_texto}")
+                        print(f"🎯 Estado vehículo actualizado a: {estado_texto}")
                     
                     print("✅ Asignación de vehículo finalizada")
                     
                 except AsignacionVehiculo.DoesNotExist:
                     print(f"❌ Asignación de vehículo no encontrada: {asignacion_vehiculo_id}")
+                    return JsonResponse({'error': 'Asignación de vehículo no encontrada'}, status=404)
             
             # Finalizar asignación de radio
             if asignacion_radio_id:
@@ -2568,10 +2602,11 @@ class FinalizarTurnoTrabajador(View):
                     
                 except AsignacionRadio.DoesNotExist:
                     print(f"❌ Asignación de radio no encontrada: {asignacion_radio_id}")
+                    return JsonResponse({'error': 'Asignación de radio no encontrada'}, status=404)
             
             mensaje = 'Turno finalizado correctamente'
             if cambios_realizados:
-                mensaje += f". Cambios: {', '.join(cambios_realizados)}"
+                mensaje += f". {', '.join(cambios_realizados)}"
             
             return JsonResponse({
                 'success': True, 
@@ -2581,4 +2616,56 @@ class FinalizarTurnoTrabajador(View):
             
         except Exception as e:
             print(f"❌ Error en FinalizarTurnoTrabajador: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    def get_estado_texto(self, estado_id):
+        """Convertir ID de estado a texto"""
+        estados = {
+            1: 'Disponible',
+            2: 'En proceso', 
+            3: 'En central',
+            4: 'No disponible'
+        }
+        return estados.get(estado_id, 'Desconocido')
+    
+@method_decorator(csrf_exempt, name='dispatch')
+class CambiarEstadoVehiculo(View):
+    def post(self, request):
+        """Cambiar el estado del vehículo durante el turno"""
+        try:
+            data = json.loads(request.body)
+            
+            usuario_id = data.get('usuario_id')
+            asignacion_vehiculo_id = data.get('asignacion_vehiculo_id')
+            nuevo_estado = data.get('nuevo_estado')  # 1: Disponible, 2: En proceso, 3: En central
+            
+            if not all([usuario_id, asignacion_vehiculo_id, nuevo_estado]):
+                return JsonResponse({'error': 'Datos incompletos'}, status=400)
+            
+            if nuevo_estado not in [1, 2, 3]:
+                return JsonResponse({'error': 'Estado inválido'}, status=400)
+            
+            # Obtener y actualizar asignación
+            asignacion = AsignacionVehiculo.objects.get(
+                id=asignacion_vehiculo_id,
+                id_usuario_id=usuario_id
+            )
+            
+            estado_anterior = asignacion.activo
+            asignacion.activo = nuevo_estado
+            asignacion.save()
+            
+            estados = {1: 'Disponible', 2: 'En proceso', 3: 'En central'}
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Estado cambiado de {estados.get(estado_anterior)} a {estados.get(nuevo_estado)}',
+                'estado_anterior': estado_anterior,
+                'nuevo_estado': nuevo_estado,
+                'estado_texto': estados.get(nuevo_estado)
+            })
+            
+        except AsignacionVehiculo.DoesNotExist:
+            return JsonResponse({'error': 'Asignación no encontrada'}, status=404)
+        except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)

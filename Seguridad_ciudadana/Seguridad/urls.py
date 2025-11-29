@@ -68,4 +68,5 @@ urlpatterns = [
     path('api/trabajador/vehiculos/tipo/<int:tipo_vehiculo_id>/', views.ObtenerVehiculosPorTipo.as_view(), name='obtener_vehiculos_por_tipo'),
     path('api/trabajador/turno/iniciar/', views.IniciarTurnoTrabajador.as_view(), name='iniciar_turno_trabajador'),
     path('api/trabajador/turno/finalizar/', views.FinalizarTurnoTrabajador.as_view(), name='finalizar_turno_trabajador'),
+    path('api/trabajador/vehiculo/cambiar-estado/', views.CambiarEstadoVehiculo.as_view(), name='cambiar_estado_vehiculo'),
 ]

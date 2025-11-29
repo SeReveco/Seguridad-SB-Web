@@ -220,8 +220,10 @@ class AsignacionRadio(models.Model):
 
 class AsignacionVehiculo(models.Model):
     ACTIVO_CHOICES = [
-        (1, 'Activo/Disponible'),
-        (2, 'En Mantención'),
+        (1, 'Disponible'),
+        (2, 'En proceso'),
+        (3, 'En central'),
+        (4, 'No disponible'),
     ]
     
     id_usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='id_usuario')
