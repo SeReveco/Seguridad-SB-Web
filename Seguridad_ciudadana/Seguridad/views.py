@@ -119,13 +119,11 @@ def iniciar_sesion(request):
         user = authenticate(request, username=correo_electronico_usuario, password=password)
 
         if user is not None:
-            # 🔴 CORREGIR: Cambiar user.rol.nombre_rol por user.id_rol.nombre_rol
-            rol_permitido = user.id_rol.nombre_rol.lower() in ['administrador', 'operador', 'supervisor', 'inspector']
+            rol_permitido = user.id_rol.nombre_rol.lower() in ['administrador', 'operador']
 
             if rol_permitido:
                 login(request, user)
 
-                # 🔴 CORREGIR: Cambiar user.rol.nombre_rol por user.id_rol.nombre_rol
                 rol_mensaje = user.id_rol.nombre_rol
                 request.session['usuario_nombre'] = f'{user.nombre_usuario} {user.apellido_pat_usuario}'
                 request.session['usuario_rol'] = rol_mensaje
@@ -2010,77 +2008,93 @@ def api_denuncias_hoy(request):
 
 @csrf_exempt
 def api_login_ionic(request):
-    """API de login específica para Ionic - Adaptada para Supabase"""
+    """API de login dual para Ionic - Ciudadanos y Trabajadores"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             email = data.get('email')
             password = data.get('password')
             
+            print(f"🔐 LOGIN REQUEST - Email: {email}")
+            
             if not email or not password:
                 return JsonResponse({'success': False, 'error': 'Email y contraseña requeridos'}, status=400)
             
-            print(f"🔐 Intentando login para: {email}")
-            
             # PRIMERO: Intentar autenticar como Usuario (trabajador)
-            user = authenticate(request, username=email, password=password)
-            
-            if user is not None and user.is_active:
-                # ✅ Es un trabajador (Usuario)
-                print(f"✅ Login exitoso como trabajador: {user.nombre_usuario}")
+            try:
+                usuario = Usuario.objects.get(
+                    correo_electronico_usuario=email, 
+                    is_active=True
+                )
+                print(f"👤 Usuario encontrado: {usuario.nombre_usuario}, Rol: {usuario.id_rol.nombre_rol}")
                 
-                user_data = {
-                    'id_usuario': user.id_usuario,
-                    'nombre_usuario': user.nombre_usuario,
-                    'apellido_pat_usuario': user.apellido_pat_usuario,
-                    'apellido_mat_usuario': user.apellido_mat_usuario,
-                    'correo_electronico_usuario': user.correo_electronico_usuario,
-                    'telefono_movil_usuario': user.telefono_movil_usuario,
-                    'id_rol': user.id_rol.id_rol,
-                    'nombre_rol': user.id_rol.nombre_rol,
-                    'is_active': user.is_active,
-                    'tipo_usuario': 'trabajador'
-                }
-                
-                return JsonResponse({
-                    'success': True, 
-                    'user': user_data,
-                    'message': 'Login exitoso como trabajador'
-                })
-            
-            # SEGUNDO: Intentar autenticar como Ciudadano desde Supabase
+                if usuario.check_password(password):
+                    print(f"✅ Contraseña correcta para trabajador")
+                    
+                    # VERIFICAR SI PUEDE ACCEDER A LA APP MÓVIL
+                    rol_id = usuario.id_rol.id_rol
+                    print(f"🎯 Rol ID: {rol_id}")
+                    
+                    if rol_id not in [3, 4]:  # Solo supervisores (3) e inspectores (4)
+                        print(f"❌ Rol {rol_id} no tiene acceso a la app")
+                        return JsonResponse({
+                            'success': False, 
+                            'error': 'Tu rol no tiene acceso a la aplicación móvil. Solo inspectores y supervisores.'
+                        }, status=403)
+                    
+                    user_data = {
+                        'id': usuario.id_usuario,
+                        'nombre': f"{usuario.nombre_usuario} {usuario.apellido_pat_usuario}",
+                        'email': usuario.correo_electronico_usuario,
+                        'rut': usuario.rut_usuario,
+                        'user_type': 'trabajador',
+                        'id_rol': rol_id,
+                        'nombre_rol': usuario.id_rol.nombre_rol,
+                        'telefono': usuario.telefono_movil_usuario,
+                        'is_active': usuario.is_active
+                    }
+                    
+                    print(f"✅ Login exitoso como trabajador: {user_data['nombre']}")
+                    return JsonResponse({
+                        'success': True, 
+                        'user': user_data,
+                        'message': 'Login exitoso como trabajador'
+                    })
+                else:
+                    print("❌ Contraseña incorrecta para trabajador")
+            except Usuario.DoesNotExist:
+                print("❌ Usuario trabajador no encontrado")
+            except Exception as e:
+                print(f"❌ Error en autenticación trabajador: {e}")
+
+            # SEGUNDO: Intentar autenticar como Ciudadano
             try:
                 ciudadano = Ciudadano.objects.get(
                     correo_electronico_ciudadano=email,
                     is_active_ciudadano=True
                 )
+                print(f"👤 Ciudadano encontrado: {ciudadano.nombre_ciudadano}")
                 
-                # Como Supabase maneja autenticación, podrías necesitar:
-                # 1. Llamar a la API de Supabase Auth, O
-                # 2. Usar una contraseña hasheada consistente
-                
-                # Opción temporal: verificar contraseña directamente
-                # EN PRODUCCIÓN: Implementar autenticación con Supabase Auth
-                if ciudadano.contraseña_ciudadano == password:
-                    print(f"✅ Login exitoso como ciudadano: {ciudadano.nombre_ciudadano}")
+                if check_password(password, ciudadano.password_ciudadano):
+                    print(f"✅ Contraseña correcta para ciudadano")
                     
                     ciudadano_data = {
-                        'id_ciudadano': ciudadano.id_ciudadano,
-                        'nombre_ciudadano': ciudadano.nombre_ciudadano,
-                        'apellido_pat_ciudadano': ciudadano.apellido_pat_ciudadano,
-                        'apellido_mat_ciudadano': ciudadano.apellido_mat_ciudadano,
-                        'correo_electronico_ciudadano': ciudadano.correo_electronico_ciudadano,
-                        'telefono_movil_ciudadano': ciudadano.telefono_movil_ciudadano,
-                        'id_rol': 3,
+                        'id': ciudadano.id_ciudadano,
+                        'nombre': f"{ciudadano.nombre_ciudadano} {ciudadano.apellido_pat_ciudadano}",
+                        'email': ciudadano.correo_electronico_ciudadano,
+                        'rut': ciudadano.rut_ciudadano,
+                        'user_type': 'ciudadano',
+                        'id_rol': 5,
                         'nombre_rol': 'ciudadano',
-                        'is_active': ciudadano.is_active_ciudadano,
-                        'tipo_usuario': 'ciudadano'
+                        'telefono': ciudadano.telefono_movil_ciudadano,
+                        'is_active': ciudadano.is_active_ciudadano
                     }
                     
                     # Actualizar último inicio de sesión
                     ciudadano.ultimo_inicio_ciudadano = timezone.now()
                     ciudadano.save()
                     
+                    print(f"✅ Login exitoso como ciudadano: {ciudadano_data['nombre']}")
                     return JsonResponse({
                         'success': True, 
                         'user': ciudadano_data,
@@ -2088,20 +2102,21 @@ def api_login_ionic(request):
                     })
                 else:
                     print("❌ Contraseña incorrecta para ciudadano")
-                    return JsonResponse({
-                        'success': False, 
-                        'error': 'Credenciales inválidas'
-                    }, status=401)
                     
             except Ciudadano.DoesNotExist:
-                print("❌ Ciudadano no encontrado o inactivo")
-                return JsonResponse({
-                    'success': False, 
-                    'error': 'Credenciales inválidas'
-                }, status=401)
+                print("❌ Ciudadano no encontrado")
+            except Exception as e:
+                print(f"❌ Error en autenticación ciudadano: {e}")
+                
+            # Si llegamos aquí, ninguna autenticación funcionó
+            print("❌ Todas las autenticaciones fallaron")
+            return JsonResponse({
+                'success': False, 
+                'error': 'Credenciales inválidas o usuario sin acceso'
+            }, status=401)
                 
         except Exception as e:
-            print(f"❌ Error en login: {str(e)}")
+            print(f"💥 ERROR NO MANEJADO EN LOGIN: {str(e)}")
             return JsonResponse({
                 'success': False, 
                 'error': f'Error interno del servidor: {str(e)}'
