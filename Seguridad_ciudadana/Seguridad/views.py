@@ -2307,10 +2307,12 @@ class ObtenerDatosTrabajador(View):
                 'id_tipo_vehiculo', 'nombre_tipo_vehiculo'
             ))
             
-            # Obtener radios disponibles (estado_radio = 'disponible')
+            # Obtener radios disponibles (CORREGIDO: buscar por 'Disponible' con mayúscula)
             radios_disponibles = list(Radio.objects.filter(
-                estado_radio='disponible'
+                estado_radio='Disponible'  # Cambiado a mayúscula
             ).values('id_radio', 'nombre_radio', 'codigo_radio', 'descripcion_radio', 'estado_radio'))
+            
+            print(f"📻 Radios disponibles encontradas: {len(radios_disponibles)}")
             
             response_data = {
                 'usuario': {
@@ -2340,10 +2342,12 @@ class ObtenerDatosTrabajador(View):
                 'id_tipo_vehiculo', 'nombre_tipo_vehiculo'
             ))
             
-            # Obtener radios disponibles
+            # Obtener radios disponibles (CORREGIDO: buscar por 'Disponible' con mayúscula)
             radios_disponibles = list(Radio.objects.filter(
-                estado_radio='disponible'
+                estado_radio='Disponible'  # Cambiado a mayúscula
             ).values('id_radio', 'nombre_radio', 'codigo_radio', 'descripcion_radio', 'estado_radio'))
+            
+            print(f"📻 Radios disponibles (básicas): {len(radios_disponibles)}")
             
             response_data = {
                 'usuario': None,
@@ -2367,9 +2371,9 @@ class ObtenerDatosTrabajador(View):
                     {'id_tipo_vehiculo': 4, 'nombre_tipo_vehiculo': 'Bicicleta'}
                 ],
                 'radios_disponibles': [
-                    {'id_radio': 1, 'nombre_radio': 'Radio 61', 'codigo_radio': 'SC7', 'estado_radio': 'disponible'},
-                    {'id_radio': 2, 'nombre_radio': 'Radio 63', 'codigo_radio': 'SC4', 'estado_radio': 'disponible'},
-                    {'id_radio': 3, 'nombre_radio': 'Radio 64', 'codigo_radio': '621', 'estado_radio': 'disponible'}
+                    {'id_radio': 1, 'nombre_radio': 'Radio 61', 'codigo_radio': 'SC7', 'estado_radio': 'Disponible'},
+                    {'id_radio': 2, 'nombre_radio': 'Radio 63', 'codigo_radio': 'SC4', 'estado_radio': 'Disponible'},
+                    {'id_radio': 3, 'nombre_radio': 'Radio 64', 'codigo_radio': '621', 'estado_radio': 'Disponible'}
                 ],
                 'mensaje': 'Usando datos de respaldo'
             })
@@ -2426,15 +2430,22 @@ class IniciarTurnoTrabajador(View):
                     id_vehiculo=vehiculo,
                     fecha_asignacion=date.today(),
                     kilometraje_inicial=vehiculo.total_kilometraje,
-                    activo=1
+                    kilometraje_recorrido=0,  # Iniciar en 0
+                    kilometraje_total=vehiculo.total_kilometraje,  # Total inicial = kilometraje del vehículo
+                    activo=1  # Activo/Disponible
                 )
                 print(f"✅ Asignación de vehículo creada: {vehiculo.patente_vehiculo}")
+                print(f"📊 Kilometraje inicial: {vehiculo.total_kilometraje}")
+                
             elif codigo_vehiculo_manual:
                 # Para códigos manuales, crear un registro especial
                 asignacion_vehiculo = AsignacionVehiculo.objects.create(
                     id_usuario=usuario,
                     id_vehiculo=None,
                     fecha_asignacion=date.today(),
+                    kilometraje_inicial=0,
+                    kilometraje_recorrido=0,
+                    kilometraje_total=0,
                     observaciones=f"Vehículo manual: {codigo_vehiculo_manual}",
                     activo=1
                 )
@@ -2448,19 +2459,26 @@ class IniciarTurnoTrabajador(View):
                     id_usuario=usuario,
                     id_radio=radio,
                     fecha_asignacion=date.today()
+                    # fecha_devolucion se establecerá al finalizar el turno
                 )
                 
                 # Marcar radio como no disponible
-                radio.estado_radio = 'asignado'
+                radio.estado_radio = 'No Disponible'  # Cambiar estado a No Disponible
                 radio.save()
                 print(f"✅ Asignación de radio creada: {radio.nombre_radio}")
+                print(f"📻 Estado de radio actualizado a: No Disponible")
             
             response_data = {
                 'success': True,
                 'message': 'Turno iniciado correctamente',
                 'asignacion_vehiculo_id': asignacion_vehiculo.id if asignacion_vehiculo else None,
                 'asignacion_radio_id': asignacion_radio.id if asignacion_radio else None,
-                'fecha': date.today().isoformat()
+                'fecha': date.today().isoformat(),
+                'detalles': {
+                    'vehiculo': f"{vehiculo.patente_vehiculo if vehiculo_id else 'Manual: ' + codigo_vehiculo_manual}",
+                    'radio': radio.nombre_radio if radio_id else 'No asignada',
+                    'kilometraje_inicial': vehiculo.total_kilometraje if vehiculo_id else 0
+                }
             }
             
             print("✅ Turno iniciado exitosamente")
@@ -2491,39 +2509,75 @@ class FinalizarTurnoTrabajador(View):
             asignacion_radio_id = data.get('asignacion_radio_id')
             kilometraje_final = data.get('kilometraje_final')
             
+            cambios_realizados = []
+            
             # Finalizar asignación de vehículo
             if asignacion_vehiculo_id:
-                asignacion_vehiculo = AsignacionVehiculo.objects.get(
-                    id=asignacion_vehiculo_id,
-                    id_usuario_id=usuario_id
-                )
-                if kilometraje_final and asignacion_vehiculo.id_vehiculo:
-                    # Actualizar kilometraje del vehículo
-                    vehiculo = asignacion_vehiculo.id_vehiculo
-                    vehiculo.total_kilometraje = kilometraje_final
-                    vehiculo.save()
-                    print(f"✅ Kilometraje actualizado: {kilometraje_final}")
-                
-                asignacion_vehiculo.activo = 2  # Marcar como finalizado
-                asignacion_vehiculo.save()
-                print("✅ Asignación de vehículo finalizada")
+                try:
+                    asignacion_vehiculo = AsignacionVehiculo.objects.get(
+                        id=asignacion_vehiculo_id,
+                        id_usuario_id=usuario_id
+                    )
+                    
+                    if kilometraje_final is not None and asignacion_vehiculo.id_vehiculo:
+                        # Calcular kilometraje recorrido
+                        kilometraje_recorrido = kilometraje_final - asignacion_vehiculo.kilometraje_inicial
+                        
+                        # Actualizar asignación
+                        asignacion_vehiculo.kilometraje_recorrido = kilometraje_recorrido
+                        asignacion_vehiculo.kilometraje_total = kilometraje_final
+                        asignacion_vehiculo.activo = 2  # Marcar como finalizado
+                        asignacion_vehiculo.save()
+                        
+                        # Actualizar kilometraje del vehículo
+                        vehiculo = asignacion_vehiculo.id_vehiculo
+                        vehiculo.total_kilometraje = kilometraje_final
+                        vehiculo.save()
+                        
+                        cambios_realizados.append(f"Vehículo: {kilometraje_recorrido} km recorridos")
+                        print(f"✅ Kilometraje actualizado: {kilometraje_recorrido} km recorridos")
+                    
+                    else:
+                        asignacion_vehiculo.activo = 2
+                        asignacion_vehiculo.save()
+                        cambios_realizados.append("Vehículo: turno finalizado")
+                    
+                    print("✅ Asignación de vehículo finalizada")
+                    
+                except AsignacionVehiculo.DoesNotExist:
+                    print(f"❌ Asignación de vehículo no encontrada: {asignacion_vehiculo_id}")
             
             # Finalizar asignación de radio
             if asignacion_radio_id:
-                asignacion_radio = AsignacionRadio.objects.get(
-                    id=asignacion_radio_id,
-                    id_usuario_id=usuario_id
-                )
-                asignacion_radio.fecha_devolucion = timezone.now()
-                asignacion_radio.save()
-                
-                # Marcar radio como disponible
-                radio = asignacion_radio.id_radio
-                radio.estado_radio = 'disponible'
-                radio.save()
-                print("✅ Asignación de radio finalizada")
+                try:
+                    asignacion_radio = AsignacionRadio.objects.get(
+                        id=asignacion_radio_id,
+                        id_usuario_id=usuario_id
+                    )
+                    asignacion_radio.fecha_devolucion = timezone.now()
+                    asignacion_radio.save()
+                    
+                    # Marcar radio como disponible
+                    radio = asignacion_radio.id_radio
+                    radio.estado_radio = 'Disponible'
+                    radio.save()
+                    
+                    cambios_realizados.append("Radio: devuelta y disponible")
+                    print("✅ Asignación de radio finalizada")
+                    print(f"📻 Estado de radio actualizado a: Disponible")
+                    
+                except AsignacionRadio.DoesNotExist:
+                    print(f"❌ Asignación de radio no encontrada: {asignacion_radio_id}")
             
-            return JsonResponse({'success': True, 'message': 'Turno finalizado correctamente'})
+            mensaje = 'Turno finalizado correctamente'
+            if cambios_realizados:
+                mensaje += f". Cambios: {', '.join(cambios_realizados)}"
+            
+            return JsonResponse({
+                'success': True, 
+                'message': mensaje,
+                'cambios': cambios_realizados
+            })
             
         except Exception as e:
             print(f"❌ Error en FinalizarTurnoTrabajador: {str(e)}")
