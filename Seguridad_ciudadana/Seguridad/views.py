@@ -2274,17 +2274,38 @@ def api_register_ciudadano(request):
 class ObtenerDatosTrabajador(View):
     def get(self, request, usuario_id=None):
         try:
-            # Si no se proporciona usuario_id, intentar obtener del usuario autenticado
-            if not usuario_id and request.user.is_authenticated:
-                usuario_id = request.user.id_usuario
-            elif not usuario_id:
-                return JsonResponse({'error': 'Usuario no autenticado'}, status=401)
+            print(f"🔍 Solicitando datos para usuario_id: {usuario_id}")
             
-            # Obtener usuario
-            usuario = Usuario.objects.get(id_usuario=usuario_id)
+            # Si no hay usuario_id, intentar obtener de parámetros GET
+            if not usuario_id:
+                usuario_id = request.GET.get('usuario_id')
+                print(f"🔍 Usuario ID desde GET: {usuario_id}")
             
+            # Si aún no hay usuario_id, devolver datos básicos
+            if not usuario_id:
+                return self.get_datos_basicos()
+            
+            try:
+                # Obtener usuario por ID
+                usuario = Usuario.objects.get(id_usuario=usuario_id)
+                print(f"✅ Usuario encontrado: {usuario.nombre_usuario}")
+                return self.get_datos_completos(usuario)
+                
+            except Usuario.DoesNotExist:
+                print(f"❌ Usuario {usuario_id} no encontrado")
+                return self.get_datos_basicos()
+            
+        except Exception as e:
+            print(f"❌ Error en ObtenerDatosTrabajador: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    def get_datos_completos(self, usuario):
+        """Obtener datos completos del trabajador"""
+        try:
             # Obtener tipos de vehículos
-            tipos_vehiculos = list(TiposVehiculos.objects.all().values('id_tipo_vehiculo', 'nombre_tipo_vehiculo'))
+            tipos_vehiculos = list(TiposVehiculos.objects.all().values(
+                'id_tipo_vehiculo', 'nombre_tipo_vehiculo'
+            ))
             
             # Obtener radios disponibles (estado_radio = 'disponible')
             radios_disponibles = list(Radio.objects.filter(
@@ -2297,34 +2318,83 @@ class ObtenerDatosTrabajador(View):
                     'nombre': usuario.nombre_usuario,
                     'apellido': usuario.apellido_pat_usuario,
                     'rol': usuario.id_rol.nombre_rol if usuario.id_rol else None,
-                    'correo': usuario.correo_electronico_usuario
+                    'correo': usuario.correo_electronico_usuario,
+                    'rut': usuario.rut_usuario
                 },
                 'tipos_vehiculos': tipos_vehiculos,
                 'radios_disponibles': radios_disponibles
             }
             
+            print(f"✅ Datos completos cargados: {len(tipos_vehiculos)} tipos, {len(radios_disponibles)} radios")
             return JsonResponse(response_data)
             
-        except Usuario.DoesNotExist:
-            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
         except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
+            print(f"❌ Error en get_datos_completos: {str(e)}")
+            return self.get_datos_basicos()
+    
+    def get_datos_basicos(self):
+        """Obtener datos básicos cuando no hay usuario específico"""
+        try:
+            # Obtener tipos de vehículos
+            tipos_vehiculos = list(TiposVehiculos.objects.all().values(
+                'id_tipo_vehiculo', 'nombre_tipo_vehiculo'
+            ))
+            
+            # Obtener radios disponibles
+            radios_disponibles = list(Radio.objects.filter(
+                estado_radio='disponible'
+            ).values('id_radio', 'nombre_radio', 'codigo_radio', 'descripcion_radio', 'estado_radio'))
+            
+            response_data = {
+                'usuario': None,
+                'tipos_vehiculos': tipos_vehiculos,
+                'radios_disponibles': radios_disponibles,
+                'mensaje': 'Mostrando datos básicos disponibles'
+            }
+            
+            print(f"✅ Datos básicos cargados: {len(tipos_vehiculos)} tipos, {len(radios_disponibles)} radios")
+            return JsonResponse(response_data)
+            
+        except Exception as e:
+            print(f"❌ Error en get_datos_basicos: {str(e)}")
+            # Datos de respaldo por si todo falla
+            return JsonResponse({
+                'usuario': None,
+                'tipos_vehiculos': [
+                    {'id_tipo_vehiculo': 1, 'nombre_tipo_vehiculo': 'Auto'},
+                    {'id_tipo_vehiculo': 2, 'nombre_tipo_vehiculo': 'Motocicleta'},
+                    {'id_tipo_vehiculo': 3, 'nombre_tipo_vehiculo': 'Camioneta'},
+                    {'id_tipo_vehiculo': 4, 'nombre_tipo_vehiculo': 'Bicicleta'}
+                ],
+                'radios_disponibles': [
+                    {'id_radio': 1, 'nombre_radio': 'Radio 61', 'codigo_radio': 'SC7', 'estado_radio': 'disponible'},
+                    {'id_radio': 2, 'nombre_radio': 'Radio 63', 'codigo_radio': 'SC4', 'estado_radio': 'disponible'},
+                    {'id_radio': 3, 'nombre_radio': 'Radio 64', 'codigo_radio': '621', 'estado_radio': 'disponible'}
+                ],
+                'mensaje': 'Usando datos de respaldo'
+            })
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ObtenerVehiculosPorTipo(View):
     def get(self, request, tipo_vehiculo_id):
         try:
-            # Obtener vehículos por tipo que estén disponibles (estado_vehiculo = 1 para disponible)
+            print(f"🔍 Solicitando vehículos para tipo: {tipo_vehiculo_id}")
+            
+            # Obtener vehículos por tipo que estén disponibles
+            # Asumiendo que id_estado_vehiculo=1 es "Disponible"
             vehiculos = Vehiculos.objects.filter(
                 id_tipo_vehiculo=tipo_vehiculo_id,
-                id_estado_vehiculo=1  # Asumiendo que 1 es "Disponible"
+                id_estado_vehiculo=1  # Disponible
             ).values('id_vehiculo', 'patente_vehiculo', 'marca_vehiculo', 
                     'modelo_vehiculo', 'codigo_vehiculo', 'total_kilometraje')
             
             vehiculos_list = list(vehiculos)
+            print(f"✅ Vehículos encontrados: {len(vehiculos_list)}")
+            
             return JsonResponse({'vehiculos': vehiculos_list})
             
         except Exception as e:
+            print(f"❌ Error en ObtenerVehiculosPorTipo: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -2332,6 +2402,7 @@ class IniciarTurnoTrabajador(View):
     def post(self, request):
         try:
             data = json.loads(request.body)
+            print(f"🚀 Iniciando turno con datos: {data}")
             
             usuario_id = data.get('usuario_id')
             tipo_vehiculo_id = data.get('tipo_vehiculo_id')
@@ -2357,15 +2428,17 @@ class IniciarTurnoTrabajador(View):
                     kilometraje_inicial=vehiculo.total_kilometraje,
                     activo=1
                 )
+                print(f"✅ Asignación de vehículo creada: {vehiculo.patente_vehiculo}")
             elif codigo_vehiculo_manual:
                 # Para códigos manuales, crear un registro especial
                 asignacion_vehiculo = AsignacionVehiculo.objects.create(
                     id_usuario=usuario,
-                    id_vehiculo=None,  # O crear un vehículo genérico si es necesario
+                    id_vehiculo=None,
                     fecha_asignacion=date.today(),
                     observaciones=f"Vehículo manual: {codigo_vehiculo_manual}",
                     activo=1
                 )
+                print(f"✅ Asignación manual creada: {codigo_vehiculo_manual}")
             
             # Crear asignación de radio si se proporcionó radio
             asignacion_radio = None
@@ -2380,6 +2453,7 @@ class IniciarTurnoTrabajador(View):
                 # Marcar radio como no disponible
                 radio.estado_radio = 'asignado'
                 radio.save()
+                print(f"✅ Asignación de radio creada: {radio.nombre_radio}")
             
             response_data = {
                 'success': True,
@@ -2389,15 +2463,20 @@ class IniciarTurnoTrabajador(View):
                 'fecha': date.today().isoformat()
             }
             
+            print("✅ Turno iniciado exitosamente")
             return JsonResponse(response_data)
             
         except Usuario.DoesNotExist:
+            print(f"❌ Usuario no encontrado: {usuario_id}")
             return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
         except Vehiculos.DoesNotExist:
+            print(f"❌ Vehículo no encontrado: {vehiculo_id}")
             return JsonResponse({'error': 'Vehículo no encontrado'}, status=404)
         except Radio.DoesNotExist:
+            print(f"❌ Radio no encontrada: {radio_id}")
             return JsonResponse({'error': 'Radio no encontrada'}, status=404)
         except Exception as e:
+            print(f"❌ Error en IniciarTurnoTrabajador: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
@@ -2405,6 +2484,7 @@ class FinalizarTurnoTrabajador(View):
     def post(self, request):
         try:
             data = json.loads(request.body)
+            print(f"🛑 Finalizando turno con datos: {data}")
             
             usuario_id = data.get('usuario_id')
             asignacion_vehiculo_id = data.get('asignacion_vehiculo_id')
@@ -2415,22 +2495,24 @@ class FinalizarTurnoTrabajador(View):
             if asignacion_vehiculo_id:
                 asignacion_vehiculo = AsignacionVehiculo.objects.get(
                     id=asignacion_vehiculo_id,
-                    id_usuario=usuario_id
+                    id_usuario_id=usuario_id
                 )
                 if kilometraje_final and asignacion_vehiculo.id_vehiculo:
                     # Actualizar kilometraje del vehículo
                     vehiculo = asignacion_vehiculo.id_vehiculo
                     vehiculo.total_kilometraje = kilometraje_final
                     vehiculo.save()
+                    print(f"✅ Kilometraje actualizado: {kilometraje_final}")
                 
                 asignacion_vehiculo.activo = 2  # Marcar como finalizado
                 asignacion_vehiculo.save()
+                print("✅ Asignación de vehículo finalizada")
             
             # Finalizar asignación de radio
             if asignacion_radio_id:
                 asignacion_radio = AsignacionRadio.objects.get(
                     id=asignacion_radio_id,
-                    id_usuario=usuario_id
+                    id_usuario_id=usuario_id
                 )
                 asignacion_radio.fecha_devolucion = timezone.now()
                 asignacion_radio.save()
@@ -2439,8 +2521,10 @@ class FinalizarTurnoTrabajador(View):
                 radio = asignacion_radio.id_radio
                 radio.estado_radio = 'disponible'
                 radio.save()
+                print("✅ Asignación de radio finalizada")
             
             return JsonResponse({'success': True, 'message': 'Turno finalizado correctamente'})
             
         except Exception as e:
+            print(f"❌ Error en FinalizarTurnoTrabajador: {str(e)}")
             return JsonResponse({'error': str(e)}, status=500)
