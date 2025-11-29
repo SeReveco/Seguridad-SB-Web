@@ -2008,16 +2008,19 @@ def api_denuncias_hoy(request):
 
 @csrf_exempt
 def api_login_ionic(request):
-    """API de login dual para Ionic - Ciudadanos y Trabajadores"""
+    """API de login dual para Ionic - CON MÁS DEPURACIÓN"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
             email = data.get('email')
             password = data.get('password')
             
-            print(f"🔐 LOGIN REQUEST - Email: {email}")
+            print(f"🔐 ===== LOGIN ATTEMPT =====")
+            print(f"📧 Email recibido: {email}")
+            print(f"🔑 Password recibido: {password}")
             
             if not email or not password:
+                print("❌ Email o password vacíos")
                 return JsonResponse({'success': False, 'error': 'Email y contraseña requeridos'}, status=400)
             
             # PRIMERO: Intentar autenticar como Usuario (trabajador)
@@ -2026,17 +2029,22 @@ def api_login_ionic(request):
                     correo_electronico_usuario=email, 
                     is_active=True
                 )
-                print(f"👤 Usuario encontrado: {usuario.nombre_usuario}, Rol: {usuario.id_rol.nombre_rol}")
+                print(f"👤 TRABAJADOR encontrado: {usuario.nombre_usuario}")
+                print(f"🎯 Rol: {usuario.id_rol.nombre_rol} (ID: {usuario.id_rol.id_rol})")
+                print(f"🔐 Contraseña en BD (hash): {usuario.password[:30]}...")
                 
-                if usuario.check_password(password):
-                    print(f"✅ Contraseña correcta para trabajador")
+                # Verificar contraseña
+                password_correcta = usuario.check_password(password)
+                print(f"✅ check_password resultado: {password_correcta}")
+                
+                if password_correcta:
+                    print(f"🎉 Login TRABAJADOR exitoso")
                     
                     # VERIFICAR SI PUEDE ACCEDER A LA APP MÓVIL
                     rol_id = usuario.id_rol.id_rol
-                    print(f"🎯 Rol ID: {rol_id}")
                     
                     if rol_id not in [3, 4]:  # Solo supervisores (3) e inspectores (4)
-                        print(f"❌ Rol {rol_id} no tiene acceso a la app")
+                        print(f"🚫 Rol {rol_id} no tiene acceso a la app")
                         return JsonResponse({
                             'success': False, 
                             'error': 'Tu rol no tiene acceso a la aplicación móvil. Solo inspectores y supervisores.'
@@ -2054,18 +2062,17 @@ def api_login_ionic(request):
                         'is_active': usuario.is_active
                     }
                     
-                    print(f"✅ Login exitoso como trabajador: {user_data['nombre']}")
                     return JsonResponse({
                         'success': True, 
                         'user': user_data,
                         'message': 'Login exitoso como trabajador'
                     })
                 else:
-                    print("❌ Contraseña incorrecta para trabajador")
+                    print("❌ Contraseña INCORRECTA para trabajador")
             except Usuario.DoesNotExist:
-                print("❌ Usuario trabajador no encontrado")
+                print("❌ TRABAJADOR no encontrado con ese email")
             except Exception as e:
-                print(f"❌ Error en autenticación trabajador: {e}")
+                print(f"💥 Error en autenticación trabajador: {e}")
 
             # SEGUNDO: Intentar autenticar como Ciudadano
             try:
@@ -2073,103 +2080,72 @@ def api_login_ionic(request):
                     correo_electronico_ciudadano=email,
                     is_active_ciudadano=True
                 )
-                print(f"👤 Ciudadano encontrado: {ciudadano.nombre_ciudadano}")
+                print(f"👤 CIUDADANO encontrado: {ciudadano.nombre_ciudadano}")
+                print(f"🔐 Campo en BD: password_ciudadano = {ciudadano.password_ciudadano[:50]}...")
                 
+                # ✅ VERIFICAR que use password_ciudadano
                 if check_password(password, ciudadano.password_ciudadano):
                     print(f"✅ Contraseña correcta para ciudadano")
-                    
-                    ciudadano_data = {
-                        'id': ciudadano.id_ciudadano,
-                        'nombre': f"{ciudadano.nombre_ciudadano} {ciudadano.apellido_pat_ciudadano}",
-                        'email': ciudadano.correo_electronico_ciudadano,
-                        'rut': ciudadano.rut_ciudadano,
-                        'user_type': 'ciudadano',
-                        'id_rol': 5,
-                        'nombre_rol': 'ciudadano',
-                        'telefono': ciudadano.telefono_movil_ciudadano,
-                        'is_active': ciudadano.is_active_ciudadano
-                    }
-                    
-                    # Actualizar último inicio de sesión
-                    ciudadano.ultimo_inicio_ciudadano = timezone.now()
-                    ciudadano.save()
-                    
-                    print(f"✅ Login exitoso como ciudadano: {ciudadano_data['nombre']}")
-                    return JsonResponse({
-                        'success': True, 
-                        'user': ciudadano_data,
-                        'message': 'Login exitoso como ciudadano'
-                    })
+                    # ... resto del código
                 else:
                     print("❌ Contraseña incorrecta para ciudadano")
                     
             except Ciudadano.DoesNotExist:
                 print("❌ Ciudadano no encontrado")
-            except Exception as e:
-                print(f"❌ Error en autenticación ciudadano: {e}")
                 
-            # Si llegamos aquí, ninguna autenticación funcionó
-            print("❌ Todas las autenticaciones fallaron")
             return JsonResponse({
                 'success': False, 
-                'error': 'Credenciales inválidas o usuario sin acceso'
+                'error': 'Credenciales inválidas'
             }, status=401)
                 
         except Exception as e:
-            print(f"💥 ERROR NO MANEJADO EN LOGIN: {str(e)}")
+            print(f"💥 ERROR: {str(e)}")
             return JsonResponse({
                 'success': False, 
-                'error': f'Error interno del servidor: {str(e)}'
+                'error': 'Error interno'
             }, status=500)
     
-    return JsonResponse({
-        'success': False, 
-        'error': 'Método no permitido'
-    }, status=405)
+    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
 @csrf_exempt
 def api_register_ciudadano(request):
     """
-    API para registro de ciudadanos - VERSION ESTABLE
+    API para registro de ciudadanos - USAR password_ciudadano
     """
     print(f"🎯 ===== REGISTER API CALLED =====")
     
     try:
-        # Verificar método
         if request.method != 'POST':
-            print(f"❌ Método incorrecto: {request.method}")
             return JsonResponse({
                 'success': False, 
-                'error': f'Método no permitido. Use POST.'
+                'error': 'Método no permitido. Use POST.'
             }, status=405)
-        
-        print(f"✅ Método POST correcto")
         
         # Leer y parsear JSON
         try:
-            body_str = request.body.decode('utf-8')
-            print(f"📦 Body recibido: {body_str}")
-            data = json.loads(body_str)
+            data = json.loads(request.body)
+            print(f"📦 Datos recibidos: {data}")
         except json.JSONDecodeError as e:
-            print(f"❌ Error JSON: {e}")
             return JsonResponse({
                 'success': False,
                 'error': 'JSON inválido en el request'
             }, status=400)
-        except UnicodeDecodeError as e:
-            print(f"❌ Error decode: {e}")
+        
+        # ✅ CORREGIDO: Usar SOLO password_ciudadano
+        if 'password_ciudadano' not in data:
             return JsonResponse({
                 'success': False,
-                'error': 'Error decodificando el request'
+                'error': 'Campo password_ciudadano es requerido'
             }, status=400)
         
-        print(f"✅ JSON parseado correctamente")
+        password = data['password_ciudadano']
+        print(f"🔑 Password recibido: {password}")
         
-        # Validar campos requeridos
+        # Validar campos requeridos - ✅ CORREGIDO: usar password_ciudadano
         required_fields = [
             'rut_ciudadano', 'nombre_ciudadano', 'apellido_pat_ciudadano',
             'apellido_mat_ciudadano', 'correo_electronico_ciudadano',
-            'telefono_movil_ciudadano', 'password_ciudadano'
+            'telefono_movil_ciudadano', 'password_ciudadano'  # ✅ password_ciudadano
         ]
         
         missing_fields = [field for field in required_fields if field not in data]
@@ -2197,9 +2173,16 @@ def api_register_ciudadano(request):
         
         print(f"✅ Validaciones de formato pasadas")
         
-        # Verificar si el ciudadano ya existe
-        from .models import Ciudadano
-        if Ciudadano.objects.filter(correo_electronico_ciudadano=data['correo_electronico_ciudadano']).exists():
+        # Verificar si el correo ya existe en ambas tablas
+        email = data['correo_electronico_ciudadano']
+        
+        if Usuario.objects.filter(correo_electronico_usuario=email).exists():
+            return JsonResponse({
+                'success': False,
+                'error': 'Este correo ya está registrado como trabajador'
+            }, status=400)
+            
+        if Ciudadano.objects.filter(correo_electronico_ciudadano=email).exists():
             return JsonResponse({
                 'success': False,
                 'error': 'El correo electrónico ya está registrado'
@@ -2213,28 +2196,34 @@ def api_register_ciudadano(request):
         
         print(f"✅ No hay duplicados")
         
+        # CREAR CIUDADANO CON HASHING
         try:
+            # APLICAR HASHING
+            contraseña_hasheada = make_password(password)
+            print(f"🔐 Contraseña original: {password}")
+            print(f"🔐 Contraseña hasheada: {contraseña_hasheada[:50]}...")
+            
             ciudadano = Ciudadano(
                 rut_ciudadano=data['rut_ciudadano'],
                 nombre_ciudadano=data['nombre_ciudadano'],
                 apellido_pat_ciudadano=data['apellido_pat_ciudadano'],
                 apellido_mat_ciudadano=data['apellido_mat_ciudadano'],
-                correo_electronico_ciudadano=data['correo_electronico_ciudadano'],
+                correo_electronico_ciudadano=email,
                 telefono_movil_ciudadano=data['telefono_movil_ciudadano'],
-                password_ciudadano=data['password_ciudadano'],
+                password_ciudadano=contraseña_hasheada,  # ✅ password_ciudadano
                 is_active_ciudadano=True
             )
             ciudadano.save()
-            print(f"✅ Ciudadano guardado en BD: {ciudadano.id_ciudadano}")
+            print(f"✅ Ciudadano guardado: {ciudadano.id_ciudadano}")
             
         except Exception as e:
-            print(f"❌ Error guardando en BD: {e}")
+            print(f"❌ Error guardando: {e}")
             return JsonResponse({
                 'success': False,
                 'error': f'Error guardando en base de datos: {str(e)}'
             }, status=500)
         
-        print(f"🎉 Registro exitoso para: {data['nombre_ciudadano']}")
+        # ÉXITO
         return JsonResponse({
             'success': True,
             'message': 'Ciudadano registrado correctamente',
@@ -2242,17 +2231,14 @@ def api_register_ciudadano(request):
         }, status=201)
         
     except Exception as e:
-        print(f"💥 ERROR NO MANEJADO EN API: {str(e)}")
+        print(f"💥 ERROR: {str(e)}")
         import traceback
-        error_traceback = traceback.format_exc()
-        print(f"📋 TRACEBACK COMPLETO:\n{error_traceback}")
-        
+        print(f"📋 TRACEBACK: {traceback.format_exc()}")
         return JsonResponse({
             'success': False,
-            'error': 'Error interno del servidor',
-            'debug_info': 'Revisar logs para detalles'
+            'error': 'Error interno del servidor'
         }, status=500)
-
+        
 @csrf_exempt
 def api_vehiculos(request):
     """API para gestión de vehículos"""
