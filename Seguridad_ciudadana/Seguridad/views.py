@@ -3,6 +3,7 @@ import re
 from django.contrib import messages  # type: ignore
 from django.shortcuts import render, redirect, get_object_or_404  # type: ignore
 from django.contrib.auth import login, authenticate, logout  # type: ignore
+from django.contrib.auth.hashers import make_password, check_password  # type: ignore
 from django.contrib.auth.decorators import login_required  # type: ignore
 from django.http import HttpResponse, JsonResponse  # type: ignore
 from django.utils import timezone  # type: ignore
