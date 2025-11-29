@@ -2009,7 +2009,7 @@ def api_denuncias_hoy(request):
 
 @csrf_exempt
 def api_login_ionic(request):
-    """API de login dual para Ionic - CON MÁS DEPURACIÓN"""
+    """API de login dual para Ionic - CORREGIR FLUJO"""
     if request.method == 'POST':
         try:
             data = json.loads(request.body)
@@ -2021,7 +2021,6 @@ def api_login_ionic(request):
             print(f"🔑 Password recibido: {password}")
             
             if not email or not password:
-                print("❌ Email o password vacíos")
                 return JsonResponse({'success': False, 'error': 'Email y contraseña requeridos'}, status=400)
             
             # PRIMERO: Intentar autenticar como Usuario (trabajador)
@@ -2031,21 +2030,16 @@ def api_login_ionic(request):
                     is_active=True
                 )
                 print(f"👤 TRABAJADOR encontrado: {usuario.nombre_usuario}")
-                print(f"🎯 Rol: {usuario.id_rol.nombre_rol} (ID: {usuario.id_rol.id_rol})")
-                print(f"🔐 Contraseña en BD (hash): {usuario.password[:30]}...")
                 
-                # Verificar contraseña
-                password_correcta = usuario.check_password(password)
-                print(f"✅ check_password resultado: {password_correcta}")
-                
-                if password_correcta:
-                    print(f"🎉 Login TRABAJADOR exitoso")
+                if usuario.check_password(password):
+                    print(f"✅ Contraseña correcta para trabajador")
                     
                     # VERIFICAR SI PUEDE ACCEDER A LA APP MÓVIL
                     rol_id = usuario.id_rol.id_rol
+                    print(f"🎯 Rol ID: {rol_id}")
                     
                     if rol_id not in [3, 4]:  # Solo supervisores (3) e inspectores (4)
-                        print(f"🚫 Rol {rol_id} no tiene acceso a la app")
+                        print(f"❌ Rol {rol_id} no tiene acceso a la app")
                         return JsonResponse({
                             'success': False, 
                             'error': 'Tu rol no tiene acceso a la aplicación móvil. Solo inspectores y supervisores.'
@@ -2063,17 +2057,18 @@ def api_login_ionic(request):
                         'is_active': usuario.is_active
                     }
                     
+                    print(f"✅ Login exitoso como trabajador: {user_data['nombre']}")
                     return JsonResponse({
                         'success': True, 
                         'user': user_data,
                         'message': 'Login exitoso como trabajador'
                     })
                 else:
-                    print("❌ Contraseña INCORRECTA para trabajador")
+                    print("❌ Contraseña incorrecta para trabajador")
             except Usuario.DoesNotExist:
-                print("❌ TRABAJADOR no encontrado con ese email")
+                print("❌ Usuario trabajador no encontrado")
             except Exception as e:
-                print(f"💥 Error en autenticación trabajador: {e}")
+                print(f"❌ Error en autenticación trabajador: {e}")
 
             # SEGUNDO: Intentar autenticar como Ciudadano
             try:
@@ -2082,31 +2077,63 @@ def api_login_ionic(request):
                     is_active_ciudadano=True
                 )
                 print(f"👤 CIUDADANO encontrado: {ciudadano.nombre_ciudadano}")
-                print(f"🔐 Campo en BD: password_ciudadano = {ciudadano.password_ciudadano[:50]}...")
+                print(f"🔐 Contraseña en BD: {ciudadano.password_ciudadano[:50]}...")
                 
-                # ✅ VERIFICAR que use password_ciudadano
                 if check_password(password, ciudadano.password_ciudadano):
                     print(f"✅ Contraseña correcta para ciudadano")
-                    # ... resto del código
+                    
+                    ciudadano_data = {
+                        'id': ciudadano.id_ciudadano,
+                        'nombre': f"{ciudadano.nombre_ciudadano} {ciudadano.apellido_pat_ciudadano}",
+                        'email': ciudadano.correo_electronico_ciudadano,
+                        'rut': ciudadano.rut_ciudadano,
+                        'user_type': 'ciudadano',
+                        'id_rol': 5,
+                        'nombre_rol': 'ciudadano',
+                        'telefono': ciudadano.telefono_movil_ciudadano,
+                        'is_active': ciudadano.is_active_ciudadano
+                    }
+                    
+                    # Actualizar último inicio de sesión
+                    ciudadano.ultimo_inicio_ciudadano = timezone.now()
+                    ciudadano.save()
+                    
+                    print(f"✅ Login exitoso como ciudadano: {ciudadano_data['nombre']}")
+                    print(f"🎯 Retornando respuesta exitosa...")
+                    
+                    return JsonResponse({
+                        'success': True, 
+                        'user': ciudadano_data,
+                        'message': 'Login exitoso como ciudadano'
+                    })
                 else:
                     print("❌ Contraseña incorrecta para ciudadano")
                     
             except Ciudadano.DoesNotExist:
-                print("❌ Ciudadano no encontrado")
+                print("❌ Ciudadano no encontrado o inactivo")
+            except Exception as e:
+                print(f"❌ Error en autenticación ciudadano: {e}")
                 
+            # Si llegamos aquí, ninguna autenticación funcionó
+            print("❌ Todas las autenticaciones fallaron")
             return JsonResponse({
                 'success': False, 
-                'error': 'Credenciales inválidas'
+                'error': 'Credenciales inválidas o usuario sin acceso'
             }, status=401)
                 
         except Exception as e:
-            print(f"💥 ERROR: {str(e)}")
+            print(f"❌ Error en login: {str(e)}")
+            import traceback
+            print(f"📋 TRACEBACK: {traceback.format_exc()}")
             return JsonResponse({
                 'success': False, 
-                'error': 'Error interno'
+                'error': f'Error interno del servidor: {str(e)}'
             }, status=500)
     
-    return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+    return JsonResponse({
+        'success': False, 
+        'error': 'Método no permitido'
+    }, status=405)
 
 @csrf_exempt
 def api_register_ciudadano(request):
