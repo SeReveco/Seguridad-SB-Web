@@ -2405,29 +2405,30 @@ class ObtenerVehiculosPorTipo(View):
 class IniciarTurnoTrabajador(View):
     def post(self, request):
         try:
+            print("🚀 ===== INICIANDO TURNO - SIN USAR ID =====")
+            
             data = json.loads(request.body)
-            print(f"🚀 Iniciando turno con datos: {data}")
+            print(f"📦 Datos recibidos: {data}")
             
             usuario_id = data.get('usuario_id')
-            tipo_vehiculo_id = data.get('tipo_vehiculo_id')
+            if not usuario_id:
+                return JsonResponse({'error': 'ID de usuario requerido'}, status=400)
+            
+            usuario = Usuario.objects.get(id_usuario=usuario_id)
+            fecha_hoy = date.today()
+            
             vehiculo_id = data.get('vehiculo_id')
             codigo_vehiculo_manual = data.get('codigo_vehiculo_manual')
             radio_id = data.get('radio_id')
             
-            # Validaciones básicas
-            if not usuario_id:
-                return JsonResponse({'error': 'ID de usuario requerido'}, status=400)
+            # ASIGNACIÓN DE VEHÍCULO - SIN REFERENCIAR EL CAMPO ID
+            asignacion_info = None
             
-            # Obtener usuario
-            usuario = Usuario.objects.get(id_usuario=usuario_id)
-            fecha_hoy = date.today()
-            
-            # Crear asignación de vehículo si se proporcionó vehículo
-            asignacion_vehiculo = None
             if vehiculo_id:
                 vehiculo = Vehiculos.objects.get(id_vehiculo=vehiculo_id)
+                print(f"✅ Vehículo: {vehiculo.patente_vehiculo}")
                 
-                # VERIFICAR SI YA EXISTE UNA ASIGNACIÓN CON LA LLAVE COMPUESTA
+                # Buscar asignación existente
                 asignacion_existente = AsignacionVehiculo.objects.filter(
                     id_usuario=usuario,
                     id_vehiculo=vehiculo,
@@ -2435,47 +2436,51 @@ class IniciarTurnoTrabajador(View):
                 ).first()
                 
                 if asignacion_existente:
-                    print(f"⚠️ Ya existe asignación para este usuario, vehículo y fecha: {asignacion_existente.id}")
-                    # En lugar de crear nueva, usar la existente
-                    asignacion_vehiculo = asignacion_existente
-                    
-                    # Actualizar estado si es necesario
-                    if asignacion_existente.activo != 1:  # Si no está como Disponible
-                        asignacion_existente.activo = 1
-                        asignacion_existente.save()
-                        print(f"🔄 Estado actualizado a Disponible")
-                    
+                    print(f"🔄 Asignación existente encontrada")
+                    asignacion_info = {
+                        'tipo': 'vehiculo_existente',
+                        'vehiculo': vehiculo.patente_vehiculo,
+                        'kilometraje_inicial': asignacion_existente.kilometraje_inicial
+                    }
                 else:
-                    # Crear nueva asignación de vehículo
-                    asignacion_vehiculo = AsignacionVehiculo.objects.create(
+                    # Crear nueva asignación
+                    nueva_asignacion = AsignacionVehiculo(
                         id_usuario=usuario,
                         id_vehiculo=vehiculo,
                         fecha_asignacion=fecha_hoy,
                         kilometraje_inicial=vehiculo.total_kilometraje,
                         kilometraje_recorrido=0,
                         kilometraje_total=vehiculo.total_kilometraje,
-                        activo=1  # Disponible
+                        activo=1
                     )
-                    print(f"✅ Nueva asignación de vehículo creada: {vehiculo.patente_vehiculo}")
-                
-                print(f"📊 Asignación vehículo ID: {asignacion_vehiculo.id}")
-                print(f"🎯 Kilometraje inicial: {vehiculo.total_kilometraje}")
-                
+                    nueva_asignacion.save()
+                    print(f"✅ Nueva asignación creada")
+                    asignacion_info = {
+                        'tipo': 'vehiculo_nuevo',
+                        'vehiculo': vehiculo.patente_vehiculo,
+                        'kilometraje_inicial': vehiculo.total_kilometraje
+                    }
+            
             elif codigo_vehiculo_manual:
-                # Para códigos manuales, buscar si ya existe una asignación manual hoy
+                print(f"✅ Vehículo manual: {codigo_vehiculo_manual}")
+                
+                # Para vehículos manuales, buscar por observaciones
                 asignacion_existente = AsignacionVehiculo.objects.filter(
                     id_usuario=usuario,
-                    id_vehiculo__isnull=True,  # Vehículo manual
+                    id_vehiculo__isnull=True,
                     fecha_asignacion=fecha_hoy,
                     observaciones__contains=codigo_vehiculo_manual
                 ).first()
                 
                 if asignacion_existente:
-                    print(f"⚠️ Ya existe asignación manual para este usuario y fecha: {asignacion_existente.id}")
-                    asignacion_vehiculo = asignacion_existente
+                    print(f"🔄 Asignación manual existente")
+                    asignacion_info = {
+                        'tipo': 'manual_existente',
+                        'vehiculo': f"Manual: {codigo_vehiculo_manual}",
+                        'kilometraje_inicial': 0
+                    }
                 else:
-                    # Crear nueva asignación manual
-                    asignacion_vehiculo = AsignacionVehiculo.objects.create(
+                    nueva_asignacion = AsignacionVehiculo(
                         id_usuario=usuario,
                         id_vehiculo=None,
                         fecha_asignacion=fecha_hoy,
@@ -2485,14 +2490,21 @@ class IniciarTurnoTrabajador(View):
                         observaciones=f"Vehículo manual: {codigo_vehiculo_manual}",
                         activo=1
                     )
-                    print(f"✅ Nueva asignación manual creada: {codigo_vehiculo_manual}")
+                    nueva_asignacion.save()
+                    print(f"✅ Nueva asignación manual creada")
+                    asignacion_info = {
+                        'tipo': 'manual_nuevo',
+                        'vehiculo': f"Manual: {codigo_vehiculo_manual}",
+                        'kilometraje_inicial': 0
+                    }
             
-            # Crear asignación de radio si se proporcionó radio
-            asignacion_radio = None
+            # ASIGNACIÓN DE RADIO
+            radio_info = None
             if radio_id:
                 radio = Radio.objects.get(id_radio=radio_id)
+                print(f"✅ Radio: {radio.nombre_radio}")
                 
-                # Verificar si ya existe una asignación de radio para hoy
+                # Buscar asignación de radio existente
                 asignacion_radio_existente = AsignacionRadio.objects.filter(
                     id_usuario=usuario,
                     id_radio=radio,
@@ -2500,77 +2512,55 @@ class IniciarTurnoTrabajador(View):
                 ).first()
                 
                 if asignacion_radio_existente:
-                    print(f"⚠️ Ya existe asignación de radio para este usuario, radio y fecha: {asignacion_radio_existente.id}")
-                    
-                    # Si ya fue devuelta, crear nueva asignación
-                    if asignacion_radio_existente.fecha_devolucion:
-                        asignacion_radio = AsignacionRadio.objects.create(
-                            id_usuario=usuario,
-                            id_radio=radio,
-                            fecha_asignacion=fecha_hoy
-                        )
-                        print(f"✅ Nueva asignación de radio creada (reemplazando devuelta)")
-                    else:
-                        asignacion_radio = asignacion_radio_existente
-                        print(f"🔄 Usando asignación de radio existente")
+                    print(f"🔄 Asignación de radio existente")
+                    radio_info = {
+                        'tipo': 'radio_existente',
+                        'radio': radio.nombre_radio
+                    }
                 else:
-                    # Crear nueva asignación de radio
-                    asignacion_radio = AsignacionRadio.objects.create(
+                    nueva_asignacion_radio = AsignacionRadio(
                         id_usuario=usuario,
                         id_radio=radio,
                         fecha_asignacion=fecha_hoy
                     )
-                    print(f"✅ Nueva asignación de radio creada: {radio.nombre_radio}")
+                    nueva_asignacion_radio.save()
+                    print(f"✅ Nueva asignación de radio creada")
+                    radio_info = {
+                        'tipo': 'radio_nuevo',
+                        'radio': radio.nombre_radio
+                    }
                 
-                # Marcar radio como no disponible solo si no lo está ya
+                # Actualizar estado de la radio
                 if radio.estado_radio == 'Disponible':
                     radio.estado_radio = 'No Disponible'
                     radio.save()
-                    print(f"📻 Estado de radio actualizado a: No Disponible")
-                else:
-                    print(f"📻 Radio ya estaba como: {radio.estado_radio}")
+                    print(f"📻 Radio marcada como No Disponible")
             
-            # Preparar respuesta
-            detalles_vehiculo = ""
-            if vehiculo_id:
-                detalles_vehiculo = f"{vehiculo.patente_vehiculo}"
-            elif codigo_vehiculo_manual:
-                detalles_vehiculo = f"Manual: {codigo_vehiculo_manual}"
-            
+            # Preparar respuesta SIN usar IDs
             response_data = {
                 'success': True,
                 'message': 'Turno iniciado correctamente',
-                'asignacion_vehiculo_id': asignacion_vehiculo.id if asignacion_vehiculo else None,
-                'asignacion_radio_id': asignacion_radio.id if asignacion_radio else None,
                 'fecha': fecha_hoy.isoformat(),
-                'detalles': {
-                    'vehiculo': detalles_vehiculo,
-                    'radio': radio.nombre_radio if radio_id else 'No asignada',
-                    'kilometraje_inicial': vehiculo.total_kilometraje if vehiculo_id else 0,
-                    'estado_asignacion': 'Disponible',
-                    'tipo_asignacion': 'nueva' if not asignacion_existente else 'existente'
+                'asignaciones': {
+                    'vehiculo': asignacion_info,
+                    'radio': radio_info
                 }
             }
             
             print("✅ Turno iniciado exitosamente")
-            print(f"📋 Resumen: {response_data['detalles']}")
-            
             return JsonResponse(response_data)
             
         except Usuario.DoesNotExist:
-            print(f"❌ Usuario no encontrado: {usuario_id}")
             return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
         except Vehiculos.DoesNotExist:
-            print(f"❌ Vehículo no encontrado: {vehiculo_id}")
             return JsonResponse({'error': 'Vehículo no encontrado'}, status=404)
         except Radio.DoesNotExist:
-            print(f"❌ Radio no encontrada: {radio_id}")
             return JsonResponse({'error': 'Radio no encontrada'}, status=404)
         except Exception as e:
             print(f"❌ Error en IniciarTurnoTrabajador: {str(e)}")
             import traceback
             print(f"📋 Traceback completo:\n{traceback.format_exc()}")
-            return JsonResponse({'error': f'Error interno del servidor: {str(e)}'}, status=500)
+            return JsonResponse({'error': f'Error interno: {str(e)}'}, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class FinalizarTurnoTrabajador(View):

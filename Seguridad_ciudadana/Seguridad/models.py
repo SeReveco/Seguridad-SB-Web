@@ -226,23 +226,35 @@ class AsignacionVehiculo(models.Model):
         (4, 'No disponible'),
     ]
     
+    # Campos que forman la llave primaria compuesta
     id_usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='id_usuario')
     id_vehiculo = models.ForeignKey(Vehiculos, on_delete=models.CASCADE, db_column='id_vehiculo')
     fecha_asignacion = models.DateField()
+    
+    # Resto de campos
+    fecha_creacion = models.DateTimeField(default=timezone.now)
     kilometraje_inicial = models.IntegerField(default=0)
     kilometraje_recorrido = models.IntegerField(default=0)
     kilometraje_total = models.IntegerField(default=0)
-    activo = models.SmallIntegerField(default=1, choices=ACTIVO_CHOICES)  # CAMPO AÑADIDO
-    fecha_creacion = models.DateTimeField(default=timezone.now)
+    activo = models.SmallIntegerField(default=1, choices=ACTIVO_CHOICES)
+    observaciones = models.TextField(blank=True, null=True)
 
     class Meta:
         db_table = 'Seguridad_asignacion_vehiculo'
         verbose_name = 'Asignación de Vehículo'
         verbose_name_plural = 'Asignaciones de Vehículo'
+        # IMPORTANTE: Especificar la llave primaria compuesta
         unique_together = (('id_usuario', 'id_vehiculo', 'fecha_asignacion'),)
+        # Indicar que no hay un campo 'id' automático
+        managed = True
+
+    # PROPERTY para simular un ID único (para compatibilidad con Django)
+    @property
+    def id_unico(self):
+        return f"{self.id_usuario_id}_{self.id_vehiculo_id}_{self.fecha_asignacion}"
 
     def __str__(self):
-        return f"Vehículo {self.id_vehiculo} - {self.id_usuario} - {self.fecha_asignacion}"
+        return f"Asignación {self.id_usuario} - {self.id_vehiculo} - {self.fecha_asignacion}"
 
 
 class FamiliaDenuncia(models.Model):
