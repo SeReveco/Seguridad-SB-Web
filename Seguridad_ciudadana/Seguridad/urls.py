@@ -69,4 +69,5 @@ urlpatterns = [
     path('api/trabajador/turno/iniciar/', views.IniciarTurnoTrabajador.as_view(), name='iniciar_turno_trabajador'),
     path('api/trabajador/turno/finalizar/', views.FinalizarTurnoTrabajador.as_view(), name='finalizar_turno_trabajador'),
     path('api/trabajador/vehiculo/cambiar-estado/', views.CambiarEstadoVehiculo.as_view(), name='cambiar_estado_vehiculo'),
+    path('api/trabajador/asignaciones/hoy/<int:usuario_id>/', views.VerificarAsignacionesHoy.as_view(), name='verificar_asignaciones_hoy'),
 ]
