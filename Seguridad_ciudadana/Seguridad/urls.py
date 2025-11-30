@@ -13,6 +13,7 @@ urlpatterns = [
     path('api/asignaciones-vehiculos-web/', views.api_asignaciones_vehiculos_web, name='api_asignaciones_vehiculos_web'),
     path('api/denuncias-web/', views.api_denuncias_web, name='api_denuncias_web'),
     path('api/denuncias-hoy/', views.api_denuncias_hoy, name='api_denuncias_hoy'),
+    path('perfil/', views.perfil_usuario, name='perfil_usuario'),
     
     # APIs para requerimientos
     path('api/requerimientos/', views.api_requerimientos, name='api_requerimientos'),

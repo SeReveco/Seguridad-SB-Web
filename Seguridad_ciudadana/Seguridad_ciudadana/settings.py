@@ -16,7 +16,7 @@ DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = [
     '.railway.app',
-    '.onrender.com',  # ← AGREGAR ESTO
+    '.onrender.com',
     'localhost',
     '127.0.0.1',
     '*'

@@ -1,114 +1,208 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 
 <head>
-  <meta charset="utf-8" />
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  <link rel="stylesheet" href="{% static 'CSS/Usuario/inicio_sesion.css' %}">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-  <link rel="icon" type="image/png" href="{% static 'Img/logo_san_bernardo2.png' %}">
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
-  <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
-  <script src="https://kit.fontawesome.com/6a284d15f6.js" crossorigin="anonymous"></script>
-  <link rel="icon" type="image/x-icon" class="fa-solid fa-shield-halved">
-  <title>Inicio de Sesión</title>
+  <link rel="icon" type="image/png" href="{% static 'Img/logo_san_bernardo_2.png' %}">
+  <link rel="stylesheet" href="{% static 'CSS/usuario/perfil.css' %}">
+  <title>Perfil de Usuario - Sistema de Seguridad</title>
 </head>
 
 <body>
-
+  <!-- Navbar -->
   <nav id="navbar" class="navbar">
 
-    <!-- Solo el título centrado -->
-    <h2 class="titulo-pagina">Rutas Seguridad Ciudadana "San Bernardo"</h2>
+    <!-- Botón del menú desplegable -->
+    <div class="dropdown">
+      <i id="boton-opciones" role="button" class="fa-solid fa-bars dropdown-toggle" onclick="toggleDropdown()">
+        <div class="dropdown-menu" id="dropdownMenu">
+
+          <a href="{% url 'index' %}" class="dropdown-item">
+            <i class="fa-solid fa-map"></i> Mapa
+          </a>
+          <a href="" class="dropdown-item">
+            <i class="fa-solid fa-list"></i> Historial de Alertas
+          </a>
+          <a href="" class="dropdown-item">
+            <i class="fa-solid fa-chart-pie"></i> Graficos
+          </a>
+
+        </div>
+      </i>
+    </div>
+
+    <h2 class="titulo-pagina">Seguridad Ciudadana "San Bernardo"</h2>
+
+    <!-- Botón del menú Usuario -->
+    <div class="dropdown2">
+      <i id="boton-usuario" role="button" class="fa-solid fa-user dropdown-toggle2" onclick="toggleDropdown2()">
+        <div class="dropdown-menu2" id="dropdownUsuario">
+
+          <!-- ✅ Mostrar información del usuario si está logueado -->
+          {% if user.is_authenticated %}
+          <div class="user-info">
+            <strong>{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</strong>
+            <small>{{ user.id_rol.nombre_rol }}</small>
+          </div>
+          <div class="dropdown-divider"></div>
+          {% endif %}
+
+          <!-- ✅ Enlace de Cerrar Sesión -->
+          <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
+            <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+          </a>
+          <a href="{% url 'perfil_usuario' %}" class="nav-link">
+            <i class="fas fa-user"></i>
+            <span>Mi Perfil</span>
+          </a>
+          <!-- Mantener otros enlaces si los necesitas -->
+          <a href="{% url 'Admin' %}" class="dropdown-item2">
+            <i class="fa-solid fa-list"></i> Panel Administración
+          </a>
+
+        </div>
+      </i>
+    </div>
 
   </nav>
 
-
-  <!-- Bloque con el formulario de inicio de sesion -->
-  <div class="login-container">
-    <div class="login-header">
-      <h1>🔐 Inicio de Sesión</h1>
-      <p>Sistema de Seguridad Ciudadana - Personal Autorizado</p>
+  <!-- Header del Perfil -->
+  <header class="profile-header">
+    <div class="container">
+      <div class="header-content">
+        <div class="header-info">
+          <h1><i class="fas fa-user-circle"></i>Mi Perfil</h1>
+          <p>Información personal y estadísticas</p>
+        </div>
+        <div class="header-actions">
+          <!-- Botones adicionales si los necesitas -->
+          <a href="{% url 'index' %}" class="btn btn-primary">
+            <i class="fas fa-home"></i>Volver al Inicio
+          </a>
+        </div>
+      </div>
     </div>
+  </header>
 
-    <form id="login-form" method="POST" action="{% url 'login' %}">
-      {% csrf_token %}
-      <div class="form-group">
-        <label>📧 Correo Electrónico</label>
-        <input type="email" name="correo_electronico_usuario" required placeholder="usuario@seguridad.cl"
-          value="{{ request.POST.correo_electronico_usuario|default:'' }}" id="email-input">
+  <!-- El resto del contenido se mantiene igual -->
+  <main class="container">
+    <div class="profile-grid">
+      <!-- Columna Izquierda -->
+      <div class="profile-sidebar">
+        <!-- Tarjeta de Perfil -->
+        <div class="card profile-card">
+          <div class="card-content">
+            <div class="profile-avatar">
+              {{ user.nombre_usuario|first|upper }}{{ user.apellido_pat_usuario|first|upper }}
+            </div>
+            <h2 class="profile-name">{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</h2>
+            <p class="profile-email">{{ user.correo_electronico_usuario }}</p>
+
+            <!-- Rol del Usuario -->
+            <div class="profile-badges">
+              <span class="badge badge-role">
+                <i class="fas fa-user-tag"></i>
+                {{ user.id_rol.nombre_rol }}
+              </span>
+            </div>
+
+            <!-- Turno si está asignado -->
+            {% if user.id_turno %}
+            <div class="profile-badges">
+              <span class="badge badge-info">
+                <i class="fas fa-clock"></i>
+                Turno: {{ user.id_turno.nombre_turno }}
+              </span>
+              <p class="turno-horario">
+                {{ user.id_turno.hora_inicio|time:"H:i" }} - {{ user.id_turno.hora_fin|time:"H:i" }}
+              </p>
+            </div>
+            {% endif %}
+
+            <!-- Estado -->
+            <div class="profile-badges">
+              {% if user.is_active %}
+              <span class="badge badge-success">
+                <i class="fas fa-check-circle"></i>
+                Activo
+              </span>
+              {% else %}
+              <span class="badge badge-danger">
+                <i class="fas fa-times-circle"></i>
+                Inactivo
+              </span>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- El resto del contenido lateral se mantiene igual -->
+        <!-- ... -->
       </div>
 
-      <div class="form-group">
-        <label>🔒 Contraseña</label>
-        <input type="password" name="password" required placeholder="Ingrese su contraseña" id="password-input">
+      <!-- Columna Derecha -->
+      <div class="profile-content">
+        <!-- El contenido principal se mantiene igual -->
+        <!-- ... -->
       </div>
-
-      <button type="submit" id="submit-btn">🚀 Iniciar Sesión</button>
-    </form>
-
-    <div class="login-footer">
-      <p><strong>Acceso restringido:</strong> Solo para Administradores y Operadores de la municipalidad de San
-        Bernardo.</p>
     </div>
+  </main>
 
-  </div>
+  <!-- Footer -->
+  <footer class="profile-footer">
+    <div class="container">
+      <div class="footer-content">
+        <div class="footer-info">
+          <h4>Sistema de Seguridad</h4>
+          <p>Perfil de usuario - {{ user.get_full_name }}</p>
+        </div>
+        <div class="footer-meta">
+          <p>
+            Último acceso:
+            {% if user.last_login %}
+            {{ user.last_login|date:"d/m/Y H:i" }}
+            {% else %}
+            Nunca
+            {% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+  </footer>
 
-  <!-- Ejecución de Scripts -->
-  <script src="{% static 'JavaScript/mapa.js' %}"></script>
-  <script src="{% static 'JavaScript/redirecciones.js' %}"></script>
+  <!-- Font Awesome -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
 
-  <!-- Script para SweetAlert -->
   <script>
+    // Efectos de interacción
     document.addEventListener('DOMContentLoaded', function () {
-      // ✅ SOLO MOSTRAR ERRORES EN LOGIN, NO BIENVENIDAS
-      {% if alert_type %}
-      const alertType = '{{ alert_type|escapejs }}';
-      const alertTitle = '{{ alert_title|escapejs }}';
-      const alertMessage = '{{ alert_message|escapejs }}';
-
-      Swal.fire({
-        icon: alertType,
-        title: alertTitle,
-        text: alertMessage,
-        confirmButtonText: 'Aceptar',
-        confirmButtonColor: alertType === 'success' ? '#28a745' : '#dc3545',
-        background: '#1e1e1e',
-        color: 'white',
-        timer: 5000,
-        timerProgressBar: true
+      // Animación de entrada para las tarjetas
+      const cards = document.querySelectorAll('.card');
+      cards.forEach((card, index) => {
+        card.style.animationDelay = `${index * 0.1}s`;
+        card.classList.add('fade-in-up');
       });
-      {% endif %}
 
-      // Validación del formulario
-      if (loginForm) {
-        loginForm.addEventListener('submit', function (e) {
-          const email = document.getElementById('email-input').value;
-          const password = document.getElementById('password-input').value;
+      // Efecto hover para botones
+      const buttons = document.querySelectorAll('.btn, .nav-btn');
+      buttons.forEach(btn => {
+        btn.addEventListener('mouseenter', function () {
+          this.style.transform = 'translateY(-2px)';
+        });
+        btn.addEventListener('mouseleave', function () {
+          this.style.transform = 'translateY(0)';
+        });
+      });
 
-          // Validación básica
-          if (!email || !password) {
-            e.preventDefault();
-            Swal.fire({
-              icon: 'warning',
-              title: 'Campos incompletos ⚠️',
-              text: 'Por favor complete todos los campos',
-              confirmButtonText: 'Entendido',
-              confirmButtonColor: '#ffc107',
-              background: '#1e1e1e',
-              color: 'white'
-            });
-            return;
-          }
+      // Menú móvil
+      const navToggle = document.getElementById('navToggle');
+      const navMenu = document.querySelector('.nav-menu');
 
-          // Mostrar loading
-          submitBtn.innerHTML = '⏳ Validando credenciales...';
-          submitBtn.disabled = true;
+      if (navToggle && navMenu) {
+        navToggle.addEventListener('click', function () {
+          navMenu.classList.toggle('nav-menu-active');
         });
       }
     });

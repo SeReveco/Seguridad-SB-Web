@@ -114,6 +114,33 @@ def cerrar_sesion(request):
     except Exception:
         return redirect('login')
 
+@login_required
+def perfil_usuario(request):
+    """Vista para mostrar el perfil del usuario logueado"""
+    try:
+        user = request.user
+        
+        # Obtener estadísticas
+        denuncias_count = Denuncia.objects.filter(id_usuario=user).count()
+        fiscalizaciones_count = Fiscalizacion.objects.filter(id_usuario=user).count()
+        
+        asignaciones_radios = AsignacionRadio.objects.filter(
+            id_usuario=user,
+            fecha_devolucion__isnull=True
+        ).select_related('id_radio')[:3]
+        
+        context = {
+            'user': user,
+            'denuncias_count': denuncias_count,
+            'fiscalizaciones_count': fiscalizaciones_count,
+        }
+        
+        return render(request, 'perfil_usuario.html', context)
+    
+    except Exception as e:
+        print(f"Error en perfil_usuario: {e}")
+        # Para debugging, puedes retornar un error más específico
+        return render(request, 'error.html', {'error': str(e)})
 
 def iniciar_sesion(request):
     """Inicio de sesión para usuarios del sistema"""
