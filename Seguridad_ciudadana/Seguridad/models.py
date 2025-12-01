@@ -202,6 +202,9 @@ class Radio(models.Model):
 
 
 class AsignacionRadio(models.Model):
+    # Cambiar 'id' por 'id_asignacion_radio' para consistencia
+    id_asignacion_radio = models.AutoField(primary_key=True, db_column='id_asignacion_radio')
+    
     id_usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='id_usuario')
     id_radio = models.ForeignKey(Radio, on_delete=models.CASCADE, db_column='id_radio')
     fecha_asignacion = models.DateField()
@@ -215,7 +218,7 @@ class AsignacionRadio(models.Model):
         unique_together = (('id_usuario', 'id_radio', 'fecha_asignacion'),)
 
     def __str__(self):
-        return f"Radio {self.id_radio} - {self.id_usuario} - {self.fecha_asignacion}"
+        return f"Asignación Radio {self.id_asignacion_radio}"
 
 
 class AsignacionVehiculo(models.Model):
@@ -226,12 +229,11 @@ class AsignacionVehiculo(models.Model):
         (4, 'No disponible'),
     ]
     
-    # Campos que forman la llave primaria compuesta
+    id_asignacion_vehiculo = models.AutoField(primary_key=True, db_column='id_asignacion_vehiculo')
+    
     id_usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, db_column='id_usuario')
     id_vehiculo = models.ForeignKey(Vehiculos, on_delete=models.CASCADE, db_column='id_vehiculo')
     fecha_asignacion = models.DateField()
-    
-    # Resto de campos
     fecha_creacion = models.DateTimeField(default=timezone.now)
     kilometraje_inicial = models.IntegerField(default=0)
     kilometraje_recorrido = models.IntegerField(default=0)
@@ -243,19 +245,10 @@ class AsignacionVehiculo(models.Model):
         db_table = 'Seguridad_asignacion_vehiculo'
         verbose_name = 'Asignación de Vehículo'
         verbose_name_plural = 'Asignaciones de Vehículo'
-        # IMPORTANTE: Especificar la llave primaria compuesta
         unique_together = (('id_usuario', 'id_vehiculo', 'fecha_asignacion'),)
-        # Indicar que no hay un campo 'id' automático
-        managed = True
-
-    # PROPERTY para simular un ID único (para compatibilidad con Django)
-    @property
-    def id_unico(self):
-        return f"{self.id_usuario_id}_{self.id_vehiculo_id}_{self.fecha_asignacion}"
 
     def __str__(self):
-        return f"Asignación {self.id_usuario} - {self.id_vehiculo} - {self.fecha_asignacion}"
-
+        return f"Asignación {self.id_asignacion_vehiculo} - {self.id_usuario} - {self.id_vehiculo}"
 
 class FamiliaDenuncia(models.Model):
     id_familia_denuncia = models.AutoField(primary_key=True, db_column='id_familia_denuncia')

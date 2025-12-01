@@ -71,4 +71,11 @@ urlpatterns = [
     path('api/trabajador/turno/finalizar/', views.FinalizarTurnoTrabajador.as_view(), name='finalizar_turno_trabajador'),
     path('api/trabajador/vehiculo/cambiar-estado/', views.CambiarEstadoVehiculo.as_view(), name='cambiar_estado_vehiculo'),
     path('api/trabajador/asignaciones/hoy/<int:usuario_id>/', views.VerificarAsignacionesHoy.as_view(), name='verificar_asignaciones_hoy'),
+
+    path('api/trabajador/verificar-turno-activo/<int:usuario_id>/', views.VerificarTurnoActivo.as_view(), name='verificar_turno_activo'),
+    path('api/trabajador/turno/iniciar/', views.IniciarTurnoTrabajador.as_view(), name='iniciar_turno_trabajador'),
+    path('api/trabajador/turno/finalizar-automatico/', views.FinalizarTurnoAutomatico.as_view(), name='finalizar_turno_automatico'),
+    path('api/trabajador/turnos/verificar-finalizar/', views.VerificarTurnosParaFinalizar.as_view(), name='verificar_turnos_finalizar'),
+    path('api/trabajador/historial-turnos/<int:usuario_id>/', views.ObtenerHistorialTurnos.as_view(), name='historial_turnos'),
+    
 ]
