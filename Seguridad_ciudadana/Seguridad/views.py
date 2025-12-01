@@ -2540,8 +2540,28 @@ class IniciarTurnoTrabajador(View):
                 vehiculo_info = {
                     'patente': vehiculo.patente_vehiculo,
                     'marca': vehiculo.marca_vehiculo,
-                    'modelo': vehiculo.modelo_vehiculo
+                    'modelo': vehiculo.modelo_vehiculo,
+                    'codigo': vehiculo.codigo_vehiculo
                 }
+                
+                # ACTUALIZAR: Cambiar estado del vehículo a "4: En patrulla"
+                # Primero, obtener el estado "En patrulla" (id 4)
+                try:
+                    estado_patrulla = EstadoVehiculo.objects.get(id_estado_vehiculo=4)
+                    # Actualizar el estado del vehículo
+                    vehiculo.id_estado_vehiculo = estado_patrulla
+                    vehiculo.save()
+                    print(f"🚗 Estado del vehículo actualizado a: {estado_patrulla.nombre_estado}")
+                except EstadoVehiculo.DoesNotExist:
+                    print(f"⚠️ No se encontró el estado 'En patrulla' (id 4)")
+                    # Si no existe el estado 4, usar "No disponible" (id 5) como alternativa
+                    try:
+                        estado_no_disponible = EstadoVehiculo.objects.get(id_estado_vehiculo=5)
+                        vehiculo.id_estado_vehiculo = estado_no_disponible
+                        vehiculo.save()
+                        print(f"🚗 Estado del vehículo actualizado a: {estado_no_disponible.nombre_estado}")
+                    except EstadoVehiculo.DoesNotExist:
+                        print(f"⚠️ No se encontró el estado 'No disponible' (id 5) tampoco")
                 
                 # Crear asignación de vehículo
                 asignacion_vehiculo = AsignacionVehiculo.objects.create(
@@ -2551,7 +2571,7 @@ class IniciarTurnoTrabajador(View):
                     kilometraje_inicial=vehiculo.total_kilometraje,
                     kilometraje_recorrido=0,
                     kilometraje_total=vehiculo.total_kilometraje,
-                    activo=1,  # Disponible
+                    activo=1,  # Disponible para el conductor
                     fecha_creacion=timezone.now()
                 )
                 print(f"✅ Asignación de vehículo creada. ID: {asignacion_vehiculo.id_asignacion_vehiculo}")
@@ -2572,7 +2592,7 @@ class IniciarTurnoTrabajador(View):
                     kilometraje_recorrido=0,
                     kilometraje_total=0,
                     activo=1,  # Disponible
-                    observaciones=f"Vehículo manual: {codigo_vehiculo_manual}",
+                    # NO incluir observaciones ya que no existe el campo
                     fecha_creacion=timezone.now()
                 )
                 print(f"✅ Asignación manual creada. ID: {asignacion_vehiculo.id_asignacion_vehiculo}")
