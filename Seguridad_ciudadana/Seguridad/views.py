@@ -2974,3 +2974,109 @@ class ObtenerHistorialTurnos(View):
             return 8.0
         
         return None
+    
+@method_decorator(csrf_exempt, name='dispatch')
+class VerificarAsignacionesHoy(View):
+    """Verificar asignaciones de vehículo y radio para hoy"""
+    def get(self, request, usuario_id):
+        try:
+            print(f"🔍 Verificando asignaciones hoy para usuario: {usuario_id}")
+            
+            usuario = Usuario.objects.get(id_usuario=usuario_id)
+            fecha_hoy = date.today()
+            
+            # Obtener asignación de vehículo de hoy
+            asignacion_vehiculo = AsignacionVehiculo.objects.filter(
+                id_usuario=usuario,
+                fecha_asignacion=fecha_hoy
+            ).select_related('id_vehiculo', 'id_vehiculo__id_tipo_vehiculo').first()
+            
+            # Obtener asignación de radio de hoy
+            asignacion_radio = AsignacionRadio.objects.filter(
+                id_usuario=usuario,
+                fecha_asignacion=fecha_hoy,
+                fecha_devolucion__isnull=True
+            ).select_related('id_radio').first()
+            
+            # Preparar datos de vehículo
+            vehiculo_data = None
+            if asignacion_vehiculo and asignacion_vehiculo.id_vehiculo:
+                vehiculo_data = {
+                    'id_vehiculo': asignacion_vehiculo.id_vehiculo.id_vehiculo,
+                    'patente_vehiculo': asignacion_vehiculo.id_vehiculo.patente_vehiculo,
+                    'marca_vehiculo': asignacion_vehiculo.id_vehiculo.marca_vehiculo,
+                    'modelo_vehiculo': asignacion_vehiculo.id_vehiculo.modelo_vehiculo,
+                    'codigo_vehiculo': asignacion_vehiculo.id_vehiculo.codigo_vehiculo,
+                    'tipo_vehiculo': asignacion_vehiculo.id_vehiculo.id_tipo_vehiculo.nombre_tipo_vehiculo,
+                    'estado_asignacion': asignacion_vehiculo.activo,
+                    'estado_texto': self.get_estado_texto(asignacion_vehiculo.activo),
+                    'kilometraje_inicial': asignacion_vehiculo.kilometraje_inicial,
+                    'kilometraje_recorrido': asignacion_vehiculo.kilometraje_recorrido,
+                    'fecha_asignacion': asignacion_vehiculo.fecha_asignacion.isoformat(),
+                    'hora_inicio': asignacion_vehiculo.fecha_creacion.isoformat() if asignacion_vehiculo.fecha_creacion else None
+                }
+            elif asignacion_vehiculo and asignacion_vehiculo.observaciones:
+                vehiculo_data = {
+                    'tipo': 'manual',
+                    'codigo_manual': asignacion_vehiculo.observaciones.replace('Vehículo manual: ', ''),
+                    'estado_asignacion': asignacion_vehiculo.activo,
+                    'estado_texto': self.get_estado_texto(asignacion_vehiculo.activo),
+                    'fecha_asignacion': asignacion_vehiculo.fecha_asignacion.isoformat(),
+                    'hora_inicio': asignacion_vehiculo.fecha_creacion.isoformat() if asignacion_vehiculo.fecha_creacion else None
+                }
+            
+            # Preparar datos de radio
+            radio_data = None
+            if asignacion_radio:
+                radio_data = {
+                    'id_radio': asignacion_radio.id_radio.id_radio,
+                    'nombre_radio': asignacion_radio.id_radio.nombre_radio,
+                    'codigo_radio': asignacion_radio.id_radio.codigo_radio,
+                    'descripcion_radio': asignacion_radio.id_radio.descripcion_radio,
+                    'estado_radio': asignacion_radio.id_radio.estado_radio,
+                    'fecha_asignacion': asignacion_radio.fecha_asignacion.isoformat(),
+                    'fecha_creacion': asignacion_radio.fecha_creacion.isoformat() if asignacion_radio.fecha_creacion else None
+                }
+            
+            # Calcular tiempo transcurrido si hay asignación
+            tiempo_transcurrido = None
+            if asignacion_vehiculo and asignacion_vehiculo.fecha_creacion:
+                tiempo_transcurrido = timezone.now() - asignacion_vehiculo.fecha_creacion
+                horas = int(tiempo_transcurrido.total_seconds() // 3600)
+                minutos = int((tiempo_transcurrido.total_seconds() % 3600) // 60)
+                tiempo_transcurrido = f"{horas}h {minutos}m"
+            
+            data = {
+                'tiene_asignaciones_hoy': asignacion_vehiculo is not None or asignacion_radio is not None,
+                'fecha': fecha_hoy.isoformat(),
+                'vehiculo': vehiculo_data,
+                'radio': radio_data,
+                'tiempo_transcurrido': tiempo_transcurrido,
+                'resumen': {
+                    'tiene_vehiculo': asignacion_vehiculo is not None,
+                    'tiene_radio': asignacion_radio is not None,
+                    'estado_actual': self.get_estado_texto(asignacion_vehiculo.activo) if asignacion_vehiculo else 'Sin asignación',
+                    'puede_iniciar_nuevo': asignacion_vehiculo is None  # Puede iniciar nuevo si no tiene asignación
+                }
+            }
+            
+            print(f"✅ Asignaciones verificadas para usuario {usuario_id}")
+            print(f"📊 Resumen: Vehículo: {data['resumen']['tiene_vehiculo']}, Radio: {data['resumen']['tiene_radio']}")
+            
+            return JsonResponse(data)
+            
+        except Usuario.DoesNotExist:
+            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+        except Exception as e:
+            print(f"❌ Error en VerificarAsignacionesHoy: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    def get_estado_texto(self, estado_id):
+        estados = {
+            1: 'Disponible',
+            2: 'En proceso',
+            3: 'En central',
+            4: 'No disponible',
+            None: 'Sin asignación'
+        }
+        return estados.get(estado_id, 'Desconocido')
