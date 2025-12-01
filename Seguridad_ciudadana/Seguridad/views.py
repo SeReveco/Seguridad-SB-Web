@@ -2407,6 +2407,29 @@ class ObtenerDatosTrabajador(View):
                 'mensaje': 'Usando datos de respaldo'
             })
 
+@method_decorator(csrf_exempt, name='dispatch')
+class ObtenerVehiculosPorTipo(View):
+    def get(self, request, tipo_vehiculo_id):
+        try:
+            print(f"🔍 Solicitando vehículos para tipo: {tipo_vehiculo_id}")
+            
+            # Obtener vehículos por tipo que estén disponibles
+            # Asumiendo que id_estado_vehiculo=1 es "Disponible"
+            vehiculos = Vehiculos.objects.filter(
+                id_tipo_vehiculo=tipo_vehiculo_id,
+                id_estado_vehiculo=1  # Disponible
+            ).values('id_vehiculo', 'patente_vehiculo', 'marca_vehiculo', 
+                    'modelo_vehiculo', 'codigo_vehiculo', 'total_kilometraje')
+            
+            vehiculos_list = list(vehiculos)
+            print(f"✅ Vehículos encontrados: {len(vehiculos_list)}")
+            
+            return JsonResponse({'vehiculos': vehiculos_list})
+            
+        except Exception as e:
+            print(f"❌ Error en ObtenerVehiculosPorTipo: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+
 # ========== VISTAS PARA ASIGNACIONES ==========
 
 @method_decorator(csrf_exempt, name='dispatch')
