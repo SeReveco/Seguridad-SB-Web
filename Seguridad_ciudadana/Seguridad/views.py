@@ -23,7 +23,6 @@ from django.db.models import Q  # type: ignore
 import logging
 logger = logging.getLogger(__name__)
 
-
 # Vistas básicas de autenticación
 @login_required
 def index(request):
@@ -35,12 +34,149 @@ def index(request):
     if 'mostrar_bienvenida' in request.session:
         del request.session['mostrar_bienvenida']
 
+    # Obtener la fecha actual
+    hoy = timezone.now().date()
+    
+    # Filtrar asignaciones del día actual o que estén activas (estados 1, 2, 3)
+    asignaciones = AsignacionVehiculo.objects.filter(
+        Q(fecha_asignacion=hoy) | 
+        Q(activo__in=[1, 2, 3])  # Disponible, En proceso, En central
+    ).select_related(
+        'id_vehiculo',
+        'id_usuario'
+    ).order_by('-fecha_creacion', 'activo')
+    
+    # Preparar datos para el template
+    asignaciones_data = []
+    for asignacion in asignaciones:
+        # Obtener conductor
+        conductor = f"{asignacion.id_usuario.nombre_usuario} {asignacion.id_usuario.apellido_pat_usuario}"
+        
+        # Formatear fecha de creación (solo hora y minutos)
+        hora_creacion = asignacion.fecha_creacion.strftime('%H:%M') if asignacion.fecha_creacion else ''
+        
+        # Formatear fecha de inicio de turno
+        fecha_turno = asignacion.fecha_asignacion.strftime('%d/%m/%Y') if asignacion.fecha_asignacion else ''
+        
+        # Determinar color según estado
+        color_estado = ''
+        if asignacion.activo == 1:  # Disponible
+            color_estado = 'success'
+        elif asignacion.activo == 2:  # En proceso
+            color_estado = 'info'
+        elif asignacion.activo == 3:  # En central
+            color_estado = 'warning'
+        elif asignacion.activo == 4:  # No disponible
+            color_estado = 'danger'
+        
+        # Texto del estado
+        estado_texto = dict(AsignacionVehiculo.ACTIVO_CHOICES).get(asignacion.activo, 'Desconocido')
+        
+        asignaciones_data.append({
+            'id': asignacion.id_asignacion_vehiculo,
+            'patente': asignacion.id_vehiculo.patente_vehiculo if asignacion.id_vehiculo else 'Sin vehículo',
+            'marca': asignacion.id_vehiculo.marca_vehiculo if asignacion.id_vehiculo else '',
+            'modelo': asignacion.id_vehiculo.modelo_vehiculo if asignacion.id_vehiculo else '',
+            'conductor': conductor,
+            'hora_creacion': hora_creacion,
+            'fecha_turno': fecha_turno,
+            'estado': asignacion.activo,
+            'estado_texto': estado_texto,
+            'color_estado': color_estado,
+            'kilometraje_recorrido': asignacion.kilometraje_recorrido,
+            'kilometraje_total': asignacion.kilometraje_total
+        })
+
+    # Verificar si es una petición AJAX
+    if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        # Si el cliente acepta JSON, devolver datos JSON
+        if 'application/json' in request.headers.get('Accept', ''):
+            return JsonResponse({
+                'asignaciones': asignaciones_data,
+                'hoy': hoy.strftime('%d/%m/%Y')
+            })
+    
+    # Contexto para renderizado normal
     context = {
         'usuario_nombre': usuario_nombre,
-        'mostrar_bienvenida': mostrar_bienvenida
+        'mostrar_bienvenida': mostrar_bienvenida,
+        'asignaciones': asignaciones_data,
+        'hoy': hoy.strftime('%d/%m/%Y')
     }
 
     return render(request, 'index.html', context)
+
+@csrf_exempt
+@login_required
+def api_asignaciones_dia(request):
+    """API para obtener asignaciones del día con información completa"""
+    try:
+        if request.method == 'GET':
+            # Obtener la fecha actual
+            hoy = timezone.now().date()
+            
+            # Filtrar asignaciones del día actual o que estén activas
+            asignaciones = AsignacionVehiculo.objects.filter(
+                Q(fecha_asignacion=hoy) | 
+                Q(activo__in=[1, 2, 3])  # Disponible, En proceso, En central
+            ).select_related(
+                'id_vehiculo',
+                'id_usuario'
+            ).order_by('-fecha_creacion', 'activo')
+            
+            data = []
+            for asignacion in asignaciones:
+                # Obtener conductor
+                conductor = f"{asignacion.id_usuario.nombre_usuario} {asignacion.id_usuario.apellido_pat_usuario}"
+                
+                # Formatear fecha de creación (solo hora y minutos)
+                hora_creacion = asignacion.fecha_creacion.strftime('%H:%M') if asignacion.fecha_creacion else ''
+                
+                # Formatear fecha de inicio de turno
+                fecha_turno = asignacion.fecha_asignacion.strftime('%d/%m/%Y') if asignacion.fecha_asignacion else ''
+                
+                # Determinar color según estado
+                color_estado = ''
+                if asignacion.activo == 1:  # Disponible
+                    color_estado = 'success'
+                elif asignacion.activo == 2:  # En proceso
+                    color_estado = 'info'
+                elif asignacion.activo == 3:  # En central
+                    color_estado = 'warning'
+                elif asignacion.activo == 4:  # No disponible
+                    color_estado = 'danger'
+                
+                # Texto del estado
+                estado_texto = dict(AsignacionVehiculo.ACTIVO_CHOICES).get(asignacion.activo, 'Desconocido')
+                
+                data.append({
+                    'id_asignacion': asignacion.id_asignacion_vehiculo,
+                    'patente': asignacion.id_vehiculo.patente_vehiculo if asignacion.id_vehiculo else 'Sin vehículo',
+                    'marca': asignacion.id_vehiculo.marca_vehiculo if asignacion.id_vehiculo else '',
+                    'modelo': asignacion.id_vehiculo.modelo_vehiculo if asignacion.id_vehiculo else '',
+                    'conductor': conductor,
+                    'hora_creacion': hora_creacion,
+                    'fecha_turno': fecha_turno,
+                    'estado': asignacion.activo,
+                    'estado_texto': estado_texto,
+                    'color_estado': color_estado,
+                    'kilometraje_recorrido': asignacion.kilometraje_recorrido,
+                    'kilometraje_total': asignacion.kilometraje_total
+                })
+            
+            return JsonResponse({
+                'success': True,
+                'asignaciones': data,
+                'total': len(data),
+                'fecha': hoy.strftime('%d/%m/%Y')
+            })
+            
+    except Exception as e:
+        print(f"❌ Error en api_asignaciones_dia: {str(e)}")
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        }, status=500)
 
 @csrf_exempt
 @login_required
@@ -1916,50 +2052,84 @@ def listar_servicios_emergencia(request):
     
 @csrf_exempt
 def api_denuncias_web(request):
-    """API para crear denuncias desde la web - CORREGIDA"""
+    """API para crear denuncias desde la web - PARA OPERADORES"""
     try:
         if request.method == 'POST':
             data = json.loads(request.body)
             
-            # Crear ciudadano temporal para la denuncia web
-            from django.utils.crypto import get_random_string
-            ciudadano, created = Ciudadano.objects.get_or_create(
-                telefono_movil_ciudadano=data['telefono_ciudadano'],
-                defaults={
-                    'nombre_ciudadano': data['nombre_ciudadano'],
-                    'apellido_pat_ciudadano': 'Temporal',
-                    'apellido_mat_ciudadano': 'Web',
-                    'rut_ciudadano': f"temp_{data['telefono_ciudadano']}",
-                    'correo_electronico_ciudadano': f"temp_{data['telefono_ciudadano']}@temp.com",
-                    'password_ciudadano': get_random_string(10),
-                    'is_active_ciudadano': True
-                }
-            )
+            print(f"📥 Datos recibidos para denuncia: {data}")
             
-            # Crear denuncia
+            # Validar campos requeridos
+            campos_requeridos = [
+                'nombre_ciudadano',  # Este será nombre_denunciante
+                'telefono_ciudadano',  # Este será telefono_denunciante
+                'direccion_denuncia',
+                'cuadrante_denuncia',
+                'detalle_denuncia',
+                'id_requerimiento'
+            ]
+            
+            for campo in campos_requeridos:
+                if not data.get(campo):
+                    return JsonResponse({
+                        'success': False, 
+                        'error': f'El campo {campo} es requerido'
+                    }, status=400)
+            
+            # Verificar que el requerimiento existe
+            try:
+                requerimiento = Requerimiento.objects.get(id_requerimiento=data['id_requerimiento'])
+                print(f"✅ Requerimiento encontrado: {requerimiento.nombre_requerimiento}")
+            except Requerimiento.DoesNotExist:
+                return JsonResponse({
+                    'success': False, 
+                    'error': 'El requerimiento seleccionado no existe'
+                }, status=400)
+            
+            # Obtener usuario operador (el que está creando la denuncia)
+            usuario = request.user if request.user.is_authenticated else Usuario.objects.first()
+            
+            # Verificar vehículo si se proporcionó
+            id_vehiculo = data.get('id_vehiculo')
+            vehiculo = None
+            if id_vehiculo:
+                try:
+                    vehiculo = Vehiculos.objects.get(id_vehiculo=id_vehiculo)
+                    print(f"✅ Vehículo asignado: {vehiculo.patente_vehiculo}")
+                except Vehiculos.DoesNotExist:
+                    print(f"⚠️ Vehículo {id_vehiculo} no encontrido")
+            
+            # 🔴 CORRECCIÓN PRINCIPAL: Crear denuncia sin ciudadano
+            # Para denuncias de operadores, id_ciudadano puede ser NULL
             denuncia = Denuncia.objects.create(
                 hora_denuncia=timezone.now(),
                 fecha_denuncia=timezone.now().date(),
-                direccion_denuncia=data['direccion_denuncia'],
-                direccion_denuncia_1=data.get('direccion_secundaria', data['direccion_denuncia']),
-                cuadrante_denuncia=data['cuadrante_denuncia'],
-                detalle_denuncia=data['detalle_denuncia'],
+                direccion_denuncia=data['direccion_denuncia'][:100],
+                direccion_denuncia_1=data.get('direccion_secundaria', data['direccion_denuncia'])[:225],
+                cuadrante_denuncia=int(data['cuadrante_denuncia']),
+                detalle_denuncia=data['detalle_denuncia'][:5000],
                 visibilidad_camaras_denuncia=data.get('visibilidad_camaras_denuncia', False),
-                estado_denuncia='pendiente',  # Estado inicial
-                id_usuario=request.user if request.user.is_authenticated else Usuario.objects.first(),
-                id_ciudadano=ciudadano,
-                id_requerimiento_id=data['id_requerimiento']
+                estado_denuncia='pendiente',
+                id_usuario=usuario,
+                id_ciudadano=None,  # 🔴 ESTE ES EL CAMBIO - puede ser nulo
+                id_requerimiento=requerimiento,
+                nombre_denunciante=data['nombre_ciudadano'][:225],  # Usar nombre_ciudadano del formulario
+                telefono_denunciante=data['telefono_ciudadano'][:20]  # Usar telefono_ciudadano del formulario
             )
             
-            # Crear asignación de móvil si se proporcionó
-            if data.get('id_vehiculo'):
+            print(f"✅ Denuncia creada (operador): {denuncia.id_denuncia}")
+            
+            # Crear asignación de móvil si se proporcionó vehículo
+            if vehiculo:
                 MovilesDenuncia.objects.create(
                     orden_asignacion=1,
                     hora_asignacion=timezone.now(),
+                    observaciones='Asignado desde formulario web'[:500],
                     id_denuncia=denuncia,
-                    id_vehiculo_id=data['id_vehiculo'],
-                    id_conductor=request.user if request.user.is_authenticated else Usuario.objects.first()
+                    id_vehiculo=vehiculo,
+                    id_conductor=usuario
                 )
+                print(f"✅ Móvil asignado a denuncia")
             
             return JsonResponse({
                 'success': True,
@@ -1969,65 +2139,103 @@ def api_denuncias_web(request):
                     'estado_denuncia': denuncia.estado_denuncia,
                     'fecha_creacion': denuncia.fecha_creacion_denuncia.isoformat()
                 },
-                'message': 'Denuncia creada exitosamente'
+                'message': 'Denuncia creada exitosamente por operador'
             })
             
     except Exception as e:
         print(f"❌ Error en api_denuncias_web: {str(e)}")
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
-
+        import traceback
+        print(f"📋 TRACEBACK: {traceback.format_exc()}")
+        return JsonResponse({
+            'success': False, 
+            'error': f'Error interno del servidor: {str(e)}'
+        }, status=500)
     
 @csrf_exempt
 def api_denuncias_hoy(request):
     """API para obtener denuncias del día actual - CORREGIDA"""
     try:
+        # Obtener fecha actual
         hoy = timezone.now().date()
         
-        # Obtener denuncias de hoy con select_related para optimizar
+        print(f"🔍 Buscando denuncias del día: {hoy}")
+        
+        # Obtener denuncias de hoy con todas las relaciones necesarias
         denuncias = Denuncia.objects.filter(
             fecha_denuncia=hoy
         ).select_related(
-            'id_ciudadano',
             'id_requerimiento',
             'id_usuario'
-        ).prefetch_related('movilesdenuncia_set__id_vehiculo')
+        ).prefetch_related('movilesdenuncia_set__id_vehiculo').order_by('-hora_denuncia')
+        
+        print(f"📊 Total denuncias encontradas: {denuncias.count()}")
         
         data = []
         for denuncia in denuncias:
+            print(f"📝 Procesando denuncia ID: {denuncia.id_denuncia}")
+            
             # Obtener información del móvil asignado si existe
             movil_asignado = None
-            movil_denuncia = denuncia.movilesdenuncia_set.first()
-            if movil_denuncia and movil_denuncia.id_vehiculo:
-                movil_asignado = {
-                    'patente': movil_denuncia.id_vehiculo.patente_vehiculo,
-                    'marca': movil_denuncia.id_vehiculo.marca_vehiculo,
-                    'modelo': movil_denuncia.id_vehiculo.modelo_vehiculo
-                }
+            try:
+                movil_denuncia = denuncia.movilesdenuncia_set.first()
+                if movil_denuncia and movil_denuncia.id_vehiculo:
+                    movil_asignado = {
+                        'patente': movil_denuncia.id_vehiculo.patente_vehiculo,
+                        'marca': movil_denuncia.id_vehiculo.marca_vehiculo,
+                        'modelo': movil_denuncia.id_vehiculo.modelo_vehiculo
+                    }
+                    print(f"🚗 Móvil asignado: {movil_asignado['patente']}")
+            except Exception as e:
+                print(f"⚠️ Error obteniendo móvil: {e}")
+            
+            # Obtener requerimiento
+            requerimiento_nombre = "No especificado"
+            if denuncia.id_requerimiento:
+                requerimiento_nombre = denuncia.id_requerimiento.nombre_requerimiento
+            
+            # Obtener usuario que registró
+            usuario_registro = "No especificado"
+            if denuncia.id_usuario:
+                usuario_registro = f"{denuncia.id_usuario.nombre_usuario} {denuncia.id_usuario.apellido_pat_usuario}"
+            
+            # Formatear hora
+            hora_formateada = denuncia.hora_denuncia.strftime('%H:%M') if denuncia.hora_denuncia else ''
             
             denuncia_data = {
                 'id_denuncia': denuncia.id_denuncia,
-                'direccion_denuncia': denuncia.direccion_denuncia,
-                'detalle_denuncia': denuncia.detalle_denuncia,
-                'estado_denuncia': denuncia.estado_denuncia,
-                'fecha_denuncia': denuncia.fecha_denuncia.isoformat(),
-                'hora_denuncia': denuncia.hora_denuncia.isoformat() if denuncia.hora_denuncia else None,
-                'cuadrante_denuncia': denuncia.cuadrante_denuncia,
-                'visibilidad_camaras_denuncia': denuncia.visibilidad_camaras_denuncia,
+                'direccion_denuncia': denuncia.direccion_denuncia or 'Sin dirección',
+                'detalle_denuncia': denuncia.detalle_denuncia or 'Sin detalles',
+                'estado_denuncia': denuncia.estado_denuncia or 'pendiente',
+                'fecha_denuncia': denuncia.fecha_denuncia.isoformat() if denuncia.fecha_denuncia else '',
+                'hora_denuncia': hora_formateada,
+                'cuadrante_denuncia': denuncia.cuadrante_denuncia or 0,
+                'visibilidad_camaras_denuncia': denuncia.visibilidad_camaras_denuncia or False,
                 
-                # Información del ciudadano (solo campos básicos)
-                'nombre_ciudadano': denuncia.id_ciudadano.nombre_ciudadano if denuncia.id_ciudadano else 'No especificado',
-                'telefono_ciudadano': denuncia.id_ciudadano.telefono_movil_ciudadano if denuncia.id_ciudadano else 'No especificado',
+                # Información del denunciante (desde campos directos de la denuncia)
+                'nombre_denunciante': denuncia.nombre_denunciante or 'No especificado',
+                'telefono_denunciante': denuncia.telefono_denunciante or 'No especificado',
                 
                 # Información del requerimiento
-                'nombre_requerimiento': denuncia.id_requerimiento.nombre_requerimiento if denuncia.id_requerimiento else 'No especificado',
+                'nombre_requerimiento': requerimiento_nombre,
+                'clasificacion_requerimiento': denuncia.id_requerimiento.clasificacion_requerimiento if denuncia.id_requerimiento else 'No especificada',
                 
                 # Móvil asignado
                 'movil_asignado': movil_asignado,
                 
                 # Información del usuario que registró
-                'usuario_registro': f"{denuncia.id_usuario.nombre_usuario} {denuncia.id_usuario.apellido_pat_usuario}" if denuncia.id_usuario else 'No especificado'
+                'usuario_registro': usuario_registro,
+                
+                # Fecha y hora completas para ordenamiento
+                'fecha_hora_completa': denuncia.hora_denuncia.isoformat() if denuncia.hora_denuncia else '',
+                
+                # Para mostrar en la UI
+                'display_info': f"{denuncia.nombre_denunciante or 'Anónimo'} - {requerimiento_nombre}",
+                'display_hora': hora_formateada,
+                'display_estado': denuncia.estado_denuncia.capitalize() if denuncia.estado_denuncia else 'Pendiente'
             }
             data.append(denuncia_data)
+        
+        print(f"✅ Datos preparados: {len(data)} denuncias")
         
         return JsonResponse(data, safe=False)
         
@@ -2035,7 +2243,10 @@ def api_denuncias_hoy(request):
         print(f"❌ Error en api_denuncias_hoy: {str(e)}")
         import traceback
         print(f"📋 Traceback: {traceback.format_exc()}")
-        return JsonResponse({'error': 'Error interno del servidor'}, status=500)
+        return JsonResponse({
+            'error': 'Error interno del servidor al cargar denuncias',
+            'detalle': str(e)
+        }, status=500)
     
 # ========== APIs ESPECÍFICAS PARA IONIC ==========
 

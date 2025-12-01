@@ -46,6 +46,7 @@ body::before {
     box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     margin-bottom: 1rem;
     padding: 15px 25px;
+    z-index: 10000; /* Añadido - mayor que el modal */
 }
 
 /* Estilo Dropdown */
@@ -80,7 +81,7 @@ body::before {
     box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
     padding: 10px 0;
     min-width: 250px;
-    z-index: 1000;
+    z-index: 10002; /* Mayor que el dropdown */
     display: none;
     opacity: 0;
     border: 1px solid #e9ecef;
@@ -206,7 +207,9 @@ body::before {
     top: 100%;
     right: 0;
     left: auto;
+    z-index: 10002;
 }
+
 
 .dropdown2 .dropdown-item2:hover {
     transform: translateX(-5px);

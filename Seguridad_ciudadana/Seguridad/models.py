@@ -353,6 +353,8 @@ class Denuncia(models.Model):
     id_usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='denuncias_registradas', db_column='id_usuario')
     id_ciudadano = models.ForeignKey(Ciudadano, on_delete=models.PROTECT, db_column='id_ciudadano')
     id_requerimiento = models.ForeignKey(Requerimiento, on_delete=models.PROTECT, db_column='id_requerimiento')
+    nombre_denunciante = models.CharField(max_length=225, null=True, blank=True, default='')
+    telefono_denunciante = models.CharField(max_length=20, null=True, blank=True)
 
     class Meta:
         db_table = 'Seguridad_denuncia'

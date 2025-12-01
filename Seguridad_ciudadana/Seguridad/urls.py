@@ -1,4 +1,4 @@
-from django.urls import path # type: ignore
+from django.urls import path
 from . import views
 
 urlpatterns = [
@@ -10,6 +10,11 @@ urlpatterns = [
     path('Admin/usuarios/', views.admin_usuarios, name='admin_usuarios'),
     path('Admin/vehiculos/', views.admin_vehiculos, name='admin_vehiculos'),
     path('Admin/radios/', views.admin_radios, name='admin_radios'),
+    
+    # ✅ NUEVA API PARA ASIGNACIONES DEL DÍA
+    path('api/asignaciones-dia/', views.api_asignaciones_dia, name='api_asignaciones_dia'),
+    
+    # APIs existentes
     path('api/asignaciones-vehiculos-web/', views.api_asignaciones_vehiculos_web, name='api_asignaciones_vehiculos_web'),
     path('api/denuncias-web/', views.api_denuncias_web, name='api_denuncias_web'),
     path('api/denuncias-hoy/', views.api_denuncias_hoy, name='api_denuncias_hoy'),
@@ -39,7 +44,6 @@ urlpatterns = [
     path('api/tipos-vehiculos-web/crear/', views.api_crear_tipo_vehiculo, name='api_crear_tipo_vehiculo'),
     
     # ========== CRUD RADIOS ==========
-    path('Admin/radios/', views.admin_radios, name='admin_radios'),
     path('radios/', views.listar_radios, name='radios'),
     path('api/radios-web/', views.api_radios_web, name='api_radios_web'),
     path('api/radios-web/crear/', views.api_crear_radio, name='api_crear_radio'),
@@ -61,7 +65,7 @@ urlpatterns = [
     path('api/usuarios/buscar/', views.api_usuarios_buscar, name='api_usuarios_buscar'),
     path('api/usuarios/<int:usuario_id>/', views.api_usuario_detalle, name='api_usuario_detalle'),
     
-        # ========== NUEVAS APIs PARA IONIC ==========
+    # ========== NUEVAS APIs PARA IONIC ==========
     path('ionic/login/', views.api_login_ionic, name='api_login_ionic'),
     path('ionic/register/', views.api_register_ciudadano, name='api_register_ciudadano'),
     path('api/trabajador/datos/<int:usuario_id>/', views.ObtenerDatosTrabajador.as_view(), name='obtener_datos_trabajador'),
@@ -69,7 +73,6 @@ urlpatterns = [
     path('api/trabajador/vehiculos/tipo/<int:tipo_vehiculo_id>/', views.ObtenerVehiculosPorTipo.as_view(), name='obtener_vehiculos_por_tipo'),
     path('api/trabajador/vehiculo/cambiar-estado/', views.CambiarEstadoVehiculo.as_view(), name='cambiar_estado_vehiculo'),
     path('api/trabajador/asignaciones/hoy/<int:usuario_id>/', views.VerificarAsignacionesHoy.as_view(), name='verificar_asignaciones_hoy'),
-
     path('api/trabajador/verificar-turno-activo/<int:usuario_id>/', views.VerificarTurnoActivo.as_view(), name='verificar_turno_activo'),
     path('api/trabajador/turno/iniciar/', views.IniciarTurnoTrabajador.as_view(), name='iniciar_turno_trabajador'),
     path('api/trabajador/turno/finalizar-automatico/', views.FinalizarTurnoAutomatico.as_view(), name='finalizar_turno_automatico'),
