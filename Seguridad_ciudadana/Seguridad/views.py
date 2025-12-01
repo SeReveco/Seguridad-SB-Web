@@ -2749,6 +2749,48 @@ class FinalizarTurnoAutomatico(View):
         return estados.get(estado_id, 'Desconocido')
 
 @method_decorator(csrf_exempt, name='dispatch')
+class CambiarEstadoVehiculo(View):
+    def post(self, request):
+        """Cambiar el estado del vehículo durante el turno"""
+        try:
+            data = json.loads(request.body)
+            
+            usuario_id = data.get('usuario_id')
+            asignacion_vehiculo_id = data.get('asignacion_vehiculo_id')
+            nuevo_estado = data.get('nuevo_estado')  # 1: Disponible, 2: En proceso, 3: En central
+            
+            if not all([usuario_id, asignacion_vehiculo_id, nuevo_estado]):
+                return JsonResponse({'error': 'Datos incompletos'}, status=400)
+            
+            if nuevo_estado not in [1, 2, 3]:
+                return JsonResponse({'error': 'Estado inválido'}, status=400)
+            
+            # Obtener y actualizar asignación
+            asignacion = AsignacionVehiculo.objects.get(
+                id=asignacion_vehiculo_id,
+                id_usuario_id=usuario_id
+            )
+            
+            estado_anterior = asignacion.activo
+            asignacion.activo = nuevo_estado
+            asignacion.save()
+            
+            estados = {1: 'Disponible', 2: 'En proceso', 3: 'En central'}
+            
+            return JsonResponse({
+                'success': True,
+                'message': f'Estado cambiado de {estados.get(estado_anterior)} a {estados.get(nuevo_estado)}',
+                'estado_anterior': estado_anterior,
+                'nuevo_estado': nuevo_estado,
+                'estado_texto': estados.get(nuevo_estado)
+            })
+            
+        except AsignacionVehiculo.DoesNotExist:
+            return JsonResponse({'error': 'Asignación no encontrada'}, status=404)
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+@method_decorator(csrf_exempt, name='dispatch')
 class VerificarTurnosParaFinalizar(View):
     """Verificar turnos que deben finalizarse automáticamente"""
     def get(self, request):
