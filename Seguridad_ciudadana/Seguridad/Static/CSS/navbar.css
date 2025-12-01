@@ -22,13 +22,13 @@ body::before {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    width: 400px;  /* Tamaño fijo */
+    width: 400px;
     height: 400px;
     background-image: url('../../Img/san_bernardo_fondo.png');
     background-size: contain;
     background-position: center;
     background-repeat: no-repeat;
-    opacity: 0.1;  /* Más transparente */
+    opacity: 0.1;
     z-index: -1;
     pointer-events: none;
 }

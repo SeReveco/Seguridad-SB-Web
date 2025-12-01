@@ -20,6 +20,8 @@ from .models import (
 from django.views.decorators.csrf import csrf_exempt  # type: ignore
 import json
 from django.db.models import Q  # type: ignore
+import logging
+logger = logging.getLogger(__name__)
 
 
 # Vistas básicas de autenticación
@@ -2432,162 +2434,208 @@ class ObtenerVehiculosPorTipo(View):
 class IniciarTurnoTrabajador(View):
     def post(self, request):
         try:
-            print("🚀 ===== INICIANDO TURNO - SIN USAR ID =====")
+            logger.info("🚀 ===== INICIANDO TURNO - VERSIÓN SIMPLIFICADA =====")
             
-            data = json.loads(request.body)
-            print(f"📦 Datos recibidos: {data}")
+            # Leer datos con mejor manejo de errores
+            try:
+                body = request.body.decode('utf-8')
+                logger.info(f"📦 Raw body recibido: {body}")
+                data = json.loads(body)
+            except Exception as e:
+                logger.error(f"❌ Error parseando JSON: {e}")
+                return JsonResponse({'error': 'Error en formato de datos JSON'}, status=400)
             
+            logger.info(f"📦 Datos parseados: {data}")
+            
+            # Validaciones básicas
             usuario_id = data.get('usuario_id')
             if not usuario_id:
                 return JsonResponse({'error': 'ID de usuario requerido'}, status=400)
             
-            usuario = Usuario.objects.get(id_usuario=usuario_id)
             fecha_hoy = date.today()
+            logger.info(f"📅 Fecha de hoy: {fecha_hoy}")
             
+            from django.db import connection
+            
+            # PASO 1: Verificar que el usuario existe
+            try:
+                with connection.cursor() as cursor:
+                    cursor.execute(
+                        "SELECT nombre_usuario, apellido_pat_usuario FROM Seguridad_usuario WHERE id_usuario = %s",
+                        [usuario_id]
+                    )
+                    usuario_data = cursor.fetchone()
+                    
+                    if not usuario_data:
+                        logger.error(f"❌ Usuario no encontrado: {usuario_id}")
+                        return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+                    
+                    nombre_usuario, apellido_usuario = usuario_data
+                    logger.info(f"✅ Usuario encontrado: {nombre_usuario} {apellido_usuario}")
+            except Exception as e:
+                logger.error(f"❌ Error verificando usuario: {e}")
+                return JsonResponse({'error': 'Error verificando usuario'}, status=500)
+            
+            # PASO 2: Manejar vehículo
             vehiculo_id = data.get('vehiculo_id')
             codigo_vehiculo_manual = data.get('codigo_vehiculo_manual')
-            radio_id = data.get('radio_id')
-            
-            # ASIGNACIÓN DE VEHÍCULO - SIN REFERENCIAR EL CAMPO ID
-            asignacion_info = None
+            detalles_vehiculo = ""
             
             if vehiculo_id:
-                vehiculo = Vehiculos.objects.get(id_vehiculo=vehiculo_id)
-                print(f"✅ Vehículo: {vehiculo.patente_vehiculo}")
-                
-                # Buscar asignación existente
-                asignacion_existente = AsignacionVehiculo.objects.filter(
-                    id_usuario=usuario,
-                    id_vehiculo=vehiculo,
-                    fecha_asignacion=fecha_hoy
-                ).first()
-                
-                if asignacion_existente:
-                    print(f"🔄 Asignación existente encontrada")
-                    asignacion_info = {
-                        'tipo': 'vehiculo_existente',
-                        'vehiculo': vehiculo.patente_vehiculo,
-                        'kilometraje_inicial': asignacion_existente.kilometraje_inicial
-                    }
-                else:
-                    # Crear nueva asignación
-                    nueva_asignacion = AsignacionVehiculo(
-                        id_usuario=usuario,
-                        id_vehiculo=vehiculo,
-                        fecha_asignacion=fecha_hoy,
-                        kilometraje_inicial=vehiculo.total_kilometraje,
-                        kilometraje_recorrido=0,
-                        kilometraje_total=vehiculo.total_kilometraje,
-                        activo=1
-                    )
-                    nueva_asignacion.save()
-                    print(f"✅ Nueva asignación creada")
-                    asignacion_info = {
-                        'tipo': 'vehiculo_nuevo',
-                        'vehiculo': vehiculo.patente_vehiculo,
-                        'kilometraje_inicial': vehiculo.total_kilometraje
-                    }
+                try:
+                    # Verificar vehículo
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            "SELECT patente_vehiculo, total_kilometraje FROM Seguridad_vehiculos WHERE id_vehiculo = %s",
+                            [vehiculo_id]
+                        )
+                        vehiculo_data = cursor.fetchone()
+                        
+                        if not vehiculo_data:
+                            logger.error(f"❌ Vehículo no encontrado: {vehiculo_id}")
+                            return JsonResponse({'error': 'Vehículo no encontrado'}, status=404)
+                        
+                        patente_vehiculo, total_kilometraje = vehiculo_data
+                        detalles_vehiculo = patente_vehiculo
+                        logger.info(f"✅ Vehículo encontrado: {patente_vehiculo}")
+                    
+                    # Verificar si ya existe asignación
+                    with connection.cursor() as cursor:
+                        cursor.execute("""
+                            SELECT COUNT(*) FROM Seguridad_asignacion_vehiculo 
+                            WHERE id_usuario = %s AND id_vehiculo = %s AND fecha_asignacion = %s
+                        """, [usuario_id, vehiculo_id, fecha_hoy])
+                        existe = cursor.fetchone()[0] > 0
+                    
+                    if existe:
+                        logger.info(f"🔄 Asignación de vehículo ya existe para hoy")
+                    else:
+                        # Crear nueva asignación
+                        with connection.cursor() as cursor:
+                            cursor.execute("""
+                                INSERT INTO Seguridad_asignacion_vehiculo 
+                                (id_usuario, id_vehiculo, fecha_asignacion, fecha_creacion, 
+                                 kilometraje_inicial, kilometraje_recorrido, kilometraje_total, activo)
+                                VALUES (%s, %s, %s, NOW(), %s, %s, %s, %s)
+                            """, [
+                                usuario_id, vehiculo_id, fecha_hoy,
+                                total_kilometraje, 0, total_kilometraje, 1
+                            ])
+                        logger.info(f"✅ Asignación de vehículo creada")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error con vehículo: {e}")
+                    return JsonResponse({'error': f'Error con vehículo: {str(e)}'}, status=500)
             
             elif codigo_vehiculo_manual:
-                print(f"✅ Vehículo manual: {codigo_vehiculo_manual}")
+                detalles_vehiculo = f"Manual: {codigo_vehiculo_manual}"
+                logger.info(f"✅ Vehículo manual: {codigo_vehiculo_manual}")
                 
-                # Para vehículos manuales, buscar por observaciones
-                asignacion_existente = AsignacionVehiculo.objects.filter(
-                    id_usuario=usuario,
-                    id_vehiculo__isnull=True,
-                    fecha_asignacion=fecha_hoy,
-                    observaciones__contains=codigo_vehiculo_manual
-                ).first()
-                
-                if asignacion_existente:
-                    print(f"🔄 Asignación manual existente")
-                    asignacion_info = {
-                        'tipo': 'manual_existente',
-                        'vehiculo': f"Manual: {codigo_vehiculo_manual}",
-                        'kilometraje_inicial': 0
-                    }
-                else:
-                    nueva_asignacion = AsignacionVehiculo(
-                        id_usuario=usuario,
-                        id_vehiculo=None,
-                        fecha_asignacion=fecha_hoy,
-                        kilometraje_inicial=0,
-                        kilometraje_recorrido=0,
-                        kilometraje_total=0,
-                        observaciones=f"Vehículo manual: {codigo_vehiculo_manual}",
-                        activo=1
-                    )
-                    nueva_asignacion.save()
-                    print(f"✅ Nueva asignación manual creada")
-                    asignacion_info = {
-                        'tipo': 'manual_nuevo',
-                        'vehiculo': f"Manual: {codigo_vehiculo_manual}",
-                        'kilometraje_inicial': 0
-                    }
+                try:
+                    # Verificar si ya existe asignación manual
+                    with connection.cursor() as cursor:
+                        cursor.execute("""
+                            SELECT COUNT(*) FROM Seguridad_asignacion_vehiculo 
+                            WHERE id_usuario = %s AND id_vehiculo IS NULL AND fecha_asignacion = %s
+                        """, [usuario_id, fecha_hoy])
+                        existe = cursor.fetchone()[0] > 0
+                    
+                    if not existe:
+                        # Crear asignación manual
+                        with connection.cursor() as cursor:
+                            cursor.execute("""
+                                INSERT INTO Seguridad_asignacion_vehiculo 
+                                (id_usuario, id_vehiculo, fecha_asignacion, fecha_creacion, 
+                                 kilometraje_inicial, kilometraje_recorrido, kilometraje_total, activo, observaciones)
+                                VALUES (%s, NULL, %s, NOW(), %s, %s, %s, %s, %s)
+                            """, [
+                                usuario_id, fecha_hoy,
+                                0, 0, 0, 1, f"Vehículo manual: {codigo_vehiculo_manual}"
+                            ])
+                        logger.info(f"✅ Asignación manual creada")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error con vehículo manual: {e}")
+                    return JsonResponse({'error': f'Error con vehículo manual: {str(e)}'}, status=500)
             
-            # ASIGNACIÓN DE RADIO
-            radio_info = None
+            # PASO 3: Manejar radio
+            radio_id = data.get('radio_id')
+            detalles_radio = ""
+            
             if radio_id:
-                radio = Radio.objects.get(id_radio=radio_id)
-                print(f"✅ Radio: {radio.nombre_radio}")
-                
-                # Buscar asignación de radio existente
-                asignacion_radio_existente = AsignacionRadio.objects.filter(
-                    id_usuario=usuario,
-                    id_radio=radio,
-                    fecha_asignacion=fecha_hoy
-                ).first()
-                
-                if asignacion_radio_existente:
-                    print(f"🔄 Asignación de radio existente")
-                    radio_info = {
-                        'tipo': 'radio_existente',
-                        'radio': radio.nombre_radio
-                    }
-                else:
-                    nueva_asignacion_radio = AsignacionRadio(
-                        id_usuario=usuario,
-                        id_radio=radio,
-                        fecha_asignacion=fecha_hoy
-                    )
-                    nueva_asignacion_radio.save()
-                    print(f"✅ Nueva asignación de radio creada")
-                    radio_info = {
-                        'tipo': 'radio_nuevo',
-                        'radio': radio.nombre_radio
-                    }
-                
-                # Actualizar estado de la radio
-                if radio.estado_radio == 'Disponible':
-                    radio.estado_radio = 'No Disponible'
-                    radio.save()
-                    print(f"📻 Radio marcada como No Disponible")
+                try:
+                    # Verificar radio
+                    with connection.cursor() as cursor:
+                        cursor.execute(
+                            "SELECT nombre_radio, estado_radio FROM Seguridad_radio WHERE id_radio = %s",
+                            [radio_id]
+                        )
+                        radio_data = cursor.fetchone()
+                        
+                        if not radio_data:
+                            logger.error(f"❌ Radio no encontrada: {radio_id}")
+                            return JsonResponse({'error': 'Radio no encontrada'}, status=404)
+                        
+                        nombre_radio, estado_radio = radio_data
+                        detalles_radio = nombre_radio
+                        logger.info(f"✅ Radio encontrada: {nombre_radio} (estado: {estado_radio})")
+                    
+                    # Verificar si ya existe asignación de radio
+                    with connection.cursor() as cursor:
+                        cursor.execute("""
+                            SELECT COUNT(*) FROM Seguridad_asignacion_radio 
+                            WHERE id_usuario = %s AND id_radio = %s AND fecha_asignacion = %s
+                        """, [usuario_id, radio_id, fecha_hoy])
+                        existe_radio = cursor.fetchone()[0] > 0
+                    
+                    if not existe_radio:
+                        # Crear asignación de radio
+                        with connection.cursor() as cursor:
+                            cursor.execute("""
+                                INSERT INTO Seguridad_asignacion_radio 
+                                (id_usuario, id_radio, fecha_asignacion, fecha_creacion)
+                                VALUES (%s, %s, %s, NOW())
+                            """, [usuario_id, radio_id, fecha_hoy])
+                        logger.info(f"✅ Asignación de radio creada")
+                    
+                    # Actualizar estado de radio si está disponible
+                    if estado_radio == 'Disponible':
+                        with connection.cursor() as cursor:
+                            cursor.execute(
+                                "UPDATE Seguridad_radio SET estado_radio = 'No Disponible' WHERE id_radio = %s",
+                                [radio_id]
+                            )
+                        logger.info(f"📻 Estado de radio actualizado a 'No Disponible'")
+                        
+                except Exception as e:
+                    logger.error(f"❌ Error con radio: {e}")
+                    return JsonResponse({'error': f'Error con radio: {str(e)}'}, status=500)
             
-            # Preparar respuesta SIN usar IDs
+            # RESPUESTA FINAL
             response_data = {
                 'success': True,
                 'message': 'Turno iniciado correctamente',
                 'fecha': fecha_hoy.isoformat(),
-                'asignaciones': {
-                    'vehiculo': asignacion_info,
-                    'radio': radio_info
+                'usuario': f"{nombre_usuario} {apellido_usuario}",
+                'detalles': {
+                    'vehiculo': detalles_vehiculo if detalles_vehiculo else 'No asignado',
+                    'radio': detalles_radio if detalles_radio else 'No asignada'
                 }
             }
             
-            print("✅ Turno iniciado exitosamente")
+            logger.info(f"✅ Turno iniciado exitosamente para usuario: {nombre_usuario}")
+            logger.info(f"📋 Detalles: Vehículo: {detalles_vehiculo}, Radio: {detalles_radio}")
+            
             return JsonResponse(response_data)
             
-        except Usuario.DoesNotExist:
-            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
-        except Vehiculos.DoesNotExist:
-            return JsonResponse({'error': 'Vehículo no encontrado'}, status=404)
-        except Radio.DoesNotExist:
-            return JsonResponse({'error': 'Radio no encontrada'}, status=404)
         except Exception as e:
-            print(f"❌ Error en IniciarTurnoTrabajador: {str(e)}")
+            logger.error(f"❌ Error crítico en IniciarTurnoTrabajador: {str(e)}")
             import traceback
-            print(f"📋 Traceback completo:\n{traceback.format_exc()}")
-            return JsonResponse({'error': f'Error interno: {str(e)}'}, status=500)
+            logger.error(f"📋 Traceback completo:\n{traceback.format_exc()}")
+            return JsonResponse({
+                'error': 'Error interno del servidor al iniciar turno',
+                'detalle': str(e)
+            }, status=500)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class FinalizarTurnoTrabajador(View):

@@ -137,14 +137,13 @@ function mostrarCorreoGenerado() {
                 formRow.insertAdjacentHTML('afterend', correoHTML);
             }
         } else {
-            // Actualizar correo existente
             correoDisplay.innerHTML = `
                 <strong>${correoGenerado}</strong>
             `;
             correoDisplay.closest('.form-group').style.display = 'block';
         }
     } else if (correoDisplay) {
-        // Ocultar si no hay datos suficientes
+
         correoDisplay.closest('.form-group').style.display = 'none';
     }
 }
