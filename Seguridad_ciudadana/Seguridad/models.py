@@ -239,7 +239,6 @@ class AsignacionVehiculo(models.Model):
     kilometraje_recorrido = models.IntegerField(default=0)
     kilometraje_total = models.IntegerField(default=0)
     activo = models.SmallIntegerField(default=1, choices=ACTIVO_CHOICES)
-    observaciones = models.TextField(blank=True, null=True)
 
     class Meta:
         db_table = 'Seguridad_asignacion_vehiculo'
