@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date
 import random
 import re
 from django.contrib import messages  # type: ignore
@@ -2299,6 +2299,114 @@ def api_register_ciudadano(request):
             'error': 'Error interno del servidor'
         }, status=500)
         
+@method_decorator(csrf_exempt, name='dispatch')
+class ObtenerDatosTrabajador(View):
+    def get(self, request, usuario_id=None):
+        try:
+            print(f"🔍 Solicitando datos para usuario_id: {usuario_id}")
+            
+            # Si no hay usuario_id, intentar obtener de parámetros GET
+            if not usuario_id:
+                usuario_id = request.GET.get('usuario_id')
+                print(f"🔍 Usuario ID desde GET: {usuario_id}")
+            
+            # Si aún no hay usuario_id, devolver datos básicos
+            if not usuario_id:
+                return self.get_datos_basicos()
+            
+            try:
+                # Obtener usuario por ID
+                usuario = Usuario.objects.get(id_usuario=usuario_id)
+                print(f"✅ Usuario encontrado: {usuario.nombre_usuario}")
+                return self.get_datos_completos(usuario)
+                
+            except Usuario.DoesNotExist:
+                print(f"❌ Usuario {usuario_id} no encontrado")
+                return self.get_datos_basicos()
+            
+        except Exception as e:
+            print(f"❌ Error en ObtenerDatosTrabajador: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=500)
+    
+    def get_datos_completos(self, usuario):
+        """Obtener datos completos del trabajador"""
+        try:
+            # Obtener tipos de vehículos
+            tipos_vehiculos = list(TiposVehiculos.objects.all().values(
+                'id_tipo_vehiculo', 'nombre_tipo_vehiculo'
+            ))
+            
+            # Obtener radios disponibles (CORREGIDO: buscar por 'Disponible' con mayúscula)
+            radios_disponibles = list(Radio.objects.filter(
+                estado_radio='Disponible'  # Cambiado a mayúscula
+            ).values('id_radio', 'nombre_radio', 'codigo_radio', 'descripcion_radio', 'estado_radio'))
+            
+            print(f"📻 Radios disponibles encontradas: {len(radios_disponibles)}")
+            
+            response_data = {
+                'usuario': {
+                    'id_usuario': usuario.id_usuario,
+                    'nombre': usuario.nombre_usuario,
+                    'apellido': usuario.apellido_pat_usuario,
+                    'rol': usuario.id_rol.nombre_rol if usuario.id_rol else None,
+                    'correo': usuario.correo_electronico_usuario,
+                    'rut': usuario.rut_usuario
+                },
+                'tipos_vehiculos': tipos_vehiculos,
+                'radios_disponibles': radios_disponibles
+            }
+            
+            print(f"✅ Datos completos cargados: {len(tipos_vehiculos)} tipos, {len(radios_disponibles)} radios")
+            return JsonResponse(response_data)
+            
+        except Exception as e:
+            print(f"❌ Error en get_datos_completos: {str(e)}")
+            return self.get_datos_basicos()
+    
+    def get_datos_basicos(self):
+        """Obtener datos básicos cuando no hay usuario específico"""
+        try:
+            # Obtener tipos de vehículos
+            tipos_vehiculos = list(TiposVehiculos.objects.all().values(
+                'id_tipo_vehiculo', 'nombre_tipo_vehiculo'
+            ))
+            
+            # Obtener radios disponibles (CORREGIDO: buscar por 'Disponible' con mayúscula)
+            radios_disponibles = list(Radio.objects.filter(
+                estado_radio='Disponible'  # Cambiado a mayúscula
+            ).values('id_radio', 'nombre_radio', 'codigo_radio', 'descripcion_radio', 'estado_radio'))
+            
+            print(f"📻 Radios disponibles (básicas): {len(radios_disponibles)}")
+            
+            response_data = {
+                'usuario': None,
+                'tipos_vehiculos': tipos_vehiculos,
+                'radios_disponibles': radios_disponibles,
+                'mensaje': 'Mostrando datos básicos disponibles'
+            }
+            
+            print(f"✅ Datos básicos cargados: {len(tipos_vehiculos)} tipos, {len(radios_disponibles)} radios")
+            return JsonResponse(response_data)
+            
+        except Exception as e:
+            print(f"❌ Error en get_datos_basicos: {str(e)}")
+            # Datos de respaldo por si todo falla
+            return JsonResponse({
+                'usuario': None,
+                'tipos_vehiculos': [
+                    {'id_tipo_vehiculo': 1, 'nombre_tipo_vehiculo': 'Auto'},
+                    {'id_tipo_vehiculo': 2, 'nombre_tipo_vehiculo': 'Motocicleta'},
+                    {'id_tipo_vehiculo': 3, 'nombre_tipo_vehiculo': 'Camioneta'},
+                    {'id_tipo_vehiculo': 4, 'nombre_tipo_vehiculo': 'Bicicleta'}
+                ],
+                'radios_disponibles': [
+                    {'id_radio': 1, 'nombre_radio': 'Radio 61', 'codigo_radio': 'SC7', 'estado_radio': 'Disponible'},
+                    {'id_radio': 2, 'nombre_radio': 'Radio 63', 'codigo_radio': 'SC4', 'estado_radio': 'Disponible'},
+                    {'id_radio': 3, 'nombre_radio': 'Radio 64', 'codigo_radio': '621', 'estado_radio': 'Disponible'}
+                ],
+                'mensaje': 'Usando datos de respaldo'
+            })
+
 # ========== VISTAS PARA ASIGNACIONES ==========
 
 @method_decorator(csrf_exempt, name='dispatch')
