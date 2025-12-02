@@ -14,6 +14,8 @@ let rutasLayer = null;
 // Nuevas variables para cuadrantes desde GeoJSON
 let cuadrantesGeoJSON = null;
 let miniCuadrantesLayer = null;
+// Viewbox para búsquedas en Nominatim (minLon,minLat,maxLon,maxLat)
+let NOMINATIM_VIEWBOX = null;
 
 // Este arreglo se llenará dinámicamente con los cuadrantes de SAN BERNARDO
 // cada elemento tendrá: { id, nombre, polygons: [ [ [lat,lng], ... ], ... ], color }
@@ -59,26 +61,21 @@ function inicializarMapa() {
         zoom: 14,
         minZoom: 11,
         maxZoom: 18,
-        maxBounds: limitesSantiago,     // 👈 límites
-        maxBoundsViscosity: 1.0         // 👈 “pared dura” (no deja salir)
-    });
-
-    // Tiles
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
-    }).addTo(mapa);
-
-    // Cargar capas
-    cargarCuadrantesDesdeGeoJSON();
-    cargarRutas();
-}
-
-// Cargar cuadrantes desde un archivo GeoJSON
-function cargarCuadrantesDesdeGeoJSON() {
-    // AJUSTA ESTA RUTA A DONDE SUBAS TU ARCHIVO
-    const urlGeoJSON = '/static/data/cuadrantes_san_bernardo.geojson';
-
+            // Construir parámetros para Nominatim (bias con viewbox pero SIN bounded)
+            const baseParams = `format=jsonv2&addressdetails=1&limit=20&accept-language=es&countrycodes=cl&q=${encodeURIComponent(q)}`;
+            let url = `https://nominatim.openstreetmap.org/search?${baseParams}`;
+            if (NOMINATIM_VIEWBOX) {
+                // añadir viewbox como sesgo (no bounded)
+                url += `&viewbox=${NOMINATIM_VIEWBOX}`;
+            }
+            let resp = await fetch(url);
+            // Si pocos resultados, intentar sin viewbox y con q ajustado
+            if (resp.ok) {
+                const quick = await resp.clone().json();
+                if (!Array.isArray(quick) || quick.length < 4) {
+                    const fallbackUrl = `https://nominatim.openstreetmap.org/search?${baseParams}`; // sin viewbox
+                    try { resp = await fetch(fallbackUrl); } catch (e) { /* ignore */ }
+                }
     fetch(urlGeoJSON)
         .then(response => {
             if (!response.ok) {
@@ -88,6 +85,75 @@ function cargarCuadrantesDesdeGeoJSON() {
         })
         .then(data => {
             cuadrantesGeoJSON = data;
+            // Llenar el arreglo `CUADRANTES_SAN_BERNARDO` para que la
+            // función `determinarCuadrante` pueda usar los polígonos
+            CUADRANTES_SAN_BERNARDO.length = 0;
+            if (data && Array.isArray(data.features)) {
+                data.features.forEach(f => {
+                    const props = f.properties || {};
+                    const num = (props.NUM_CUAD || '').toString().replace(/\D/g, '');
+                    const id = parseInt(num) || (props.CUA_CODIGO ? parseInt(props.CUA_CODIGO) : null);
+                    const nombre = props.CUA_DESCRI || '';
+                    const polygons = [];
+
+                    if (f.geometry) {
+                        const geom = f.geometry;
+                        if (geom.type === 'Polygon') {
+                            geom.coordinates.forEach(ring => {
+                                polygons.push(ring.map(c => [c[1], c[0]])); // [lat,lng]
+                            });
+                        } else if (geom.type === 'MultiPolygon') {
+                            geom.coordinates.forEach(poly => {
+                                poly.forEach(ring => {
+                                    polygons.push(ring.map(c => [c[1], c[0]]));
+                                });
+                            });
+                        }
+                    }
+
+                    if (polygons.length && id) {
+                        CUADRANTES_SAN_BERNARDO.push({ id: id, nombre: nombre, polygons: polygons, color: obtenerColor(f) });
+                    }
+                });
+            }
+
+            // Calcular viewbox (bbox) de todos los cuadrantes para usar como bias en Nominatim
+            try {
+                let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
+                data.features.forEach(f => {
+                    if (!f.geometry) return;
+                    const geom = f.geometry;
+                    const processCoords = coords => {
+                        coords.forEach(c => {
+                            if (Array.isArray(c[0])) {
+                                // nested
+                                processCoords(c);
+                            } else {
+                                const lon = c[0];
+                                const lat = c[1];
+                                if (lon < minLon) minLon = lon;
+                                if (lon > maxLon) maxLon = lon;
+                                if (lat < minLat) minLat = lat;
+                                if (lat > maxLat) maxLat = lat;
+                            }
+                        });
+                    };
+
+                    if (geom.type === 'Polygon') {
+                        processCoords(geom.coordinates);
+                    } else if (geom.type === 'MultiPolygon') {
+                        geom.coordinates.forEach(poly => processCoords(poly));
+                    }
+                });
+
+                if (isFinite(minLon) && isFinite(minLat) && isFinite(maxLon) && isFinite(maxLat)) {
+                    NOMINATIM_VIEWBOX = `${minLon},${minLat},${maxLon},${maxLat}`;
+                }
+            } catch (err) {
+                console.warn('No se pudo calcular viewbox para Nominatim:', err);
+                NOMINATIM_VIEWBOX = null;
+            }
+
             agregarCuadrantesAlMapa();
             // Si el mini mapa ya existe, dibujar también allí
             if (miniMapa) {
@@ -171,12 +237,15 @@ function agregarCuadrantesAlMiniMapa() {
         filter: function (feature) {
             return feature.properties && feature.properties.COMUNA === 'SAN BERNARDO';
         },
-        style: {
-            color: '#2563eb',
-            weight: 1,
-            opacity: 0.6,
-            fillOpacity: 0.05,
-            fillColor: '#93c5fd'
+        style: function(feature) {
+            const color = obtenerColor(feature);
+            return {
+                color: color,
+                weight: 1,
+                opacity: 0.8,
+                fillOpacity: 0.12,
+                fillColor: color
+            };
         }
     }).addTo(miniMapa);
 }
@@ -422,6 +491,194 @@ async function obtenerDireccionMejorada(lat, lng) {
         console.error('Error en reverse geocoding:', error);
         return `Ubicación: ${lat.toFixed(6)}, ${lng.toFixed(6)}`;
     }
+}
+
+// -----------------------------
+// Autocompletado de direcciones
+// -----------------------------
+function debounce(fn, wait) {
+    let t;
+    return function (...args) {
+        clearTimeout(t);
+        t = setTimeout(() => fn.apply(this, args), wait);
+    };
+}
+
+function setupDireccionAutocomplete() {
+    const input = document.getElementById('direccion');
+    if (!input) return;
+
+    // Crear contenedor de sugerencias en body para evitar que lo recorte el modal
+    const container = document.createElement('div');
+    container.className = 'autocomplete-suggestions';
+    // Usar fixed para anclar al viewport y evitar recortes por transform/overflow de padres
+    container.style.cssText = 'position:fixed; z-index:2147483647; background:#fff; border:1px solid #ddd; box-shadow:0 2px 6px rgba(0,0,0,0.12); max-height:320px; overflow:auto; min-width:160px; border-radius:4px;';
+    document.body.appendChild(container);
+
+    function positionContainer() {
+        const rect = input.getBoundingClientRect();
+        if (!rect || rect.width === 0 && rect.height === 0) return;
+
+        // Posicionar respecto al viewport (fixed)
+        let left = Math.max(8, rect.left);
+        let top = rect.bottom + 6;
+        let width = Math.max(160, rect.width);
+
+        // Ajustar para no salirse del viewport horizontalmente
+        if (left + width + 8 > window.innerWidth) {
+            // intentar reducir ancho antes de mover a la izquierda
+            width = Math.min(width, window.innerWidth - left - 8);
+            if (left + width + 8 > window.innerWidth) {
+                left = Math.max(8, window.innerWidth - width - 8);
+            }
+        }
+
+        container.style.left = left + 'px';
+        container.style.width = width + 'px';
+        container.style.top = top + 'px';
+
+        // Si el contenedor sobresale por abajo, mostrar arriba del input
+        const overBottom = container.getBoundingClientRect().bottom > window.innerHeight - 8;
+        if (overBottom) {
+            const altTop = rect.top - container.getBoundingClientRect().height - 6;
+            if (altTop > 8) {
+                container.style.top = altTop + 'px';
+            }
+        }
+    }
+
+    window.addEventListener('resize', positionContainer);
+    // ajustar también en scroll (captura) para seguir al input dentro del modal
+    document.addEventListener('scroll', positionContainer, true);
+    positionContainer();
+
+    // Estado para navegación por teclado
+    let activeIndex = -1;
+    function clearActive() {
+        container.querySelectorAll('.suggestion-item').forEach(el => el.classList.remove('suggestion-active'));
+        activeIndex = -1;
+    }
+
+    input.addEventListener('keydown', function (ev) {
+        const items = Array.from(container.querySelectorAll('.suggestion-item'));
+        if (!items.length) return;
+        if (ev.key === 'ArrowDown') {
+            ev.preventDefault();
+            activeIndex = Math.min(activeIndex + 1, items.length - 1);
+            clearActive();
+            const el = items[activeIndex];
+            if (el) el.classList.add('suggestion-active');
+        } else if (ev.key === 'ArrowUp') {
+            ev.preventDefault();
+            activeIndex = Math.max(activeIndex - 1, 0);
+            clearActive();
+            const el = items[activeIndex];
+            if (el) el.classList.add('suggestion-active');
+        } else if (ev.key === 'Enter') {
+            const el = items[activeIndex];
+            if (el) {
+                ev.preventDefault();
+                el.click();
+            }
+        }
+    });
+
+    input.addEventListener('input', debounce(async function () {
+        const q = input.value.trim();
+        if (!q) {
+            container.innerHTML = '';
+            return;
+        }
+
+        try {
+            // mostrar indicador
+            container.innerHTML = `<div style="padding:10px;color:#666">Buscando...</div>`;
+            // Construir parámetros para Nominatim (bias con viewbox pero SIN bounded)
+            const baseParams = `format=jsonv2&addressdetails=1&limit=20&accept-language=es&countrycodes=cl&q=${encodeURIComponent(q)}`;
+            let url = `https://nominatim.openstreetmap.org/search?${baseParams}`;
+            if (NOMINATIM_VIEWBOX) {
+                // añadir viewbox como sesgo (no bounded)
+                url += `&viewbox=${NOMINATIM_VIEWBOX}`;
+            }
+            // Intentos secuenciales con distintas estrategias para mejorar cobertura en Santiago
+            let resp = null;
+            const candidateUrls = [];
+            // 1) bias con viewbox (si existe)
+            if (NOMINATIM_VIEWBOX) candidateUrls.push(url);
+            // 2) sin viewbox
+            candidateUrls.push(`https://nominatim.openstreetmap.org/search?${baseParams}`);
+            // 3) forzar sesgo a Santiago añadiendo texto
+            candidateUrls.push(`https://nominatim.openstreetmap.org/search?${baseParams.replace(`q=${encodeURIComponent(q)}`, `q=${encodeURIComponent(q + ', Santiago, Chile')}`)}`);
+            // 4) intento amplio con más límite
+            candidateUrls.push(`https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=50&accept-language=es&countrycodes=cl&q=${encodeURIComponent(q)}`);
+
+            for (const u of candidateUrls) {
+                try {
+                    const r = await fetch(u);
+                    if (!r.ok) continue;
+                    const arr = await r.clone().json();
+                    if (Array.isArray(arr) && arr.length > 0) {
+                        resp = r;
+                        break;
+                    }
+                } catch (e) {
+                    // ignorar y probar siguiente
+                }
+            }
+            if (!resp.ok) {
+                container.innerHTML = '';
+                return;
+            }
+            const results = await resp.json();
+            if (!Array.isArray(results) || results.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+
+            container.innerHTML = results.map(r => `
+                <div class="suggestion-item" data-lat="${r.lat}" data-lon="${r.lon}" style="padding:8px 10px;cursor:pointer;border-bottom:1px solid #f0f0f0;">
+                    ${r.display_name}
+                </div>
+            `).join('');
+
+            // Reposicionar ahora que el contenedor tiene altura
+            positionContainer();
+
+            container.querySelectorAll('.suggestion-item').forEach(el => {
+                el.addEventListener('click', function () {
+                    const display = this.textContent.trim();
+                    const lat = parseFloat(this.dataset.lat);
+                    const lon = parseFloat(this.dataset.lon);
+
+                    input.value = display;
+                    direccionDesdeCoordenadas = display;
+
+                    // Determinar cuadrante si tenemos polígonos cargados
+                    if (typeof determinarCuadrante === 'function') {
+                        const cuadranteId = determinarCuadrante(lat, lon);
+                        if (cuadranteId) {
+                            const select = document.getElementById('cuadrante');
+                            if (select) select.value = cuadranteId;
+                            console.log('Cuadrante detectado (autocomplete):', cuadranteId);
+                        }
+                    }
+
+                    // No abrir el mini-mapa — solo determinar y asignar cuadrante.
+                    // Esto evita cambiar la vista al usuario cuando selecciona por texto.
+                    container.innerHTML = '';
+                });
+            });
+
+        } catch (error) {
+            console.error('Error en autocomplete:', error);
+            container.innerHTML = '';
+        }
+
+    }, 300));
+
+    input.addEventListener('blur', function () {
+        setTimeout(() => { container.innerHTML = ''; }, 200);
+    });
 }
 
 // Limpiar ubicación seleccionada en el mapa
@@ -1440,6 +1697,8 @@ function inicializarAplicacion() {
     cargarRequerimientos();
     cargarDenunciasDelDia();
     cargarAsignacionesVehiculos();
+    // Inicializar autocompletado de dirección
+    setupDireccionAutocomplete();
 
     // Iniciar actualización automática
     iniciarActualizacionAutomatica();
