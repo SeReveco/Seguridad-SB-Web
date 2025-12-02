@@ -416,10 +416,9 @@ def api_familias(request, familia_id=None):
         print(f"❌ Error en api_familias: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
 
-# ✅ CORREGIR API DE GRUPOS PARA INCLUIR INFORMACIÓN DE LA FAMILIA
 @csrf_exempt
 def api_grupos(request, grupo_id=None):
-    """Manejar operaciones CRUD para grupos - CORREGIDA"""
+    """Manejar operaciones CRUD para grupos - GET y POST"""
     try:
         if request.method == 'GET':
             familia_id = request.GET.get('familia_id')
@@ -430,7 +429,9 @@ def api_grupos(request, grupo_id=None):
                 except (ValueError, TypeError):
                     return JsonResponse({'error': 'ID de familia inválido'}, status=400)
                 
-                grupos = GrupoDenuncia.objects.filter(id_familia_denuncia_id=familia_id).select_related('id_familia_denuncia')
+                grupos = GrupoDenuncia.objects.filter(
+                    id_familia_denuncia_id=familia_id
+                ).select_related('id_familia_denuncia')
             else:
                 grupos = GrupoDenuncia.objects.all().select_related('id_familia_denuncia')
             
@@ -443,7 +444,6 @@ def api_grupos(request, grupo_id=None):
                     'id_familia_denuncia': grupo.id_familia_denuncia_id,
                 }
                 
-                # ✅ AGREGAR INFORMACIÓN DE LA FAMILIA SI ESTÁ DISPONIBLE
                 if hasattr(grupo, 'id_familia_denuncia') and grupo.id_familia_denuncia:
                     grupo_data['nombre_familia_denuncia'] = grupo.id_familia_denuncia.nombre_familia_denuncia
                     grupo_data['codigo_familia'] = grupo.id_familia_denuncia.codigo_familia
@@ -451,20 +451,81 @@ def api_grupos(request, grupo_id=None):
                 data.append(grupo_data)
             
             return JsonResponse(data, safe=False)
+
+        elif request.method == 'POST':
+            # Crear nuevo grupo
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'JSON inválido'}, status=400)
             
+            nombre = data.get('nombre')
+            familia_id = data.get('familia_id')
+
+            if not nombre:
+                return JsonResponse({'error': 'El campo nombre es requerido'}, status=400)
+            if not familia_id:
+                return JsonResponse({'error': 'El campo familia_id es requerido'}, status=400)
+
+            try:
+                familia_id = int(familia_id)
+                familia = FamiliaDenuncia.objects.get(id_familia_denuncia=familia_id)
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'ID de familia inválido'}, status=400)
+            except FamiliaDenuncia.DoesNotExist:
+                return JsonResponse({'error': 'La familia especificada no existe'}, status=400)
+
+            # Validar que no exista otro grupo con el mismo nombre en esa familia
+            if GrupoDenuncia.objects.filter(
+                nombre_grupo_denuncia=nombre,
+                id_familia_denuncia_id=familia_id
+            ).exists():
+                return JsonResponse(
+                    {'error': 'Ya existe un grupo con este nombre en la familia seleccionada'},
+                    status=400
+                )
+
+            # Generar código de grupo (similar a familias)
+            codigo_base = nombre[:3].upper()
+            contador = 1
+            codigo_grupo = f"{codigo_base}{str(contador).zfill(3)}"
+            while GrupoDenuncia.objects.filter(codigo_grupo=codigo_grupo).exists():
+                contador += 1
+                codigo_grupo = f"{codigo_base}{str(contador).zfill(3)}"
+
+            grupo = GrupoDenuncia.objects.create(
+                nombre_grupo_denuncia=nombre,
+                codigo_grupo=codigo_grupo,
+                id_familia_denuncia=familia
+            )
+
+            return JsonResponse({
+                'id_grupo_denuncia': grupo.id_grupo_denuncia,
+                'nombre_grupo_denuncia': grupo.nombre_grupo_denuncia,
+                'codigo_grupo': grupo.codigo_grupo,
+                'id_familia_denuncia': familia.id_familia_denuncia,
+                'nombre_familia_denuncia': familia.nombre_familia_denuncia,
+                'codigo_familia': familia.codigo_familia,
+            }, status=201)
+
+        else:
+            # Método no permitido
+            return JsonResponse({'error': 'Método no permitido'}, status=405)
+
     except Exception as e:
         print(f"❌ Error en api_grupos: {str(e)}")
         return JsonResponse({'error': f'Error interno del servidor: {str(e)}'}, status=500)
     
-# ✅ CORREGIR API DE SUBGRUPOS PARA INCLUIR INFORMACIÓN DEL GRUPO
 @csrf_exempt
 def api_subgrupos(request, subgrupo_id=None):
-    """Manejar operaciones CRUD para subgrupos"""
+    """Manejar operaciones CRUD para subgrupos (GET y POST)"""
     try:
         if request.method == 'GET':
             grupo_id = request.GET.get('grupo_id')
             if grupo_id:
-                subgrupos = SubgrupoDenuncia.objects.filter(id_grupo_denuncia_id=grupo_id).select_related('id_grupo_denuncia')
+                subgrupos = SubgrupoDenuncia.objects.filter(
+                    id_grupo_denuncia_id=grupo_id
+                ).select_related('id_grupo_denuncia')
             else:
                 subgrupos = SubgrupoDenuncia.objects.all().select_related('id_grupo_denuncia')
             
@@ -478,14 +539,75 @@ def api_subgrupos(request, subgrupo_id=None):
                     'id_grupo_denuncia': subgrupo.id_grupo_denuncia_id,
                 }
                 
-                # ✅ AGREGAR INFORMACIÓN DEL GRUPO SI ESTÁ DISPONIBLE
+                # Agregar info del grupo si está disponible
                 if hasattr(subgrupo, 'id_grupo_denuncia') and subgrupo.id_grupo_denuncia:
                     subgrupo_data['nombre_grupo_denuncia'] = subgrupo.id_grupo_denuncia.nombre_grupo_denuncia
                     subgrupo_data['codigo_grupo'] = subgrupo.id_grupo_denuncia.codigo_grupo
                 
                 data.append(subgrupo_data)
             return JsonResponse(data, safe=False)
+
+        elif request.method == 'POST':
+            # Crear nuevo subgrupo
+            try:
+                data = json.loads(request.body)
+            except json.JSONDecodeError:
+                return JsonResponse({'error': 'JSON inválido'}, status=400)
             
+            nombre = data.get('nombre')
+            grupo_id = data.get('grupo_id')
+
+            if not nombre:
+                return JsonResponse({'error': 'El campo nombre es requerido'}, status=400)
+            if not grupo_id:
+                return JsonResponse({'error': 'El campo grupo_id es requerido'}, status=400)
+
+            # Validar grupo
+            try:
+                grupo_id = int(grupo_id)
+                grupo = GrupoDenuncia.objects.get(id_grupo_denuncia=grupo_id)
+            except (ValueError, TypeError):
+                return JsonResponse({'error': 'ID de grupo inválido'}, status=400)
+            except GrupoDenuncia.DoesNotExist:
+                return JsonResponse({'error': 'El grupo especificado no existe'}, status=400)
+
+            # Evitar duplicados de nombre dentro del mismo grupo
+            if SubgrupoDenuncia.objects.filter(
+                nombre_subgrupo_denuncia=nombre,
+                id_grupo_denuncia_id=grupo_id
+            ).exists():
+                return JsonResponse(
+                    {'error': 'Ya existe un subgrupo con este nombre en el grupo seleccionado'},
+                    status=400
+                )
+
+            # Generar código de subgrupo (similar a grupos)
+            codigo_base = nombre[:3].upper()
+            contador = 1
+            codigo_subgrupo = f"{codigo_base}{str(contador).zfill(3)}"
+            while SubgrupoDenuncia.objects.filter(codigo_subgrupo=codigo_subgrupo).exists():
+                contador += 1
+                codigo_subgrupo = f"{codigo_base}{str(contador).zfill(3)}"
+
+            subgrupo = SubgrupoDenuncia.objects.create(
+                nombre_subgrupo_denuncia=nombre,
+                codigo_subgrupo=codigo_subgrupo,
+                id_grupo_denuncia=grupo
+            )
+
+            return JsonResponse({
+                'id': subgrupo.id_subgrupo_denuncia,
+                'id_subgrupo_denuncia': subgrupo.id_subgrupo_denuncia,
+                'nombre_subgrupo_denuncia': subgrupo.nombre_subgrupo_denuncia,
+                'codigo_subgrupo': subgrupo.codigo_subgrupo,
+                'id_grupo_denuncia': grupo.id_grupo_denuncia,
+                'nombre_grupo_denuncia': grupo.nombre_grupo_denuncia,
+                'codigo_grupo': grupo.codigo_grupo,
+            }, status=201)
+
+        else:
+            return JsonResponse({'error': 'Método no permitido'}, status=405)
+
     except Exception as e:
         print(f"❌ Error en api_subgrupos: {str(e)}")
         return JsonResponse({'error': str(e)}, status=500)
