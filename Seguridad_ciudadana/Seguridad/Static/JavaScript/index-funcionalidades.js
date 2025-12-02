@@ -11,117 +11,94 @@ let direccionDesdeCoordenadas = '';
 let cuadrantesLayer = null;
 let rutasLayer = null;
 
-// Cuadrantes reales de San Bernardo (numerados 80-86)
-const CUADRANTES_SAN_BERNARDO = [
-    {
-        id: 80,
-        nombre: "Cuadrante 80 - Centro",
-        coordinates: [
-            [-33.580, -70.710],
-            [-33.580, -70.695],
-            [-33.595, -70.695],
-            [-33.595, -70.710],
-            [-33.580, -70.710]
-        ],
-        color: "#FF6B6B"
-    },
-    {
-        id: 81,
-        nombre: "Cuadrante 81 - Nororiente",
-        coordinates: [
-            [-33.575, -70.695],
-            [-33.575, -70.680],
-            [-33.585, -70.680],
-            [-33.585, -70.695],
-            [-33.575, -70.695]
-        ],
-        color: "#4ECDC4"
-    },
-    {
-        id: 82,
-        nombre: "Cuadrante 82 - Norponiente",
-        coordinates: [
-            [-33.575, -70.710],
-            [-33.575, -70.695],
-            [-33.585, -70.695],
-            [-33.585, -70.710],
-            [-33.575, -70.710]
-        ],
-        color: "#45B7D1"
-    },
-    {
-        id: 83,
-        nombre: "Cuadrante 83 - Suroriente",
-        coordinates: [
-            [-33.595, -70.695],
-            [-33.595, -70.680],
-            [-33.605, -70.680],
-            [-33.605, -70.695],
-            [-33.595, -70.695]
-        ],
-        color: "#96CEB4"
-    },
-    {
-        id: 84,
-        nombre: "Cuadrante 84 - Surponiente",
-        coordinates: [
-            [-33.595, -70.710],
-            [-33.595, -70.695],
-            [-33.605, -70.695],
-            [-33.605, -70.710],
-            [-33.595, -70.710]
-        ],
-        color: "#FFE66D"
-    },
-    {
-        id: 85,
-        nombre: "Cuadrante 85 - Extremo Norte",
-        coordinates: [
-            [-33.570, -70.705],
-            [-33.570, -70.685],
-            [-33.575, -70.685],
-            [-33.575, -70.705],
-            [-33.570, -70.705]
-        ],
-        color: "#6A0572"
-    },
-    {
-        id: 86,
-        nombre: "Cuadrante 86 - Extremo Sur",
-        coordinates: [
-            [-33.605, -70.705],
-            [-33.605, -70.685],
-            [-33.615, -70.685],
-            [-33.615, -70.705],
-            [-33.605, -70.705]
-        ],
-        color: "#118AB2"
-    }
-];
+// Nuevas variables para cuadrantes desde GeoJSON
+let cuadrantesGeoJSON = null;
+let miniCuadrantesLayer = null;
+
+// Este arreglo se llenará dinámicamente con los cuadrantes de SAN BERNARDO
+// cada elemento tendrá: { id, nombre, polygons: [ [ [lat,lng], ... ], ... ], color }
+const CUADRANTES_SAN_BERNARDO = [];
+
+// Mapa de colores por número base de cuadrante
+const COLORES_POR_NUMERO = {
+    80: "#FF6B6B",
+    81: "#4ECDC4",
+    82: "#45B7D1",
+    83: "#96CEB4",
+    84: "#FFE66D",
+    85: "#6A0572",
+    86: "#118AB2",
+    87: "#FF9F1C",
+    88: "#2EC4B6",
+    89: "#8E44AD"
+};
+
+// Función que obtiene el color para una feature GeoJSON
+function obtenerColor(feature) {
+    const num = (feature.properties?.NUM_CUAD || "")
+        .replace(/\D/g, ""); // "80A" → "80"
+
+    const numeroBase = parseInt(num);
+    return COLORES_POR_NUMERO[numeroBase] || "#FF0000"; // Si no existe, rojo
+}
 
 // ============================================
 // FUNCIONES DEL MAPA
 // ============================================
 
-// Inicializar el mapa principal
 function inicializarMapa() {
-    mapa = L.map('map').setView([-33.593, -70.698], 14);
+    // Definimos un rectángulo que cubre Santiago
+    const limitesSantiago = [
+        [-33.9, -71.1], // Suroeste (lat, lng)
+        [-33.2, -70.4]  // Noreste  (lat, lng)
+    ];
 
-    // Cargar tiles de OpenStreetMap
+    // Crear mapa con límites
+    mapa = L.map('map', {
+        center: [-33.593, -70.698],
+        zoom: 14,
+        minZoom: 11,
+        maxZoom: 18,
+        maxBounds: limitesSantiago,     // 👈 límites
+        maxBoundsViscosity: 1.0         // 👈 “pared dura” (no deja salir)
+    });
+
+    // Tiles
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap contributors',
-        maxZoom: 19,
-        minZoom: 11
+        maxZoom: 19
     }).addTo(mapa);
 
-    // Agregar cuadrantes
-    agregarCuadrantesAlMapa();
-
-    // Cargar rutas existentes (vacío por ahora)
+    // Cargar capas
+    cargarCuadrantesDesdeGeoJSON();
     cargarRutas();
 }
 
-// Agregar cuadrantes al mapa
+// Cargar cuadrantes desde un archivo GeoJSON
+function cargarCuadrantesDesdeGeoJSON() {
+    // AJUSTA ESTA RUTA A DONDE SUBAS TU ARCHIVO
+    const urlGeoJSON = '/static/data/cuadrantes_san_bernardo.geojson';
+
+    fetch(urlGeoJSON)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Error cargando cuadrantes: ${response.status} ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            cuadrantesGeoJSON = data;
+            agregarCuadrantesAlMapa();
+            // Si el mini mapa ya existe, dibujar también allí
+            if (miniMapa) {
+                agregarCuadrantesAlMiniMapa();
+            }
+        })
+        .catch(error => {
+            console.error('Error al cargar GeoJSON de cuadrantes:', error);
+        });
+}
+
 function agregarCuadrantesAlMapa() {
     if (cuadrantesLayer) {
         mapa.removeLayer(cuadrantesLayer);
@@ -129,34 +106,79 @@ function agregarCuadrantesAlMapa() {
 
     cuadrantesLayer = L.layerGroup().addTo(mapa);
 
-    CUADRANTES_SAN_BERNARDO.forEach(cuadrante => {
-        const polygon = L.polygon(cuadrante.coordinates, {
-            color: cuadrante.color,
-            weight: 2,
-            opacity: 0.7,
-            fillOpacity: 0.1,
-            fillColor: cuadrante.color
-        }).addTo(cuadrantesLayer);
+    // ✅ Usar la URL pasada desde el template
+    const urlGeojson = window.URL_CUADRANTES_GEOJSON || '/static/data/cuadrantes_san_bernardo.geojson';
+    console.log('Cargando GeoJSON desde:', urlGeojson);
 
-        // Agregar tooltip con el nombre del cuadrante
-        polygon.bindTooltip(cuadrante.nombre, {
-            permanent: false,
-            direction: 'center',
-            className: 'tooltip-cuadrante'
+    fetch(urlGeojson)
+        .then(response => {
+            console.log('Respuesta GeoJSON status:', response.status);
+            if (!response.ok) {
+                throw new Error('No se pudo cargar el GeoJSON: ' + response.statusText);
+            }
+            return response.json();
+        })
+        .then(geojsonData => {
+            console.log('GeoJSON cargado, features:', geojsonData.features?.length);
+
+            cuadrantesLayer = L.geoJSON(geojsonData, {
+                style: function (feature) {
+                    const color = obtenerColor(feature);
+                    return {
+                        color: color,
+                        weight: 2,
+                        opacity: 0.8,
+                        fillOpacity: 0.15,
+                        fillColor: color
+                    };
+                },
+                onEachFeature: function (feature, layer) {
+                    const props = feature.properties || {};
+                    const nombre = props.CUA_DESCRI || `Cuadrante ${props.NUM_CUAD || ''}`.trim();
+                    const id = props.CUA_CODIGO || '';
+                    const numCuad = props.NUM_CUAD || '';
+
+                    layer.bindTooltip(nombre, {
+                        permanent: false,
+                        direction: 'center',
+                        className: 'tooltip-cuadrante'
+                    });
+
+                    layer.bindPopup(`
+                        <div class="popup-cuadrante">
+                            <h4>${nombre}</h4>
+                            <p><strong>Código:</strong> ${id}</p>
+                            <p><strong>Número:</strong> ${numCuad}</p>
+                        </div>
+                    `);
+                }
+            }).addTo(mapa);
+        })
+        .catch(error => {
+            console.error('Error cargando cuadrantes GeoJSON:', error);
         });
+}
 
-        // Agregar popup con información del cuadrante
-        polygon.bindPopup(`
-            <div class="popup-cuadrante">
-                <h4>${cuadrante.nombre}</h4>
-                <p><strong>ID:</strong> ${cuadrante.id}</p>
-                <p><strong>Área:</strong> Aprox. 4 km²</p>
-                <button onclick="seleccionarCuadrante(${cuadrante.id})" class="btn-seleccionar-cuadrante">
-                    Seleccionar este cuadrante
-                </button>
-            </div>
-        `);
-    });
+// Agregar cuadrantes al mini mapa (cuando exista)
+function agregarCuadrantesAlMiniMapa() {
+    if (!miniMapa || !cuadrantesGeoJSON) return;
+
+    if (miniCuadrantesLayer) {
+        miniMapa.removeLayer(miniCuadrantesLayer);
+    }
+
+    miniCuadrantesLayer = L.geoJSON(cuadrantesGeoJSON, {
+        filter: function (feature) {
+            return feature.properties && feature.properties.COMUNA === 'SAN BERNARDO';
+        },
+        style: {
+            color: '#2563eb',
+            weight: 1,
+            opacity: 0.6,
+            fillOpacity: 0.05,
+            fillColor: '#93c5fd'
+        }
+    }).addTo(miniMapa);
 }
 
 // Cargar rutas existentes (vacío - sin ruta de ejemplo)
@@ -255,15 +277,10 @@ function inicializarMiniMapa() {
                 attribution: '© OpenStreetMap contributors'
             }).addTo(miniMapa);
 
-            // Agregar cuadrantes al mini mapa también
-            CUADRANTES_SAN_BERNARDO.forEach(cuadrante => {
-                L.polygon(cuadrante.coordinates, {
-                    color: cuadrante.color,
-                    weight: 1,
-                    opacity: 0.5,
-                    fillOpacity: 0.05
-                }).addTo(miniMapa);
-            });
+            // Agregar cuadrantes al mini mapa si ya tenemos el GeoJSON
+            if (cuadrantesGeoJSON) {
+                agregarCuadrantesAlMiniMapa();
+            }
 
             // Agregar evento de clic al mapa
             miniMapa.on('click', function (e) {
@@ -330,11 +347,15 @@ async function seleccionarUbicacionEnMapa(lat, lng) {
     miniMapa.setView([lat, lng], 16);
 }
 
-// Determinar cuadrante basado en coordenadas
+// Determinar cuadrante basado en coordenadas usando los polígonos del GeoJSON
 function determinarCuadrante(lat, lng) {
+    if (!CUADRANTES_SAN_BERNARDO.length) return null;
+
     for (const cuadrante of CUADRANTES_SAN_BERNARDO) {
-        if (estaEnPoligono(lat, lng, cuadrante.coordinates)) {
-            return cuadrante.id;
+        for (const polygon of cuadrante.polygons) {
+            if (estaEnPoligono(lat, lng, polygon)) {
+                return cuadrante.id;
+            }
         }
     }
     return null;
@@ -405,7 +426,7 @@ async function obtenerDireccionMejorada(lat, lng) {
 
 // Limpiar ubicación seleccionada en el mapa
 function limpiarUbicacionMapa() {
-    if (marcadorUbicacion) {
+    if (marcadorUbicacion && miniMapa) {
         miniMapa.removeLayer(marcadorUbicacion);
         marcadorUbicacion = null;
     }
@@ -446,7 +467,6 @@ async function cargarAsignacionesVehiculos() {
         `;
 
         // Obtener asignaciones del día desde el contexto de Django
-        // Para esto necesitamos hacer una petición a la vista index
         const response = await fetch(window.location.href, {
             headers: {
                 'Accept': 'text/html',
@@ -458,11 +478,9 @@ async function cargarAsignacionesVehiculos() {
             throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
 
-        // Como la vista index no devuelve JSON, necesitamos obtener los datos de otra forma
-        // Por ahora, usaremos una API alternativa o recargaremos la página
         console.log('Recargando asignaciones...');
 
-        // Llamar a la API de asignaciones si existe, o usar datos de ejemplo
+        // Llamar a la API de asignaciones si existe, o recargar desde API específica
         await cargarAsignacionesDesdeAPI();
 
     } catch (error) {
@@ -471,22 +489,25 @@ async function cargarAsignacionesVehiculos() {
     }
 }
 
-// Cargar asignaciones desde API (método alternativo)
+// Cargar asignaciones desde API (método alternativo / definitivo)
 async function cargarAsignacionesDesdeAPI() {
     try {
-        // Intentar obtener datos de la API de asignaciones
-        const response = await fetch('/api/asignaciones-vehiculos-web/');
+        // Usar la nueva API específica para asignaciones del día
+        const response = await fetch('/api/asignaciones-dia/');
 
         if (response.ok) {
-            const asignaciones = await response.json();
-            mostrarAsignacionesEnLista(asignaciones);
-            mostrarAsignacionesEnMapa(asignaciones);
+            const data = await response.json();
+            if (data.success) {
+                mostrarAsignacionesEnLista(data.asignaciones);
+                mostrarAsignacionesEnMapa(data.asignaciones);
+            } else {
+                throw new Error(data.error || 'Error en la respuesta de la API');
+            }
         } else {
-            // Si no hay API, mostrar datos de ejemplo
-            mostrarDatosDeEjemplo();
+            throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
     } catch (error) {
-        console.log('API no disponible, usando datos de ejemplo');
+        console.log('API no disponible, usando datos de ejemplo:', error);
         mostrarDatosDeEjemplo();
     }
 }
@@ -799,29 +820,6 @@ function centrarEnAsignacion(patente) {
 // FUNCIONES DE DENUNCIAS
 // ============================================
 
-// Cargar asignaciones desde API (método alternativo)
-async function cargarAsignacionesDesdeAPI() {
-    try {
-        // Usar la nueva API específica para asignaciones del día
-        const response = await fetch('/api/asignaciones-dia/');
-
-        if (response.ok) {
-            const data = await response.json();
-            if (data.success) {
-                mostrarAsignacionesEnLista(data.asignaciones);
-                mostrarAsignacionesEnMapa(data.asignaciones);
-            } else {
-                throw new Error(data.error || 'Error en la respuesta de la API');
-            }
-        } else {
-            throw new Error(`Error ${response.status}: ${response.statusText}`);
-        }
-    } catch (error) {
-        console.log('API no disponible, usando datos de ejemplo:', error);
-        mostrarDatosDeEjemplo();
-    }
-}
-
 // Cargar requerimientos para el select
 async function cargarRequerimientos() {
     try {
@@ -889,32 +887,32 @@ async function cargarMovilesDisponibles() {
 async function cargarDenunciasDelDia() {
     try {
         const contenedor = document.getElementById('lista-denuncias-hoy');
-        
+
         // Mostrar estado de carga
         contenedor.innerHTML = `
             <div class="cargando pulse">
                 <i class="fas fa-spinner fa-spin"></i> Cargando denuncias...
             </div>
         `;
-        
+
         console.log('📡 Solicitando denuncias del día...');
-        
+
         const response = await fetch('/api/denuncias-hoy/');
-        
+
         if (!response.ok) {
             throw new Error(`Error ${response.status}: ${response.statusText}`);
         }
-        
+
         const denuncias = await response.json();
         console.log(`✅ Denuncias recibidas:`, denuncias);
-        
+
         if (Array.isArray(denuncias)) {
             mostrarDenunciasEnLista(denuncias);
         } else {
             console.error('❌ La respuesta no es un array:', denuncias);
             mostrarErrorDenuncias('Formato de datos incorrecto');
         }
-        
+
     } catch (error) {
         console.error('❌ Error cargando denuncias:', error);
         mostrarErrorDenuncias(error.message);
@@ -924,18 +922,18 @@ async function cargarDenunciasDelDia() {
 // Mostrar denuncias en la lista - ACTUALIZADA
 function mostrarDenunciasEnLista(denuncias) {
     const contenedor = document.getElementById('lista-denuncias-hoy');
-    
+
     if (!denuncias || denuncias.length === 0) {
         contenedor.innerHTML = `
             <div class="sin-datos">
-                <i class="fas fa-clipboard-list fa-3x"></i>
+                <i class="fas a-clipboard-list fa-3x"></i>
                 <h4>No hay denuncias hoy</h4>
                 <p>No se han registrado denuncias en el día de hoy.</p>
             </div>
         `;
         return;
     }
-    
+
     // Ordenar por fecha/hora más reciente primero
     denuncias.sort((a, b) => {
         if (a.fecha_hora_completa && b.fecha_hora_completa) {
@@ -943,13 +941,13 @@ function mostrarDenunciasEnLista(denuncias) {
         }
         return 0;
     });
-    
+
     const denunciasHTML = denuncias.map(denuncia => {
         // Determinar color del estado
         let claseEstado = 'estado-pendiente';
         let iconoEstado = '⏳';
-        
-        switch(denuncia.estado_denuncia?.toLowerCase()) {
+
+        switch (denuncia.estado_denuncia?.toLowerCase()) {
             case 'en_proceso':
             case 'en proceso':
                 claseEstado = 'estado-proceso';
@@ -967,7 +965,7 @@ function mostrarDenunciasEnLista(denuncias) {
                 claseEstado = 'estado-pendiente';
                 iconoEstado = '⏳';
         }
-        
+
         // Formatear información del móvil si existe
         let infoMovil = '';
         if (denuncia.movil_asignado) {
@@ -978,7 +976,7 @@ function mostrarDenunciasEnLista(denuncias) {
                 </div>
             `;
         }
-        
+
         return `
             <div class="item-denuncia" data-id="${denuncia.id_denuncia}">
                 <div class="denuncia-header">
@@ -1033,12 +1031,12 @@ function mostrarDenunciasEnLista(denuncias) {
             </div>
         `;
     }).join('');
-    
+
     contenedor.innerHTML = denunciasHTML;
-    
+
     // Agregar evento de clic a cada denuncia
     document.querySelectorAll('.item-denuncia').forEach(item => {
-        item.addEventListener('click', function() {
+        item.addEventListener('click', function () {
             const id = this.getAttribute('data-id');
             mostrarDetallesDenuncia(id, denuncias.find(d => d.id_denuncia == id));
         });
@@ -1050,25 +1048,25 @@ function mostrarDenunciasEnMapa(denuncias) {
     // Limpiar marcadores anteriores de denuncias
     marcadoresDenuncias.forEach(marker => mapa.removeLayer(marker));
     marcadoresDenuncias = [];
-    
+
     if (!denuncias || denuncias.length === 0) return;
-    
+
     // Agregar cada denuncia al mapa
     denuncias.forEach((denuncia, index) => {
         // Generar ubicación aleatoria dentro del área de San Bernardo
         const lat = -33.593 + (Math.random() - 0.5) * 0.02;
         const lng = -70.698 + (Math.random() - 0.5) * 0.02;
-        
+
         // Determinar color según estado
         let iconColor = 'red';
-        switch(denuncia.estado_denuncia?.toLowerCase()) {
+        switch (denuncia.estado_denuncia?.toLowerCase()) {
             case 'pendiente': iconColor = 'red'; break;
-            case 'en_proceso': 
+            case 'en_proceso':
             case 'en proceso': iconColor = 'blue'; break;
             case 'completada': iconColor = 'green'; break;
             case 'cancelada': iconColor = 'gray'; break;
         }
-        
+
         const marker = L.marker([lat, lng], {
             icon: L.icon({
                 iconUrl: `https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-${iconColor}.png`,
@@ -1079,7 +1077,7 @@ function mostrarDenunciasEnMapa(denuncias) {
                 shadowSize: [41, 41]
             })
         }).addTo(mapa);
-        
+
         // Crear contenido del popup con toda la información
         const popupContent = `
             <div class="popup-denuncia">
@@ -1101,9 +1099,9 @@ function mostrarDenunciasEnMapa(denuncias) {
                 </button>
             </div>
         `;
-        
+
         marker.bindPopup(popupContent);
-        
+
         // Guardar referencia al marcador
         marcadoresDenuncias.push({
             marker: marker,
@@ -1135,7 +1133,7 @@ function mostrarDenunciaEnMapa(id) {
 // Función para mostrar detalles de una denuncia
 function mostrarDetallesDenuncia(id, denuncia) {
     if (!denuncia) return;
-    
+
     Swal.fire({
         title: `Denuncia #${id}`,
         html: `
@@ -1271,10 +1269,10 @@ document.getElementById('formDenuncia').addEventListener('submit', async functio
 
     const denunciaData = {
         nombre_ciudadano: nombreCiudadano.trim(),
-        telefono_ciudadano: telefonoCiudadano.trim(), 
+        telefono_ciudadano: telefonoCiudadano.trim(),
         direccion_denuncia: direccionPrincipal.trim(),
         direccion_secundaria: direccionSecundaria.trim() || direccionPrincipal.trim(),
-        cuadrante_denuncia: parseInt(cuadrante),
+        cuadrante_denuncia: parseInt(cuadrante), // parseInt('80A') -> 80
         detalle_denuncia: detalle.trim(),
         id_requerimiento: parseInt(idRequerimiento),
         visibilidad_camaras_denuncia: formData.get('visibilidad_camaras') === 'on',

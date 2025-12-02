@@ -30,29 +30,18 @@
 
     <nav id="navbar" class="navbar">
 
-        <!-- Botón del menú desplegable -->
-        <div class="dropdown">
-            <i id="boton-opciones" role="button" class="fa-solid fa-bars dropdown-toggle" onclick="toggleDropdown()">
-                <div class="dropdown-menu" id="dropdownMenu">
-                    <a href="{% url 'index' %}" class="dropdown-item">
-                        <i class="fa-solid fa-map"></i> Mapa
-                    </a>
-                    <a href="" class="dropdown-item">
-                        <i class="fa-solid fa-list"></i> Historial de Alertas
-                    </a>
-                    <a href="" class="dropdown-item">
-                        <i class="fa-solid fa-chart-pie"></i> Graficos
-                    </a>
-                </div>
-            </i>
+        <div class="logo_navbar">
+            <img src="{% static 'Img/logo_navbar.jpg' %}" class="logo-navbar-img" alt="">
         </div>
 
-        <h2 class="titulo-pagina">Gestión de Vehículos "San Bernardo"</h2>
+        <h2 class="titulo-pagina">Seguridad Ciudadana "San Bernardo"</h2>
 
         <!-- Botón del menú Usuario -->
         <div class="dropdown2">
             <i id="boton-usuario" role="button" class="fa-solid fa-user dropdown-toggle2" onclick="toggleDropdown2()">
                 <div class="dropdown-menu2" id="dropdownUsuario">
+
+                    <!-- ✅ Mostrar información del usuario si está logueado -->
                     {% if user.is_authenticated %}
                     <div class="user-info">
                         <strong>{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</strong>
@@ -63,10 +52,19 @@
                     <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
                         <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
                     </a>
-
+                    <a href="{% url 'index' %}" class="dropdown-item2">
+                        <i class="fa-solid fa-map"></i> Mapa
+                    </a>
+                    <a href="" class="dropdown-item2">
+                        <i class="fa-solid fa-list"></i> Historial de Alertas
+                    </a>
+                    <a href="" class="dropdown-item2">
+                        <i class="fa-solid fa-chart-pie"></i> Graficos
+                    </a>
                     <a href="{% url 'Admin' %}" class="dropdown-item2">
                         <i class="fa-solid fa-list"></i> Panel Administración
                     </a>
+
                 </div>
             </i>
         </div>

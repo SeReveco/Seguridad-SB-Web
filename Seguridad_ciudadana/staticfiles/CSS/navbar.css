@@ -195,6 +195,16 @@ body::before {
     }
 }
 
+
+.logo-navbar-img {
+    height: 70px;     /* Ajusta aquí */
+    width: auto;
+}
+
+.logo-navbar-img {
+    height: 50px;
+}
+
 /* Dropdown DERECHO (nuevo) */
 .dropdown2 {
     position: relative;

@@ -1468,3 +1468,8 @@ body::before {
     margin-right: 0.5rem;
     color: #009FE3;
 }
+
+/* Quitar el borde/rectángulo de foco al hacer click en un polígono Leaflet */
+.leaflet-container .leaflet-interactive:focus {
+    outline: none;
+}
