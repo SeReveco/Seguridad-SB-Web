@@ -11,6 +11,13 @@ urlpatterns = [
     path('Admin/vehiculos/', views.admin_vehiculos, name='admin_vehiculos'),
     path('Admin/radios/', views.admin_radios, name='admin_radios'),
     
+    # ✅ Dashboard de denuncias (ruta de la página con gráficos)
+    path('Admin/denuncias/dashboard/', views.denuncias_dashboard, name='denuncias_dashboard'),
+    
+    # ✅ API de estadísticas para los gráficos del dashboard
+    path('api/denuncias/estadisticas/', views.api_denuncias_estadisticas, name='api_denuncias_estadisticas'),
+    
+    
     # ✅ NUEVA API PARA ASIGNACIONES DEL DÍA
     path('api/asignaciones-dia/', views.api_asignaciones_dia, name='api_asignaciones_dia'),
     

@@ -1,22 +1,23 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html>
 
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-    <link rel="stylesheet" href="{% static 'CSS/index.css' %}">
+    <link rel="stylesheet" href="{% static 'CSS/graficos.css' %}">
     <link rel="stylesheet" href="{% static 'CSS/navbar.css' %}">
     <link rel="icon" type="image/png" href="{% static 'Img/logo_san_bernardo2.png' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <script src="https://kit.fontawesome.com/6a284d15f6.js" crossorigin="anonymous"></script>
-    <title>Rutas san bernardo</title>
+
+    <title>Graficos en San Bernardo</title>
 </head>
 
 <body>
+
     <nav id="navbar" class="navbar">
 
         <div class="logo_navbar">
@@ -60,856 +61,114 @@
 
     </nav>
 
-    <div class="container-fluid">
-        <!-- Encabezado -->
+    <div class="container-fluid py-4 dashboard-wrapper">
+
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h1 class="h3 mb-0 text-gray-800">
-                <i class="fas fa-chart-bar mr-2"></i>Estadísticas de Denuncias
-            </h1>
-            <div class="d-flex align-items-center">
-                <span class="badge badge-primary mr-3" id="fecha-actual"></span>
-                <button class="btn btn-sm btn-outline-primary" onclick="recargarGraficos()">
-                    <i class="fas fa-sync-alt mr-1"></i> Actualizar
-                </button>
+            <div>
+                <h1 class="page-title mb-1">Dashboard de Denuncias</h1>
+                <p class="page-subtitle mb-0">Estadísticas generales de las denuncias registradas</p>
             </div>
+            <a href="{% url 'index' %}" class="btn btn-link text-decoration-none volver-link">
+                ⟵ Volver al inicio
+            </a>
         </div>
 
-        <!-- Filtros -->
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-filter mr-2"></i>Filtros de Estadísticas
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="row">
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="filtro-periodo"><i class="fas fa-calendar-alt mr-1"></i> Período</label>
-                            <select class="form-control" id="filtro-periodo" onchange="cambiarPeriodo()">
-                                <option value="dia">Últimos 7 días</option>
-                                <option value="semana" selected>Últimas 4 semanas</option>
-                                <option value="mes">Últimos 6 meses</option>
-                                <option value="anio">Último año</option>
-                                <option value="personalizado">Personalizado</option>
-                            </select>
-                        </div>
+        <!-- FILA 1: ESTADO / CATEGORÍA (FAMILIA) / PRIORIDAD -->
+        <div class="row g-4 mb-4">
+            <!-- Denuncias por Estado -->
+            <div class="col-lg-4 col-md-6">
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <h5>Denuncias por Estado</h5>
+                        <span class="badge total-badge" id="badge-total-estado">0</span>
                     </div>
-
-                    <div class="col-md-3" id="filtro-fechas" style="display: none;">
-                        <div class="form-group">
-                            <label for="fecha-desde"><i class="fas fa-calendar-day mr-1"></i> Desde</label>
-                            <input type="date" class="form-control" id="fecha-desde">
-                        </div>
-                    </div>
-
-                    <div class="col-md-3" id="filtro-fechas-hasta" style="display: none;">
-                        <div class="form-group">
-                            <label for="fecha-hasta"><i class="fas fa-calendar-day mr-1"></i> Hasta</label>
-                            <input type="date" class="form-control" id="fecha-hasta">
-                        </div>
-                    </div>
-
-                    <div class="col-md-3">
-                        <div class="form-group">
-                            <label for="filtro-tipo"><i class="fas fa-chart-pie mr-1"></i> Tipo de Gráfico</label>
-                            <select class="form-control" id="filtro-tipo" onchange="cambiarTipoGrafico()">
-                                <option value="denuncias">Denuncias por Día</option>
-                                <option value="estados">Estados de Denuncias</option>
-                                <option value="clasificacion">Por Clasificación</option>
-                                <option value="cuadrantes">Por Cuadrante</option>
-                                <option value="requerimientos">Tipos de Requerimiento</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="col-md-3 d-flex align-items-end">
-                        <button class="btn btn-primary w-100" onclick="aplicarFiltros()">
-                            <i class="fas fa-search mr-1"></i> Aplicar Filtros
-                        </button>
-                    </div>
-                </div>
-
-                <div class="row mt-3" id="contadores-rapidos">
-                    <!-- Los contadores se cargarán aquí -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Gráficos Principales -->
-        <div class="row">
-            <!-- Gráfico 1: Denuncias por Día -->
-            <div class="col-xl-8 col-lg-7">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3 d-flex flex-row align-items-center justify-content-between">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-chart-line mr-2"></i>
-                            <span id="titulo-grafico-1">Denuncias por Día (Últimas 4 semanas)</span>
-                        </h6>
-                        <div class="dropdown no-arrow">
-                            <a class="dropdown-toggle" href="#" role="button" id="dropdownMenuLink1"
-                                data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                                <i class="fas fa-ellipsis-v fa-sm fa-fw text-gray-400"></i>
-                            </a>
-                            <div class="dropdown-menu dropdown-menu-right shadow animated--fade-in"
-                                aria-labelledby="dropdownMenuLink1">
-                                <a class="dropdown-item" href="#" onclick="exportarGrafico('graficoDenuncias')">
-                                    <i class="fas fa-download fa-sm fa-fw mr-2 text-gray-400"></i>
-                                    Exportar como Imagen
-                                </a>
-                                <a class="dropdown-item" href="#" onclick="exportarDatos('denuncias')">
-                                    <i class="fas fa-file-excel fa-sm fa-fw mr-2 text-gray-400"></i>
-                                    Exportar Datos
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-area">
-                            <canvas id="graficoDenuncias"></canvas>
+                    <div class="dashboard-card-body">
+                        <h6 class="chart-subtitle">Distribución por Estado</h6>
+                        <div class="chart-wrapper">
+                            <canvas id="denunciasPorEstadoChart"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Gráfico 2: Estados de Denuncias -->
-            <div class="col-xl-4 col-lg-5">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-chart-pie mr-2"></i>Distribución por Estado
-                        </h6>
+            <!-- Denuncias por Familia -->
+            <div class="col-lg-4 col-md-6">
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <h5>Denuncias por Familia</h5>
+                        <span class="badge total-badge" id="badge-total-familia">0</span>
                     </div>
-                    <div class="card-body">
-                        <div class="chart-pie pt-4">
-                            <canvas id="graficoEstados"></canvas>
+                    <div class="dashboard-card-body">
+                        <h6 class="chart-subtitle">Top Familias de Denuncia</h6>
+                        <div class="chart-wrapper">
+                            <canvas id="denunciasPorFamiliaChart"></canvas>
                         </div>
-                        <div class="mt-4 text-center small">
-                            <span class="mr-2">
-                                <i class="fas fa-circle text-primary"></i> Pendientes
-                            </span>
-                            <span class="mr-2">
-                                <i class="fas fa-circle text-success"></i> Completadas
-                            </span>
-                            <span class="mr-2">
-                                <i class="fas fa-circle text-info"></i> En Proceso
-                            </span>
-                            <span>
-                                <i class="fas fa-circle text-warning"></i> Canceladas
-                            </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Denuncias por Clasificación / Prioridad -->
+            <div class="col-lg-4 col-md-12">
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <h5>Denuncias por Prioridad</h5>
+                        <span class="badge total-badge" id="badge-total-clasificacion">0</span>
+                    </div>
+                    <div class="dashboard-card-body">
+                        <h6 class="chart-subtitle">Clasificación de Requerimientos</h6>
+                        <div class="chart-wrapper">
+                            <canvas id="denunciasPorClasificacionChart"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Segunda Fila de Gráficos -->
-        <div class="row">
-            <!-- Gráfico 3: Clasificación de Riesgo -->
-            <div class="col-xl-4 col-lg-6">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-exclamation-triangle mr-2"></i>Clasificación de Riesgo
-                        </h6>
+        <!-- FILA 2: POR MES + TOP USUARIOS -->
+        <div class="row g-4">
+            <!-- Denuncias por Mes -->
+            <div class="col-lg-8 col-md-7">
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <h5>Denuncias por Mes (últimos 12 meses)</h5>
+                        <span class="badge total-badge" id="badge-total-mes">0</span>
                     </div>
-                    <div class="card-body">
-                        <div class="chart-bar">
-                            <canvas id="graficoClasificacion"></canvas>
-                        </div>
-                        <div class="mt-4 text-center small">
-                            <span class="mr-2">
-                                <i class="fas fa-square text-danger"></i> Alto
-                            </span>
-                            <span class="mr-2">
-                                <i class="fas fa-square text-warning"></i> Medio
-                            </span>
-                            <span>
-                                <i class="fas fa-square text-success"></i> Bajo
-                            </span>
+                    <div class="dashboard-card-body">
+                        <h6 class="chart-subtitle">Tendencia temporal</h6>
+                        <div class="chart-wrapper">
+                            <canvas id="denunciasPorMesChart"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Gráfico 4: Cuadrantes -->
-            <div class="col-xl-4 col-lg-6">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-map-marker-alt mr-2"></i>Denuncias por Cuadrante
-                        </h6>
+            <!-- Top Usuarios -->
+            <div class="col-lg-4 col-md-5">
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <h5>Top 10 Usuarios</h5>
+                        <span class="badge total-badge" id="badge-total-usuario">0</span>
                     </div>
-                    <div class="card-body">
-                        <div class="chart-bar">
-                            <canvas id="graficoCuadrantes"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Gráfico 5: Top Requerimientos -->
-            <div class="col-xl-4 col-lg-12">
-                <div class="card shadow mb-4">
-                    <div class="card-header py-3">
-                        <h6 class="m-0 font-weight-bold text-primary">
-                            <i class="fas fa-list-alt mr-2"></i>Top 10 Tipos de Requerimiento
-                        </h6>
-                    </div>
-                    <div class="card-body">
-                        <div class="chart-bar-vertical">
-                            <canvas id="graficoRequerimientos"></canvas>
+                    <div class="dashboard-card-body">
+                        <h6 class="chart-subtitle">Denuncias registradas por usuario</h6>
+                        <div class="chart-wrapper">
+                            <canvas id="denunciasPorUsuarioChart"></canvas>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Tabla de Datos Detallados -->
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">
-                    <i class="fas fa-table mr-2"></i>Datos Detallados de Denuncias
-                </h6>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-bordered" id="tablaDenuncias" width="100%" cellspacing="0">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Fecha</th>
-                                <th>Dirección</th>
-                                <th>Cuadrante</th>
-                                <th>Requerimiento</th>
-                                <th>Clasificación</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="tabla-datos-body">
-                            <!-- Los datos se cargarán aquí -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
     </div>
-    {% endblock %}
 
-    {% block extra_css %}
-    <style>
-        .chart-area,
-        .chart-bar,
-        .chart-pie,
-        .chart-bar-vertical {
-            position: relative;
-            height: 300px;
-        }
-
-        .chart-bar-vertical {
-            height: 350px;
-        }
-
-        .card {
-            border-radius: 10px;
-            border: 1px solid #e3e6f0;
-            transition: all 0.3s ease;
-        }
-
-        .card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1) !important;
-        }
-
-        .contador-rapido {
-            text-align: center;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 5px;
-            transition: all 0.3s ease;
-        }
-
-        .contador-rapido:hover {
-            transform: scale(1.05);
-        }
-
-        .contador-titulo {
-            font-size: 0.9rem;
-            color: #6c757d;
-            margin-bottom: 5px;
-        }
-
-        .contador-valor {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 5px;
-        }
-
-        .contador-variacion {
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        .variacion-positiva {
-            color: #28a745;
-        }
-
-        .variacion-negativa {
-            color: #dc3545;
-        }
-
-        #tabla-datos-body tr {
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        #tabla-datos-body tr:hover {
-            background-color: #f8f9fc;
-        }
-
-        .estado-badge {
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .estado-pendiente {
-            background-color: #fff3cd;
-            color: #856404;
-        }
-
-        .estado-en_proceso {
-            background-color: #d1ecf1;
-            color: #0c5460;
-        }
-
-        .estado-completada {
-            background-color: #d4edda;
-            color: #155724;
-        }
-
-        .estado-cancelada {
-            background-color: #f8d7da;
-            color: #721c24;
-        }
-    </style>
-    {% endblock %}
-
-    {% block extra_js %}
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Plugin para mostrar valores en los gráficos -->
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
 
-    <script>
-        // Variables globales
-        let graficoDenuncias = null;
-        let graficoEstados = null;
-        let graficoClasificacion = null;
-        let graficoCuadrantes = null;
-        let graficoRequerimientos = null;
-        let datosEstadisticas = null;
+    <!-- JS del Dashboard -->
+    <script src="{% static 'JavaScript/graficos.js' %}"></script>
 
-        // Inicializar cuando el documento esté listo
-        document.addEventListener('DOMContentLoaded', function () {
-            // Establecer fecha actual
-            const ahora = new Date();
-            document.getElementById('fecha-actual').textContent = ahora.toLocaleDateString('es-CL', {
-                weekday: 'long',
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric'
-            });
-
-            // Establecer fechas por defecto para filtros
-            const hoy = ahora.toISOString().split('T')[0];
-            const haceUnaSemana = new Date(ahora);
-            haceUnaSemana.setDate(ahora.getDate() - 7);
-            const haceUnaSemanaStr = haceUnaSemana.toISOString().split('T')[0];
-
-            document.getElementById('fecha-desde').value = haceUnaSemanaStr;
-            document.getElementById('fecha-hasta').value = hoy;
-
-            // Cargar datos iniciales
-            cargarEstadisticas();
-
-            // Configurar actualización automática cada 5 minutos
-            setInterval(cargarEstadisticas, 300000);
-        });
-
-        // Función para cargar estadísticas
-        async function cargarEstadisticas() {
-            try {
-                // Obtener parámetros de filtro
-                const periodo = document.getElementById('filtro-periodo').value;
-                const tipoGrafico = document.getElementById('filtro-tipo').value;
-                const fechaDesde = document.getElementById('fecha-desde').value;
-                const fechaHasta = document.getElementById('fecha-hasta').value;
-
-                // Construir URL con parámetros
-                let url = '/api/estadisticas-denuncias/?periodo=' + periodo + '&tipo=' + tipoGrafico;
-
-                if (periodo === 'personalizado' && fechaDesde && fechaHasta) {
-                    url += '&desde=' + fechaDesde + '&hasta=' + fechaHasta;
-                }
-
-                // Mostrar cargando
-                mostrarCargando();
-
-                const response = await fetch(url);
-
-                if (!response.ok) {
-                    throw new Error(`Error ${response.status}: ${response.statusText}`);
-                }
-
-                datosEstadisticas = await response.json();
-
-                // Actualizar todos los componentes
-                actualizarContadoresRapidos();
-                actualizarGraficos();
-                actualizarTablaDatos();
-                actualizarTitulos();
-
-                // Ocultar cargando
-                ocultarCargando();
-
-            } catch (error) {
-                console.error('❌ Error cargando estadísticas:', error);
-                mostrarError('Error al cargar estadísticas: ' + error.message);
-
-                // Cargar datos de ejemplo
-                cargarDatosEjemplo();
-            }
-        }
-
-        // Función para actualizar contadores rápidos
-        function actualizarContradoresRapidos() {
-            const contenedor = document.getElementById('contadores-rapidos');
-
-            if (!datosEstadisticas || !datosEstadisticas.contadores) {
-                contenedor.innerHTML = `
-            <div class="col-12 text-center">
-                <div class="alert alert-warning">No hay datos disponibles</div>
-            </div>
-        `;
-                return;
-            }
-
-            const contadores = datosEstadisticas.contadores;
-
-            contenedor.innerHTML = `
-        <div class="col-md-3">
-            <div class="contador-rapido bg-primary text-white">
-                <div class="contador-titulo">Total Denuncias</div>
-                <div class="contador-valor">${contadores.total}</div>
-                <div class="contador-variacion">
-                    <i class="fas fa-arrow-up"></i> ${contadores.variacion_total || 0}% vs período anterior
-                </div>
-            </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="contador-rapido bg-success text-white">
-                <div class="contador-titulo">Completadas</div>
-                <div class="contador-valor">${contadores.completadas}</div>
-                <div class="contador-variacion">${((contadores.completadas / contadores.total) * 100 || 0).toFixed(1)}% del total</div>
-            </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="contador-rapido bg-info text-white">
-                <div class="contador-titulo">En Proceso</div>
-                <div class="contador-valor">${contadores.en_proceso}</div>
-                <div class="contador-variacion">${((contadores.en_proceso / contadores.total) * 100 || 0).toFixed(1)}% del total</div>
-            </div>
-        </div>
-        
-        <div class="col-md-3">
-            <div class="contador-rapido bg-warning text-white">
-                <div class="contador-titulo">Pendientes</div>
-                <div class="contador-valor">${contadores.pendientes}</div>
-                <div class="contador-variacion">${((contadores.pendientes / contadores.total) * 100 || 0).toFixed(1)}% del total</div>
-            </div>
-        </div>
-    `;
-        }
-
-        // Función para actualizar gráficos
-        function actualizarGraficos() {
-            if (!datosEstadisticas) return;
-
-            // Destruir gráficos existentes
-            if (graficoDenuncias) graficoDenuncias.destroy();
-            if (graficoEstados) graficoEstados.destroy();
-            if (graficoClasificacion) graficoClasificacion.destroy();
-            if (graficoCuadrantes) graficoCuadrantes.destroy();
-            if (graficoRequerimientos) graficoRequerimientos.destroy();
-
-            // Crear nuevo gráfico de denuncias por día
-            const ctx1 = document.getElementById('graficoDenuncias').getContext('2d');
-            graficoDenuncias = new Chart(ctx1, {
-                type: 'line',
-                data: datosEstadisticas.grafico_denuncias || getDatosEjemploGraficoLinea(),
-                options: {
-                    maintainAspectRatio: false,
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: true,
-                            position: 'top',
-                        },
-                        tooltip: {
-                            mode: 'index',
-                            intersect: false,
-                        }
-                    },
-                    scales: {
-                        x: {
-                            grid: {
-                                display: false
-                            }
-                        },
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                precision: 0
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Crear gráfico de estados
-            const ctx2 = document.getElementById('graficoEstados').getContext('2d');
-            graficoEstados = new Chart(ctx2, {
-                type: 'doughnut',
-                data: datosEstadisticas.grafico_estados || getDatosEjemploGraficoDona(),
-                options: {
-                    maintainAspectRatio: false,
-                    responsive: true,
-                    plugins: {
-                        legend: {
-                            display: false,
-                        }
-                    }
-                }
-            });
-
-            // Crear gráfico de clasificación
-            const ctx3 = document.getElementById('graficoClasificacion').getContext('2d');
-            graficoClasificacion = new Chart(ctx3, {
-                type: 'bar',
-                data: datosEstadisticas.grafico_clasificacion || getDatosEjemploGraficoBarras(),
-                options: {
-                    maintainAspectRatio: false,
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            ticks: {
-                                precision: 0
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Crear gráfico de cuadrantes
-            const ctx4 = document.getElementById('graficoCuadrantes').getContext('2d');
-            graficoCuadrantes = new Chart(ctx4, {
-                type: 'bar',
-                data: datosEstadisticas.grafico_cuadrantes || getDatosEjemploGraficoBarras(),
-                options: {
-                    maintainAspectRatio: false,
-                    responsive: true,
-                    indexAxis: 'y',
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            ticks: {
-                                precision: 0
-                            }
-                        }
-                    }
-                }
-            });
-
-            // Crear gráfico de requerimientos
-            const ctx5 = document.getElementById('graficoRequerimientos').getContext('2d');
-            graficoRequerimientos = new Chart(ctx5, {
-                type: 'bar',
-                data: datosEstadisticas.grafico_requerimientos || getDatosEjemploGraficoBarras(),
-                options: {
-                    maintainAspectRatio: false,
-                    responsive: true,
-                    indexAxis: 'y',
-                    scales: {
-                        x: {
-                            beginAtZero: true,
-                            ticks: {
-                                precision: 0
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        // Función para actualizar tabla de datos
-        function actualizarTablaDatos() {
-            const cuerpo = document.getElementById('tabla-datos-body');
-
-            if (!datosEstadisticas || !datosEstadisticas.detalle || datosEstadisticas.detalle.length === 0) {
-                cuerpo.innerHTML = `
-            <tr>
-                <td colspan="8" class="text-center py-4">
-                    <i class="fas fa-info-circle text-muted mr-2"></i>
-                    No hay datos para mostrar
-                </td>
-            </tr>
-        `;
-                return;
-            }
-
-            let html = '';
-            datosEstadisticas.detalle.forEach(denuncia => {
-                // Determinar clase del estado
-                let claseEstado = 'estado-pendiente';
-                if (denuncia.estado === 'completada') claseEstado = 'estado-completada';
-                else if (denuncia.estado === 'en_proceso') claseEstado = 'estado-en_proceso';
-                else if (denuncia.estado === 'cancelada') claseEstado = 'estado-cancelada';
-
-                html += `
-            <tr onclick="verDetalleDenuncia(${denuncia.id})">
-                <td>DEN-${denuncia.id.toString().padStart(6, '0')}</td>
-                <td>${denuncia.fecha}</td>
-                <td>${denuncia.direccion}</td>
-                <td>${denuncia.cuadrante || 'N/A'}</td>
-                <td>${denuncia.requerimiento}</td>
-                <td>
-                    <span class="badge badge-${denuncia.clasificacion === 'Alto' ? 'danger' : denuncia.clasificacion === 'Medio' ? 'warning' : 'success'}">
-                        ${denuncia.clasificacion || 'No especificada'}
-                    </span>
-                </td>
-                <td>
-                    <span class="estado-badge ${claseEstado}">
-                        ${denuncia.estado || 'Pendiente'}
-                    </span>
-                </td>
-                <td>
-                    <button class="btn btn-sm btn-outline-primary" onclick="verDetalleDenuncia(${denuncia.id}, event)">
-                        <i class="fas fa-eye"></i>
-                    </button>
-                </td>
-            </tr>
-        `;
-            });
-
-            cuerpo.innerHTML = html;
-        }
-
-        // Función para actualizar títulos según filtros
-        function actualizarTitulos() {
-            const periodo = document.getElementById('filtro-periodo').value;
-            const tipo = document.getElementById('filtro-tipo').value;
-
-            let tituloPeriodo = '';
-            switch (periodo) {
-                case 'dia': tituloPeriodo = 'Últimos 7 días'; break;
-                case 'semana': tituloPeriodo = 'Últimas 4 semanas'; break;
-                case 'mes': tituloPeriodo = 'Últimos 6 meses'; break;
-                case 'anio': tituloPeriodo = 'Último año'; break;
-                case 'personalizado': tituloPeriodo = 'Período personalizado'; break;
-            }
-
-            let tituloGrafico = '';
-            switch (tipo) {
-                case 'denuncias': tituloGrafico = 'Denuncias por Día'; break;
-                case 'estados': tituloGrafico = 'Distribución por Estado'; break;
-                case 'clasificacion': tituloGrafico = 'Clasificación de Riesgo'; break;
-                case 'cuadrantes': tituloGrafico = 'Denuncias por Cuadrante'; break;
-                case 'requerimientos': tituloGrafico = 'Tipos de Requerimiento'; break;
-            }
-
-            document.getElementById('titulo-grafico-1').textContent = `${tituloGrafico} (${tituloPeriodo})`;
-        }
-
-        // Funciones de filtros
-        function cambiarPeriodo() {
-            const periodo = document.getElementById('filtro-periodo').value;
-            const filtroFechas = document.getElementById('filtro-fechas');
-            const filtroFechasHasta = document.getElementById('filtro-fechas-hasta');
-
-            if (periodo === 'personalizado') {
-                filtroFechas.style.display = 'block';
-                filtroFechasHasta.style.display = 'block';
-            } else {
-                filtroFechas.style.display = 'none';
-                filtroFechasHasta.style.display = 'none';
-            }
-        }
-
-        function cambiarTipoGrafico() {
-            // Esta función podría cambiar qué gráfico se muestra como principal
-            // Por ahora solo actualizamos los datos
-            cargarEstadisticas();
-        }
-
-        function aplicarFiltros() {
-            cargarEstadisticas();
-        }
-
-        function recargarGraficos() {
-            cargarEstadisticas();
-        }
-
-        // Funciones de utilidad
-        function mostrarCargando() {
-            Swal.fire({
-                title: 'Cargando estadísticas...',
-                text: 'Por favor espere',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-        }
-
-        function ocultarCargando() {
-            Swal.close();
-        }
-
-        function mostrarError(mensaje) {
-            Swal.fire({
-                icon: 'error',
-                title: 'Error',
-                text: mensaje,
-                confirmButtonText: 'Aceptar'
-            });
-        }
-
-        function verDetalleDenuncia(id, event) {
-            if (event) {
-                event.stopPropagation();
-            }
-
-            Swal.fire({
-                title: 'Cargando detalles...',
-                text: 'Por favor espere',
-                allowOutsideClick: false,
-                didOpen: () => {
-                    Swal.showLoading();
-                }
-            });
-
-            // Redirigir a la vista de detalle de denuncia
-            setTimeout(() => {
-                window.location.href = `/denuncias/${id}/`;
-            }, 500);
-        }
-
-        function exportarGrafico(idCanvas) {
-            const canvas = document.getElementById(idCanvas);
-            const enlace = document.createElement('a');
-            enlace.download = `grafico-${idCanvas}-${new Date().toISOString().split('T')[0]}.png`;
-            enlace.href = canvas.toDataURL('image/png');
-            enlace.click();
-        }
-
-        function exportarDatos(tipo) {
-            // Implementar exportación a Excel/CSV
-            Swal.fire({
-                icon: 'info',
-                title: 'Exportar Datos',
-                text: 'Esta funcionalidad estará disponible próximamente',
-                confirmButtonText: 'Aceptar'
-            });
-        }
-
-        // Datos de ejemplo para cuando no hay conexión
-        function cargarDatosEjemplo() {
-            datosEstadisticas = {
-                contadores: {
-                    total: 156,
-                    completadas: 89,
-                    en_proceso: 42,
-                    pendientes: 25,
-                    variacion_total: 12.5
-                },
-                grafico_denuncias: getDatosEjemploGraficoLinea(),
-                grafico_estados: getDatosEjemploGraficoDona(),
-                grafico_clasificacion: getDatosEjemploGraficoBarras(),
-                grafico_cuadrantes: getDatosEjemploGraficoBarras(),
-                grafico_requerimientos: getDatosEjemploGraficoBarras(),
-                detalle: [
-                    {
-                        id: 1,
-                        fecha: '2024-12-01',
-                        direccion: 'Av. Principal 123',
-                        cuadrante: 80,
-                        requerimiento: 'Robo con violencia',
-                        clasificacion: 'Alto',
-                        estado: 'pendiente'
-                    },
-                    {
-                        id: 2,
-                        fecha: '2024-12-01',
-                        direccion: 'Calle Secundaria 456',
-                        cuadrante: 81,
-                        requerimiento: 'Accidente de tránsito',
-                        clasificacion: 'Medio',
-                        estado: 'en_proceso'
-                    }
-                ]
-            };
-
-            actualizarContadoresRapidos();
-            actualizarGraficos();
-            actualizarTablaDatos();
-            actualizarTitulos();
-        }
-
-        function getDatosEjemploGraficoLinea() {
-            return {
-                labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-                datasets: [{
-                    label: 'Denuncias',
-                    data: [12, 19, 8, 15, 22, 18, 14],
-                    borderColor: '#4e73df',
-                    backgroundColor: 'rgba(78, 115, 223, 0.05)',
-                    pointBackgroundColor: '#4e73df',
-                    pointBorderColor: '#4e73df',
-                    pointHoverBackgroundColor: '#fff',
-                    pointHoverBorderColor: '#4e73df',
-                    fill: true
-                }]
-            };
-        }
-
-        function getDatosEjemploGraficoDona() {
-            return {
-                labels: ['Pendientes', 'En Proceso', 'Completadas', 'Canceladas'],
-                datasets: [{
-                    data: [25, 42, 89, 10],
-                    backgroundColor: ['#f6c23e', '#36b9cc', '#1cc88a', '#e74a3b'],
-                    hoverBackgroundColor: ['#f8d679', '#5ad1e5', '#3ae0a5', '#ea675b'],
-                    hoverBorderColor: "rgba(234, 236, 244, 1)",
-                }]
-            };
-        }
-
-        function getDatosEjemploGraficoBarras() {
-            return {
-                labels: ['Alto', 'Medio', 'Bajo'],
-                datasets: [{
-                    label: 'Cantidad',
-                    data: [45, 78, 33],
-                    backgroundColor: ['#e74a3b', '#f6c23e', '#1cc88a']
-                }]
-            };
-        }
-    </script>
-    {% endblock %}
 </body>
 
 </html>

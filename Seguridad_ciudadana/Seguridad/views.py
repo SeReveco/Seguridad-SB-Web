@@ -19,7 +19,8 @@ from .models import (
 )
 from django.views.decorators.csrf import csrf_exempt  # type: ignore
 import json
-from django.db.models import Q  # type: ignore
+from django.db.models import Q, Count  # type: ignore
+from django.db.models.functions import TruncMonth  # type: ignore
 import logging
 logger = logging.getLogger(__name__)
 
@@ -2169,6 +2170,136 @@ def listar_servicios_emergencia(request):
     }
     return render(request, 'crud/admin/servicios_emergencia.html', context)
 
+# ========== Vistas de graficos página web ==========   
+
+
+@login_required
+def denuncias_dashboard(request):
+    """
+    Vista que muestra el dashboard con gráficos de denuncias.
+    """
+    return render(request, 'graficos.html')
+
+@csrf_exempt
+@login_required
+def api_denuncias_estadisticas(request):
+    """
+    API que devuelve estadísticas de denuncias para gráficos:
+    - Denuncias por mes (últimos 12 meses)
+    - Denuncias por estado
+    - Denuncias por familia de denuncia
+    - Top 10 usuarios con más denuncias registradas
+    - Denuncias por clasificación/prioridad (clasificacion_requerimiento)
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    try:
+        hoy = timezone.now().date()
+        hace_12_meses = hoy - timedelta(days=365)
+
+        # Base: últimas denuncias del año
+        qs_base = Denuncia.objects.filter(fecha_denuncia__gte=hace_12_meses)
+
+        # ---------- 1) Denuncias por mes ----------
+        por_mes_qs = (
+            qs_base
+            .annotate(mes=TruncMonth('fecha_denuncia'))
+            .values('mes')
+            .annotate(total=Count('id_denuncia'))
+            .order_by('mes')
+        )
+
+        por_mes_labels = [item['mes'].strftime('%Y-%m') for item in por_mes_qs]
+        por_mes_data = [item['total'] for item in por_mes_qs]
+
+        # ---------- 2) Denuncias por estado ----------
+        por_estado_qs = (
+            qs_base
+            .values('estado_denuncia')
+            .annotate(total=Count('id_denuncia'))
+            .order_by('-total')
+        )
+
+        estado_map = dict(Denuncia.ESTADO_CHOICES)
+        por_estado_labels = [
+            estado_map.get(item['estado_denuncia'], item['estado_denuncia'])
+            for item in por_estado_qs
+        ]
+        por_estado_data = [item['total'] for item in por_estado_qs]
+
+        # ---------- 3) Denuncias por familia de denuncia ----------
+        por_familia_qs = (
+            qs_base
+            .select_related('id_requerimiento__id_subgrupo_denuncia__id_grupo_denuncia__id_familia_denuncia')
+            .values('id_requerimiento__id_subgrupo_denuncia__id_grupo_denuncia__id_familia_denuncia__nombre_familia_denuncia')
+            .annotate(total=Count('id_denuncia'))
+            .order_by('-total')
+        )
+
+        por_familia_labels = [
+            item['id_requerimiento__id_subgrupo_denuncia__id_grupo_denuncia__id_familia_denuncia__nombre_familia_denuncia'] or 'Sin familia'
+            for item in por_familia_qs
+        ]
+        por_familia_data = [item['total'] for item in por_familia_qs]
+
+        # ---------- 4) Top 10 usuarios por cantidad de denuncias ----------
+        por_usuario_qs = (
+            qs_base
+            .values('id_usuario__nombre_usuario', 'id_usuario__apellido_pat_usuario')
+            .annotate(total=Count('id_denuncia'))
+            .order_by('-total')[:10]
+        )
+
+        por_usuario_labels = [
+            f"{item['id_usuario__nombre_usuario']} {item['id_usuario__apellido_pat_usuario']}"
+            for item in por_usuario_qs
+        ]
+        por_usuario_data = [item['total'] for item in por_usuario_qs]
+
+        # ---------- 5) Denuncias por clasificación/prioridad ----------
+        por_clasificacion_qs = (
+            qs_base
+            .select_related('id_requerimiento')
+            .values('id_requerimiento__clasificacion_requerimiento')
+            .annotate(total=Count('id_denuncia'))
+            .order_by('-total')
+        )
+
+        por_clasificacion_labels = [
+            item['id_requerimiento__clasificacion_requerimiento'] or 'Sin clasificación'
+            for item in por_clasificacion_qs
+        ]
+        por_clasificacion_data = [item['total'] for item in por_clasificacion_qs]
+
+        data = {
+            'por_mes': {
+                'labels': por_mes_labels,
+                'data': por_mes_data,
+            },
+            'por_estado': {
+                'labels': por_estado_labels,
+                'data': por_estado_data,
+            },
+            'por_familia': {
+                'labels': por_familia_labels,
+                'data': por_familia_data,
+            },
+            'por_usuario': {
+                'labels': por_usuario_labels,
+                'data': por_usuario_data,
+            },
+            'por_clasificacion': {
+                'labels': por_clasificacion_labels,
+                'data': por_clasificacion_data,
+            },
+        }
+
+        return JsonResponse(data, safe=True)
+
+    except Exception as e:
+        logger.error(f"❌ Error en api_denuncias_estadisticas: {str(e)}")
+        return JsonResponse({'error': 'Error interno del servidor'}, status=500)
 
 # ========== Vistas de denuncias página web ==========    
     
