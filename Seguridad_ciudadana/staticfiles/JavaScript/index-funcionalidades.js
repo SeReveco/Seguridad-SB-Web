@@ -61,25 +61,17 @@ function inicializarMapa() {
         zoom: 14,
         minZoom: 11,
         maxZoom: 18,
-        maxBounds: limitesSantiago,     // 👈 límites
-        maxBoundsViscosity: 1.0         // 👈 “pared dura” (no deja salir)
+        maxBounds: limitesSantiago
     });
 
-    // Tiles
+    // Capa base
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors',
-        maxZoom: 19
+        attribution: '© OpenStreetMap contributors'
     }).addTo(mapa);
 
-    // Cargar capas
-    cargarCuadrantesDesdeGeoJSON();
-    cargarRutas();
-}
+    // ==== Cargar GeoJSON de cuadrantes, rellenar estructuras y calcular viewbox ====
 
-// Cargar cuadrantes desde un archivo GeoJSON
-function cargarCuadrantesDesdeGeoJSON() {
-    // AJUSTA ESTA RUTA A DONDE SUBAS TU ARCHIVO
-    const urlGeoJSON = '/static/data/cuadrantes_san_bernardo.geojson';
+    const urlGeoJSON = window.URL_CUADRANTES_GEOJSON || '/static/data/cuadrantes_san_bernardo.geojson';
 
     fetch(urlGeoJSON)
         .then(response => {
@@ -90,9 +82,10 @@ function cargarCuadrantesDesdeGeoJSON() {
         })
         .then(data => {
             cuadrantesGeoJSON = data;
-            // Llenar el arreglo `CUADRANTES_SAN_BERNARDO` para que la
-            // función `determinarCuadrante` pueda usar los polígonos
+
+            // Llenar el arreglo `CUADRANTES_SAN_BERNARDO` para determinar cuadrantes
             CUADRANTES_SAN_BERNARDO.length = 0;
+
             if (data && Array.isArray(data.features)) {
                 data.features.forEach(f => {
                     const props = f.properties || {};
@@ -103,6 +96,7 @@ function cargarCuadrantesDesdeGeoJSON() {
 
                     if (f.geometry) {
                         const geom = f.geometry;
+
                         if (geom.type === 'Polygon') {
                             geom.coordinates.forEach(ring => {
                                 polygons.push(ring.map(c => [c[1], c[0]])); // [lat,lng]
@@ -117,39 +111,48 @@ function cargarCuadrantesDesdeGeoJSON() {
                     }
 
                     if (polygons.length && id) {
-                        CUADRANTES_SAN_BERNARDO.push({ id: id, nombre: nombre, polygons: polygons, color: obtenerColor(f) });
+                        CUADRANTES_SAN_BERNARDO.push({
+                            id: id,
+                            nombre: nombre,
+                            polygons: polygons,
+                            color: obtenerColor(f)
+                        });
                     }
                 });
             }
 
-            // Calcular viewbox (bbox) de todos los cuadrantes para usar como bias en Nominatim
+            // Calcular viewbox (bbox) para usar como bias en Nominatim
             try {
                 let minLon = Infinity, minLat = Infinity, maxLon = -Infinity, maxLat = -Infinity;
-                data.features.forEach(f => {
-                    if (!f.geometry) return;
-                    const geom = f.geometry;
-                    const processCoords = coords => {
-                        coords.forEach(c => {
-                            if (Array.isArray(c[0])) {
-                                // nested
-                                processCoords(c);
-                            } else {
-                                const lon = c[0];
-                                const lat = c[1];
-                                if (lon < minLon) minLon = lon;
-                                if (lon > maxLon) maxLon = lon;
-                                if (lat < minLat) minLat = lat;
-                                if (lat > maxLat) maxLat = lat;
-                            }
-                        });
-                    };
 
-                    if (geom.type === 'Polygon') {
-                        processCoords(geom.coordinates);
-                    } else if (geom.type === 'MultiPolygon') {
-                        geom.coordinates.forEach(poly => processCoords(poly));
-                    }
-                });
+                if (data && Array.isArray(data.features)) {
+                    data.features.forEach(f => {
+                        if (!f.geometry) return;
+                        const geom = f.geometry;
+
+                        const processCoords = coords => {
+                            coords.forEach(c => {
+                                if (Array.isArray(c[0])) {
+                                    // anidado
+                                    processCoords(c);
+                                } else {
+                                    const lon = c[0];
+                                    const lat = c[1];
+                                    if (lon < minLon) minLon = lon;
+                                    if (lon > maxLon) maxLon = lon;
+                                    if (lat < minLat) minLat = lat;
+                                    if (lat > maxLat) maxLat = lat;
+                                }
+                            });
+                        };
+
+                        if (geom.type === 'Polygon') {
+                            processCoords(geom.coordinates);
+                        } else if (geom.type === 'MultiPolygon') {
+                            geom.coordinates.forEach(poly => processCoords(poly));
+                        }
+                    });
+                }
 
                 if (isFinite(minLon) && isFinite(minLat) && isFinite(maxLon) && isFinite(maxLat)) {
                     NOMINATIM_VIEWBOX = `${minLon},${minLat},${maxLon},${maxLat}`;
@@ -159,7 +162,9 @@ function cargarCuadrantesDesdeGeoJSON() {
                 NOMINATIM_VIEWBOX = null;
             }
 
+            // Dibujar cuadrantes en el mapa principal
             agregarCuadrantesAlMapa();
+
             // Si el mini mapa ya existe, dibujar también allí
             if (miniMapa) {
                 agregarCuadrantesAlMiniMapa();
@@ -169,6 +174,7 @@ function cargarCuadrantesDesdeGeoJSON() {
             console.error('Error al cargar GeoJSON de cuadrantes:', error);
         });
 }
+
 
 function agregarCuadrantesAlMapa() {
     if (cuadrantesLayer) {

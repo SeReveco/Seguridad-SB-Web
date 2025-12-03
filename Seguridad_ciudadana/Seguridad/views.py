@@ -274,7 +274,7 @@ def perfil_usuario(request):
             'fiscalizaciones_count': fiscalizaciones_count,
         }
         
-        return render(request, 'usuario/perfil.html', context)
+        return render(request, 'usuario/perfil_usuario.html', context)
     
     except Exception as e:
         print(f"Error en perfil_usuario: {e}")
