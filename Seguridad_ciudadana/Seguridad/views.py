@@ -9,6 +9,9 @@ from django.contrib.auth.hashers import make_password, check_password  # type: i
 from django.contrib.auth.decorators import login_required  # type: ignore
 from django.http import HttpResponse, JsonResponse  # type: ignore
 from django.utils import timezone
+from rest_framework.views import APIView  # type: ignore
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated  # type: ignore
 from django.views import View  # type: ignore
 from .models import (
     EstadoVehiculo, FamiliaDenuncia, GrupoDenuncia, Requerimiento, SubgrupoDenuncia,
@@ -3389,6 +3392,57 @@ class VerificarTurnosParaFinalizar(View):
             4: 'No disponible'
         }
         return estados.get(estado_id, 'Desconocido')
+
+class PerfilUsuarioAPIView(APIView):
+    """
+    Devuelve:
+    - Datos básicos del usuario
+    - Total de denuncias y solicitudes realizadas
+    - Información de una denuncia activa (si existe)
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        usuario: Usuario = request.user
+
+        # contador de denuncias y solicitudes del usuario
+        total_denuncias = Denuncia.objects.filter(usuario=usuario).count()
+        total_solicitudes = Solicitud.objects.filter(usuario=usuario).count()
+
+        # denuncia activa: pendiente o en_proceso (ajusta estados si usas otros)
+        denuncia_activa = (
+            Denuncia.objects
+            .filter(usuario=usuario, estado__in=["pendiente", "en_proceso"])
+            .order_by("-fecha_creacion")
+            .first()
+        )
+
+        if denuncia_activa:
+            denuncia_activa_data = {
+                "id": denuncia_activa.id,
+                "tipo": getattr(denuncia_activa, "tipo", ""),
+                "descripcion": getattr(denuncia_activa, "descripcion", ""),
+                "estado": denuncia_activa.estado,
+                "fecha": denuncia_activa.fecha_creacion,
+            }
+        else:
+            denuncia_activa_data = None
+
+        data = {
+            "usuario": {
+                "id": usuario.id,
+                "nombre": getattr(usuario, "nombre", usuario.get_full_name()),
+                "telefono": getattr(usuario, "telefono", ""),
+                "correo": getattr(usuario, "correo", getattr(usuario, "email", "")),
+            },
+            "estadisticas": {
+                "total_denuncias": total_denuncias,
+                "total_solicitudes": total_solicitudes,
+                "denuncia_activa": denuncia_activa_data,
+            },
+        }
+
+        return Response(data)
 
 @method_decorator(csrf_exempt, name='dispatch')
 class ObtenerHistorialTurnos(View):
