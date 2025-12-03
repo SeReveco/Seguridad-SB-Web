@@ -28,7 +28,7 @@
 
     <!-- Botón del menú Usuario -->
     <div class="dropdown2">
-      <i id="boton-usuario" role="button" class="fa-solid fa-user dropdown-toggle2"></i>
+      <i id="boton-usuario" role="button" class="fa-solid fa-user dropdown-toggle2" onclick="toggleDropdown2()"></i>
 
       <div class="dropdown-menu2" id="dropdownUsuario">
         {% if user.is_authenticated %}
