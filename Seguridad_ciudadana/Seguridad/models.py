@@ -365,6 +365,18 @@ class Denuncia(models.Model):
         return f"Denuncia {self.id_denuncia} - {self.fecha_denuncia}"
 
 
+class DenunciaImagen(models.Model):
+    denuncia = models.ForeignKey(
+        Denuncia,
+        on_delete=models.CASCADE,
+        related_name='imagenes'
+    )
+    imagen = models.ImageField(upload_to='denuncias/')
+    fecha_subida = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        db_table = 'Seguridad_denuncia_imagen'
+
 class MovilesDenuncia(models.Model):
     id_movil_denuncia = models.AutoField(primary_key=True, db_column='id_movil_denuncia')
     orden_asignacion = models.IntegerField()

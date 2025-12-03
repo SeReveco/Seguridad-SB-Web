@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 import random
 import re
 from time import localtime
@@ -17,7 +17,7 @@ from .models import (
     TiposVehiculos, Usuario, Denuncia, Vehiculos,
     AsignacionVehiculo, AsignacionRadio, Roles, Turnos,
     Ciudadano, ServiciosEmergencia, MovilesDenuncia, DerivacionesDenuncia,
-    Fiscalizacion, SolicitudCiudadano, Radio
+    Fiscalizacion, SolicitudCiudadano, Radio, DenunciaImagen, DocumentoSolicitud
 )
 from django.views.decorators.csrf import csrf_exempt  # type: ignore
 import json
@@ -2786,69 +2786,37 @@ def api_register_ciudadano(request):
             'error': 'Error interno del servidor'
         }, status=500)
         
-@require_GET
-def perfil_usuario(request, usuario_id):
-    """
-    Devuelve datos del usuario + estadísticas de denuncias/solicitudes.
-    Estructura:
-    {
-      "usuario": {...},
-      "estadisticas": {
-          "total_denuncias": int,
-          "total_solicitudes": int,
-          "denuncia_activa": {...} | null
-      }
-    }
-    """
+@login_required
+def perfil_usuario(request):
+    """Vista para mostrar el perfil del usuario logueado (web)"""
     try:
-        usuario = Usuario.objects.get(pk=usuario_id)
-    except Usuario.DoesNotExist:
-        return JsonResponse({"detail": "Usuario no encontrado"}, status=404)
+        user = request.user
 
-    # Contadores
-    total_denuncias = Denuncia.objects.filter(usuario=usuario).count()
-    total_solicitudes = SolicitudCiudadano.objects.filter(usuario=usuario).count()
+        # Estadísticas básicas
+        denuncias_count = Denuncia.objects.filter(id_usuario=user).count()
+        fiscalizaciones_count = Fiscalizacion.objects.filter(id_usuario=user).count()
 
-    # Denuncia activa (pendiente o en proceso)
-    denuncia_activa = (
-        Denuncia.objects
-        .filter(usuario=usuario, estado__in=["pendiente", "en_proceso"])
-        .order_by("-fecha_creacion")
-        .first()
-    )
+        # Radios asignadas (por si más adelante las quieres mostrar)
+        asignaciones_radios = AsignacionRadio.objects.filter(
+            id_usuario=user,
+            fecha_devolucion__isnull=True
+        ).select_related('id_radio')[:3]
 
-    denuncia_data = None
-    if denuncia_activa:
-        denuncia_data = {
-            "id": denuncia_activa.id,
-            "tipo": getattr(denuncia_activa, "tipo", ""),
-            "estado": getattr(denuncia_activa, "estado", ""),
-            "descripcion": getattr(denuncia_activa, "descripcion", ""),
-            "fecha": denuncia_activa.fecha_creacion.isoformat(),
+        context = {
+            "user": user,
+            "denuncias_count": denuncias_count,
+            "fiscalizaciones_count": fiscalizaciones_count,
+            "asignaciones_radios": asignaciones_radios,
         }
 
-    data = {
-        "usuario": {
-            "id": usuario.id,
-            "nombre": getattr(usuario, "nombre", usuario.first_name),
-            "apellido_paterno": getattr(usuario, "apellido_paterno", ""),
-            "apellido_materno": getattr(usuario, "apellido_materno", ""),
-            "telefono": getattr(usuario, "telefono", ""),
-            "correo": getattr(usuario, "correo", getattr(usuario, "email", "")),
-            "ultimo_inicio_sesion": (
-                localtime(usuario.last_login).isoformat()
-                if usuario.last_login
-                else None
-            ),
-        },
-        "estadisticas": {
-            "total_denuncias": total_denuncias,
-            "total_solicitudes": total_solicitudes,
-            "denuncia_activa": denuncia_data,
-        },
-    }
+        # 👈 AQUÍ ESTABA EL PROBLEMA: nombre de la plantilla
+        # Antes: 'perfil_usuario.html'
+        return render(request, "usuario/perfil_usuario.html", context)
 
-    return JsonResponse(data) 
+    except Exception as e:
+        # Te ayuda a ver el error real en consola
+        print(f"Error en perfil_usuario: {e}")
+        return render(request, "error.html", {"error": str(e)})
         
 @method_decorator(csrf_exempt, name='dispatch')
 class ObtenerDatosTrabajador(View):
@@ -3651,3 +3619,686 @@ class VerificarAsignacionesHoy(View):
             None: 'Sin asignación'
         }
         return estados.get(estado_id, 'Desconocido')
+    
+@method_decorator(csrf_exempt, name='dispatch')
+class PerfilUsuarioView(View):
+    """
+    GET /api/usuario/perfil/<usuario_id>/
+
+    Devuelve:
+    {
+      "usuario": {
+          "nombre": "...",
+          "apellido_paterno": "...",
+          "apellido_materno": "...",
+          "correo": "...",
+          "telefono": "...",
+          "ultimo_inicio_sesion": "2025-12-03T10:00:00Z"
+      },
+      "estadisticas": {
+          "total_denuncias": 3,
+          "total_solicitudes": 5,
+          "denuncia_activa": {...} | null
+      }
+    }
+    """
+
+    def get(self, request, usuario_id: int):
+        usuario = get_object_or_404(Usuario, pk=usuario_id)
+
+        # Ajusta estos campos según tu modelo
+        nombre_completo = usuario.nombre  # p.ej. "Benjamin Ceron Perez"
+        partes = (nombre_completo or "").split()
+        nombre = partes[0] if len(partes) > 0 else ""
+        apellido_paterno = partes[1] if len(partes) > 1 else ""
+        apellido_materno = " ".join(partes[2:]) if len(partes) > 2 else ""
+
+        data_usuario = {
+            "nombre": nombre,
+            "apellido_paterno": apellido_paterno,
+            "apellido_materno": apellido_materno,
+            "correo": getattr(usuario, "email", ""),
+            "telefono": getattr(usuario, "telefono", ""),
+            "ultimo_inicio_sesion": getattr(usuario, "last_login", None),
+        }
+
+        # Estadísticas: ajusta filtros según tu modelo
+        total_denuncias = Denuncia.objects.filter(ciudadano_id=usuario_id).count()
+        total_solicitudes = SolicitudCiudadano.objects.filter(ciudadano_id=usuario_id).count()
+
+        denuncia_activa = (
+            Denuncia.objects
+            .filter(ciudadano_id=usuario_id)
+            .exclude(estado__in=["completada", "cancelada"])
+            .order_by("-fecha_creacion")
+            .first()
+        )
+
+        if denuncia_activa:
+            denuncia_data = {
+                "tipo": getattr(denuncia_activa, "tipo", ""),
+                "estado": getattr(denuncia_activa, "estado", ""),
+                "descripcion": getattr(denuncia_activa, "descripcion", ""),
+                "fecha": denuncia_activa.fecha_creacion,
+            }
+        else:
+            denuncia_data = None
+
+        estadisticas = {
+            "total_denuncias": total_denuncias,
+            "total_solicitudes": total_solicitudes,
+            "denuncia_activa": denuncia_data,
+        }
+
+        return JsonResponse({"usuario": data_usuario, "estadisticas": estadisticas}, safe=False)
+    
+@method_decorator(csrf_exempt, name='dispatch')
+class SolicitudCiudadanoCreateView(View):
+    """
+    Crea una solicitud de ciudadano y opcionalmente documentos PDF.
+
+    POST multipart (caso ciudadano con archivos):
+      - tipo_solicitante
+      - nombre_solicitante
+      - telefono_solicitante
+      - correo_solicitante
+      - rut_solicitante
+      - direccion_solicitante
+      - detalle_solicitud
+      - estado_solicitud
+      - id_ciudadano
+      - archivo (1..N)  -> PDFs
+
+    POST JSON (caso trabajador / sin archivos):
+      {
+        "tipo_solicitante": "...",
+        "nombre_solicitante": "...",
+        ...
+        "id_ciudadano": 123   // opcional
+      }
+    """
+
+    def post(self, request):
+        # Detectar si viene multipart (con archivos) o JSON
+        if request.content_type.startswith("multipart/form-data"):
+            data = request.POST
+        else:
+            try:
+                data = json.loads(request.body.decode("utf-8"))
+            except json.JSONDecodeError:
+                return JsonResponse({"error": "JSON inválido"}, status=400)
+
+        tipo_solicitante = data.get("tipo_solicitante")
+        nombre_solicitante = data.get("nombre_solicitante")
+        telefono_solicitante = data.get("telefono_solicitante")
+        correo_solicitante = data.get("correo_solicitante")
+        rut_solicitante = data.get("rut_solicitante")
+        direccion_solicitante = data.get("direccion_solicitante")
+        detalle_solicitud = data.get("detalle_solicitud")
+        estado_solicitud = data.get("estado_solicitud", "pendiente")
+        ciudadano_id = data.get("id_ciudadano")
+
+        # Validaciones mínimas
+        if not (tipo_solicitante and detalle_solicitud and direccion_solicitante):
+            return JsonResponse(
+                {"error": "Faltan campos obligatorios"},
+                status=400
+            )
+
+        # Crear la solicitud
+        solicitud = SolicitudCiudadano.objects.create(
+            tipo_solicitante=tipo_solicitante,
+            nombre_solicitante=nombre_solicitante,
+            telefono_solicitante=telefono_solicitante,
+            correo_solicitante=correo_solicitante,
+            rut_solicitante=rut_solicitante,
+            direccion_solicitante=direccion_solicitante,
+            detalle_solicitud=detalle_solicitud,
+            estado_solicitud=estado_solicitud,
+            ciudadano_id=ciudadano_id if ciudadano_id else None,
+            fecha_creacion=timezone.now(),
+        )
+
+        # Si vienen archivos (caso ciudadano), guardarlos
+        if request.content_type.startswith("multipart/form-data"):
+            archivos = request.FILES.getlist("archivo")
+            for f in archivos:
+                DocumentoSolicitud.objects.create(
+                    solicitud=solicitud,
+                    archivo=f,
+                    nombre_original=f.name,
+                    contenido_type=f.content_type,
+                    tamaño=f.size,
+                )
+
+        return JsonResponse(
+            {
+                "id": solicitud.id,
+                "mensaje": "Solicitud creada correctamente",
+            },
+            status=201,
+        )
+        
+def _buscar_cuadrante_por_point(lat: float, lng: float):
+    """
+    Intenta buscar el cuadrante cuyo polígono contiene el punto (lat, lng).
+    Requiere que Cuadrante tenga un campo geom (PolygonField o MultiPolygonField).
+    """
+    try:
+        punto = Point(lng, lat)  # OJO: Point(x=lon, y=lat)
+        return Cuadrante.objects.filter(geom__contains=punto).first()
+    except Exception:
+        return None
+
+
+@method_decorator(csrf_exempt, name='dispatch')
+class DenunciaMovilCreateView(View):
+    """
+    Crea una denuncia enviada desde la app móvil.
+
+    POST JSON:
+    {
+      "detalle": "...",
+      "requerimiento_id": 1,
+      "lat": -33.45,
+      "lng": -70.65,
+      "fecha": "2025-12-03",
+      "hora": "12:34:56",
+      "cuadrante": 123 (opcional, puede ser null),
+      "id_ciudadano": 10   (recomendado)
+    }
+    """
+
+    def post(self, request):
+        try:
+            data = json.loads(request.body.decode("utf-8"))
+        except json.JSONDecodeError:
+            return JsonResponse({"error": "JSON inválido"}, status=400)
+
+        detalle = data.get("detalle")
+        requerimiento_id = data.get("requerimiento_id")
+        lat = data.get("lat")
+        lng = data.get("lng")
+        fecha = data.get("fecha")   # si quieres lo puedes parsear a date
+        hora = data.get("hora")
+        cuadrante_id = data.get("cuadrante")  # puede venir null
+        ciudadano_id = data.get("id_ciudadano")
+
+        if not all([detalle, requerimiento_id, lat, lng]):
+            return JsonResponse(
+                {"error": "Campos obligatorios: detalle, requerimiento_id, lat, lng"},
+                status=400
+            )
+
+        # 1) si no viene cuadrante, intentamos calcularlo
+        cuadrante_obj = None
+        if cuadrante_id:
+            cuadrante_obj = Cuadrante.objects.filter(pk=cuadrante_id).first()
+        else:
+            cuadrante_obj = _buscar_cuadrante_por_point(lat, lng)
+
+        # 2) crear denuncia
+        denuncia = Denuncia.objects.create(
+            ciudadano_id=ciudadano_id if ciudadano_id else None,
+            requerimiento_id=requerimiento_id,
+            detalle=detalle,
+            lat=lat,
+            lng=lng,
+            fecha=fecha,
+            hora=hora,
+            cuadrante=cuadrante_obj,
+            estado="pendiente",
+            fecha_creacion=timezone.now(),
+        )
+
+        # 3) Crear “notificaciones” para el panel web
+        # Aquí solo dejo ejemplos; ajusta al sistema que tengas
+        self._crear_notificaciones_para_operadores(denuncia)
+
+        return JsonResponse(
+            {
+                "id": denuncia.id,
+                "mensaje": "Denuncia creada correctamente",
+            },
+            status=201
+        )
+
+    def _crear_notificaciones_para_operadores(self, denuncia: Denuncia):
+        """
+        Aquí puedes:
+        - crear registros en una tabla Notificacion
+        - emitir un evento por WebSocket (Django Channels)
+        - enviar correos, etc.
+
+        Ejemplo simple creando dos mensajes en una tabla ficticia Notificacion:
+        """
+        try:
+            from .models import Notificacion  # si la tienes
+
+            texto1 = "Un usuario de la aplicación móvil hizo una denuncia."
+            texto2 = (
+                f"Denuncia #{denuncia.id} - Requerimiento {denuncia.requerimiento_id} - "
+                f"Detalle: {denuncia.detalle} - "
+                f"Ubicación: ({denuncia.lat}, {denuncia.lng}) - "
+                f"Cuadrante: {denuncia.cuadrante_id or 'sin asignar'}"
+            )
+
+            # aquí podrías filtrar solo usuarios operadores / supervisores
+            operadores = Usuario.objects.filter(tipo="trabajador")
+            for operador in operadores:
+                Notificacion.objects.create(usuario=operador, mensaje=texto1)
+                Notificacion.objects.create(usuario=operador, mensaje=texto2)
+        except Exception:
+            # si no tienes tabla de notificaciones, simplemente ignoramos
+            pass
+        
+@method_decorator(csrf_exempt, name='dispatch')
+class DenunciaAceptarView(View):
+    """
+    PUT /api/denuncias/<id>/aceptar/
+
+    Body JSON:
+    {
+      "usuario_id": 5   // usuario web que acepta (inspector / operador)
+    }
+    """
+
+    def put(self, request, denuncia_id: int):
+        denuncia = get_object_or_404(Denuncia, pk=denuncia_id)
+
+        try:
+          data = json.loads(request.body.decode("utf-8"))
+        except json.JSONDecodeError:
+          return JsonResponse({"error": "JSON inválido"}, status=400)
+
+        usuario_id = data.get("usuario_id")
+        if not usuario_id:
+            return JsonResponse({"error": "usuario_id es obligatorio"}, status=400)
+
+        usuario = get_object_or_404(Usuario, pk=usuario_id)
+
+        # Ajusta nombres de campos según tu modelo
+        denuncia.estado = "aceptada"
+        denuncia.usuario_asignado = usuario   # o denuncia.inspector = usuario
+        denuncia.fecha_asignacion = timezone.now()
+        denuncia.save()
+
+        return JsonResponse(
+            {"mensaje": "Denuncia aceptada", "id": denuncia.id},
+            status=200
+        )
+        
+@method_decorator(csrf_exempt, name='dispatch')
+class DenunciaRechazarView(View):
+    """
+    DELETE /api/denuncias/<id>/rechazar/
+
+    Elimina la denuncia (rechazo).
+    """
+
+    def delete(self, request, denuncia_id: int):
+        denuncia = get_object_or_404(Denuncia, pk=denuncia_id)
+        denuncia.delete()
+        return JsonResponse({"mensaje": "Denuncia eliminada (rechazada)"}, status=200)
+    
+@login_required
+def api_denuncias_lista(request):
+    """
+    API utilizada por denuncias_lista.js
+    Debe devolver JSON con formato:
+    { success: true, denuncias: [...] }
+    """
+    try:
+        denuncias = Denuncia.objects.select_related(
+            "id_requerimiento",
+            "id_usuario"
+        ).all().order_by("-fecha_creacion")
+
+        data = []
+        for d in denuncias:
+            data.append({
+                "id_denuncia": d.id_denuncia,
+                "numero_denuncia": d.numero_denuncia,
+                "estado_denuncia": d.estado_denuncia,
+                "fecha_denuncia": d.fecha_creacion.strftime("%d-%m-%Y"),
+                "hora_denuncia": d.fecha_creacion.strftime("%H:%M"),
+                "direccion_denuncia": d.direccion_denuncia,
+                "detalle_denuncia": d.detalle_denuncia,
+
+                # Requerimiento
+                "requerimiento_nombre": getattr(d.id_requerimiento, "nombre_requerimiento", "Sin requerimiento"),
+                "clasificacion_requerimiento": getattr(d.id_requerimiento, "clasificacion_requerimiento", "Sin clasificar"),
+
+                # Usuario registró
+                "usuario_registro": f"{d.id_usuario.nombre_usuario} {d.id_usuario.apellido_pat_usuario}" if d.id_usuario else "No asignado",
+
+                # Denunciante
+                "nombre_denunciante": d.nombre_denunciante or "No registrado",
+                "telefono_denunciante": d.telefono_denunciante or "No registrado",
+            })
+
+        return JsonResponse({"success": True, "denuncias": data})
+
+    except Exception as e:
+        print("❌ Error en api_denuncias_lista:", e)
+        return JsonResponse({"success": False, "error": str(e)}, status=500)
+    
+@login_required
+def admin_denuncias(request):
+    """
+    Página principal de gestión/listado de denuncias para administradores.
+    Renderiza el template: crud/admin/denuncias_lista.html
+    """
+    # Solo administradores
+    if not request.user.is_authenticated:
+        messages.error(request, 'No tienes permisos para acceder a esta sección.')
+        return redirect('Admin')
+
+    total_denuncias = Denuncia.objects.count()
+    total_pendientes = Denuncia.objects.filter(estado_denuncia='pendiente').count()
+    total_en_proceso = Denuncia.objects.filter(estado_denuncia='en_proceso').count()
+    total_completadas = Denuncia.objects.filter(estado_denuncia='completada').count()
+
+    print(f"🧾 [admin_denuncias] Total denuncias en BD: {total_denuncias}")
+
+    context = {
+        'total_denuncias': total_denuncias,
+        'total_pendientes': total_pendientes,
+        'total_en_proceso': total_en_proceso,
+        'total_completadas': total_completadas,
+    }
+    return render(request, 'denuncias_lista.html', context)
+
+@csrf_exempt
+@login_required
+def api_denuncias_lista_web(request):
+    """
+    API para listar denuncias - FILTRADO POR ROL DE USUARIO
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    try:
+        # Verificar autenticación
+        if not request.user.is_authenticated:
+            return JsonResponse({'error': 'No autenticado'}, status=401)
+        
+        # Obtener rol del usuario
+        rol_usuario = request.user.id_rol.nombre_rol.lower() if request.user.id_rol else ''
+        
+        # Validar roles permitidos
+        if rol_usuario not in ['administrador', 'operador']:
+            return JsonResponse({'error': 'Acceso no autorizado'}, status=403)
+        
+        # Obtener parámetros de filtro (opcionales)
+        estado = request.GET.get('estado', '')
+        fecha_inicio = request.GET.get('fecha_inicio', '')
+        fecha_fin = request.GET.get('fecha_fin', '')
+        
+        # Base query
+        if rol_usuario == 'administrador':
+            # Administrador ve todas las denuncias
+            denuncias_query = Denuncia.objects.all()
+        else:
+            # Operador solo ve sus propias denuncias
+            denuncias_query = Denuncia.objects.filter(id_usuario=request.user)
+        
+        # Aplicar filtros adicionales
+        if estado:
+            denuncias_query = denuncias_query.filter(estado_denuncia=estado)
+        
+        if fecha_inicio:
+            try:
+                fecha_inicio_dt = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+                denuncias_query = denuncias_query.filter(fecha_denuncia__gte=fecha_inicio_dt)
+            except ValueError:
+                pass
+        
+        if fecha_fin:
+            try:
+                fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+                denuncias_query = denuncias_query.filter(fecha_denuncia__lte=fecha_fin_dt)
+            except ValueError:
+                pass
+        
+        # Ordenar por fecha más reciente y obtener datos
+        denuncias = denuncias_query.select_related(
+            'id_requerimiento', 'id_usuario', 'id_ciudadano'
+        ).order_by('-fecha_creacion_denuncia')
+        
+        data = []
+        for denuncia in denuncias:
+            requerimiento = denuncia.id_requerimiento
+            usuario = denuncia.id_usuario
+            ciudadano = denuncia.id_ciudadano
+
+            # Nombre del usuario que registró
+            usuario_registro = "No especificado"
+            if usuario:
+                usuario_registro = f"{usuario.nombre_usuario} {usuario.apellido_pat_usuario}".strip()
+
+            # Nombre y teléfono del denunciante
+            nombre_denunciante = denuncia.nombre_denunciante or ''
+            telefono_denunciante = denuncia.telefono_denunciante or ''
+
+            # Si no se usaron los campos directos, intentamos completar con Ciudadano
+            if ciudadano:
+                if not nombre_denunciante:
+                    nombre_denunciante = f"{ciudadano.nombre_ciudadano} {ciudadano.apellido_pat_ciudadano}".strip()
+                if not telefono_denunciante:
+                    telefono_denunciante = ciudadano.telefono_movil_ciudadano
+
+            # Formatear fechas
+            fecha_str = denuncia.fecha_denuncia.strftime('%d/%m/%Y') if denuncia.fecha_denuncia else ''
+            hora_str = denuncia.hora_denuncia.strftime('%H:%M') if denuncia.hora_denuncia else ''
+            
+            # Clasificación del requerimiento
+            clasificacion = 'Sin clasificar'
+            if requerimiento and requerimiento.clasificacion_requerimiento:
+                clasificacion = requerimiento.clasificacion_requerimiento
+
+            data.append({
+                'id_denuncia': denuncia.id_denuncia,
+                'numero_denuncia': f"DEN-{denuncia.id_denuncia:06d}",
+                'estado_denuncia': denuncia.estado_denuncia or 'pendiente',
+                'estado_valor': denuncia.estado_denuncia or 'pendiente',
+                'fecha_denuncia': fecha_str,
+                'hora_denuncia': hora_str,
+                'direccion_denuncia': denuncia.direccion_denuncia or 'Sin dirección',
+                'detalle_denuncia': denuncia.detalle_denuncia or 'Sin detalles',
+                'clasificacion_requerimiento': clasificacion,
+                'requerimiento_nombre': requerimiento.nombre_requerimiento if requerimiento else 'Sin requerimiento',
+                'usuario_registro': usuario_registro,
+                'nombre_denunciante': nombre_denunciante or 'No especificado',
+                'telefono_denunciante': telefono_denunciante or 'No registrado',
+                'fecha_completa': denuncia.fecha_creacion_denuncia.isoformat() if denuncia.fecha_creacion_denuncia else ''
+            })
+        
+        return JsonResponse({
+            'success': True,
+            'denuncias': data,
+            'total': len(data),
+            'filtros': {
+                'estado': estado,
+                'fecha_inicio': fecha_inicio,
+                'fecha_fin': fecha_fin
+            }
+        }, safe=False)
+
+    except Exception as e:
+        print(f"❌ Error en api_denuncias_lista_web: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return JsonResponse({
+            'error': 'Error interno del servidor',
+            'detalle': str(e),
+        }, status=500)
+        
+# ========= PERFIL USUARIO API (IONIC) =========
+@method_decorator(csrf_exempt, name='dispatch')
+class PerfilUsuarioView(View):
+    """
+    Devuelve datos de perfil y estadísticas para ciudadanos y trabajadores.
+
+    URL: /api/usuario/perfil/<usuario_id>/
+
+    Respuesta:
+    {
+      "success": true,
+      "usuario": {
+        "id": 1,
+        "user_type": "ciudadano" | "trabajador",
+        "nombre": "...",
+        "apellido_paterno": "...",
+        "apellido_materno": "...",
+        "correo": "...",
+        "telefono": "...",
+        "ultimo_inicio_sesion": "2025-12-02T21:13:00",
+        "id_rol": 3,
+        "nombre_rol": "supervisor"
+      },
+      "estadisticas": {
+        "total_denuncias": 0,
+        "total_solicitudes": 0,
+        "denuncia_activa": {
+          "tipo": "...",
+          "estado": "...",
+          "descripcion": "...",
+          "fecha": "2025-12-02T21:13:00"
+        } | null
+      }
+    }
+    """
+
+    def get(self, request, usuario_id):
+        try:
+            usuario = None
+            ciudadano = None
+            user_type = request.GET.get("user_type")
+
+            # ----- 1. Determinar si es trabajador o ciudadano -----
+            if user_type == "trabajador":
+                usuario = Usuario.objects.filter(
+                    id_usuario=usuario_id,
+                    is_active=True
+                ).select_related("id_rol").first()
+            elif user_type == "ciudadano":
+                ciudadano = Ciudadano.objects.filter(
+                    id_ciudadano=usuario_id,
+                    is_active_ciudadano=True
+                ).first()
+            else:
+                # Auto-detección: primero trabajador, luego ciudadano
+                usuario = Usuario.objects.filter(
+                    id_usuario=usuario_id,
+                    is_active=True
+                ).select_related("id_rol").first()
+
+                if not usuario:
+                    ciudadano = Ciudadano.objects.filter(
+                        id_ciudadano=usuario_id,
+                        is_active_ciudadano=True
+                    ).first()
+
+            if usuario:
+                # ----- PERFIL TRABAJADOR -----
+                user_type = "trabajador"
+
+                usuario_data = {
+                    "id": usuario.id_usuario,
+                    "user_type": user_type,
+                    "nombre": usuario.nombre_usuario,
+                    "apellido_paterno": usuario.apellido_pat_usuario,
+                    "apellido_materno": usuario.apellido_mat_usuario,
+                    "correo": usuario.correo_electronico_usuario,
+                    "telefono": usuario.telefono_movil_usuario,
+                    "ultimo_inicio_sesion": usuario.last_login,
+                    "id_rol": usuario.id_rol.id,
+                    "nombre_rol": usuario.id_rol.nombre_rol,
+                }
+
+                qs_denuncias = Denuncia.objects.filter(id_usuario=usuario)
+                qs_solicitudes = SolicitudTrabajador.objects.filter(id_usuario=usuario)
+
+            elif ciudadano:
+                # ----- PERFIL CIUDADANO -----
+                user_type = "ciudadano"
+
+                usuario_data = {
+                    "id": ciudadano.id_ciudadano,
+                    "user_type": user_type,
+                    "nombre": ciudadano.nombre_ciudadano,
+                    "apellido_paterno": ciudadano.apellido_pat_ciudadano,
+                    "apellido_materno": ciudadano.apellido_mat_ciudadano,
+                    "correo": ciudadano.correo_electronico_ciudadano,
+                    "telefono": ciudadano.telefono_movil_ciudadano,
+                    "ultimo_inicio_sesion": ciudadano.ultimo_inicio_ciudadano,
+                    # en tu app ya usas rol 5 = ciudadano
+                    "id_rol": 5,
+                    "nombre_rol": "ciudadano",
+                }
+
+                qs_denuncias = Denuncia.objects.filter(id_ciudadano=ciudadano)
+                qs_solicitudes = SolicitudCiudadano.objects.filter(id_ciudadano=ciudadano)
+
+            else:
+                return JsonResponse(
+                    {"success": False, "error": "Usuario no encontrado"},
+                    status=404,
+                )
+
+            # ----- 2. Estadísticas -----
+            total_denuncias = qs_denuncias.count()
+            total_solicitudes = qs_solicitudes.count()
+
+            denuncia_activa_obj = (
+                qs_denuncias.exclude(
+                    estado_denuncia__in=["completada", "cancelada"]
+                )
+                .select_related("id_requerimiento")
+                .order_by("-fecha_creacion_denuncia")
+                .first()
+            )
+
+            if denuncia_activa_obj:
+                denuncia_activa = {
+                    "tipo": (
+                        denuncia_activa_obj.id_requerimiento.nombre_requerimiento
+                        if denuncia_activa_obj.id_requerimiento
+                        else ""
+                    ),
+                    "estado": denuncia_activa_obj.get_estado_denuncia_display(),
+                    "descripcion": denuncia_activa_obj.detalle_denuncia,
+                    "fecha": denuncia_activa_obj.fecha_creacion_denuncia,
+                }
+            else:
+                denuncia_activa = None
+
+            estadisticas = {
+                "total_denuncias": total_denuncias,
+                "total_solicitudes": total_solicitudes,
+                "denuncia_activa": denuncia_activa,
+            }
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "usuario": usuario_data,
+                    "estadisticas": estadisticas,
+                },
+                status=200,
+                json_dumps_params={"default": str},  # convierte datetime -> string
+            )
+
+        except Exception as e:
+            import traceback
+
+            print("❌ Error en PerfilUsuarioView:", e)
+            print(traceback.format_exc())
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": "Error interno del servidor",
+                },
+                status=500,
+            )

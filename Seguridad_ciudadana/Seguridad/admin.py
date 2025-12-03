@@ -6,7 +6,7 @@ from .models import (
     FamiliaDenuncia, GrupoDenuncia, SubgrupoDenuncia, Requerimiento,
     ServiciosEmergencia, Denuncia, DerivacionesDenuncia, MovilesDenuncia,
     AsignacionDerivacionEmergencia, Ciudadano, SolicitudCiudadano,
-    SolicitudTrabajador, DocumentoSolicitud, Fiscalizacion, EstadoVehiculo
+    SolicitudTrabajador, DocumentoSolicitud, Fiscalizacion, EstadoVehiculo, DenunciaImagen
 )
 
 
@@ -123,6 +123,10 @@ class MovilesDenunciaInline(admin.TabularInline):
     model = MovilesDenuncia
     extra = 1
 
+class DenunciaImagenInline(admin.TabularInline):      # ⬅️ NUEVO
+    model = DenunciaImagen
+    extra = 1
+
 class AsignacionDerivacionEmergenciaInline(admin.TabularInline):
     model = AsignacionDerivacionEmergencia
     extra = 1
@@ -132,6 +136,12 @@ class DenunciaAdmin(admin.ModelAdmin):
     list_filter = ('fecha_denuncia', 'estado_denuncia', 'id_requerimiento__clasificacion_requerimiento')
     search_fields = ('id_usuario__nombre_usuario', 'id_ciudadano__nombre_ciudadano', 'direccion_denuncia', 'detalle_denuncia')
     readonly_fields = ('fecha_creacion_denuncia', 'fecha_actualizacion_denuncia', 'tiempo_total_procedimiento_denuncia')
+    
+    inlines = [                 # ⬅️ NUEVO
+        DenunciaImagenInline,
+        DerivacionesDenunciaInline,
+        MovilesDenunciaInline,
+    ]
 
 class DerivacionesDenunciaAdmin(admin.ModelAdmin):
     list_display = ('id_derivacion', 'tipo_derivacion', 'hora_derivacion', 'id_denuncia')

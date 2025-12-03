@@ -1,5 +1,12 @@
 from django.urls import path
 from . import views
+from .views import (
+    PerfilUsuarioView,
+    SolicitudCiudadanoCreateView,
+    DenunciaMovilCreateView,
+    DenunciaAceptarView,
+    DenunciaRechazarView,
+)
 
 urlpatterns = [
     path('', views.iniciar_sesion, name='login'),
@@ -10,23 +17,28 @@ urlpatterns = [
     path('Admin/usuarios/', views.admin_usuarios, name='admin_usuarios'),
     path('Admin/vehiculos/', views.admin_vehiculos, name='admin_vehiculos'),
     path('Admin/radios/', views.admin_radios, name='admin_radios'),
-    
-    # ✅ Dashboard de denuncias (ruta de la página con gráficos)
-    path('Admin/denuncias/dashboard/', views.denuncias_dashboard, name='denuncias_dashboard'),
-    path('api/denuncias/estadisticas/', views.api_denuncias_estadisticas, name='api_denuncias_estadisticas'),
-    path('api/asignaciones-dia/', views.api_asignaciones_dia, name='api_asignaciones_dia'),
-    
-    # APIs existentes
-    path('api/asignaciones-vehiculos-web/', views.api_asignaciones_vehiculos_web, name='api_asignaciones_vehiculos_web'),
-    path('api/denuncias-web/', views.api_denuncias_web, name='api_denuncias_web'),
-    path('api/denuncias-hoy/', views.api_denuncias_hoy, name='api_denuncias_hoy'),
     path('perfil/', views.perfil_usuario, name='perfil_usuario'),
-    
+
+    # ✅ Denuncias (dashboard y listado web)
+    path('Admin/denuncias/dashboard/', views.denuncias_dashboard, name='denuncias_dashboard'),
+    path('Admin/denuncias/', views.admin_denuncias, name='admin_denuncias'),
+
+    # APIs de denuncias para la web
+    path('api/denuncias/estadisticas/', views.api_denuncias_estadisticas, name='api_denuncias_estadisticas'),
+    # 🔹 API que usa el JS del listado (devuelve ARRAY)
+    path('api/denuncias-lista/', views.api_denuncias_lista, name='api_denuncias_lista'),
+    # 🔹 API con filtros por rol (por si la quieres usar después)
+    path('api/denuncias-lista-web/', views.api_denuncias_lista_web, name='api_denuncias_lista_web'),
+
+    # Otras APIs existentes
+    path('api/asignaciones-vehiculos-web/', views.api_asignaciones_vehiculos_web, name='api_asignaciones_vehiculos_web'),
+    path('api/denuncias-hoy/', views.api_denuncias_hoy, name='api_denuncias_hoy'),
+
     # APIs para requerimientos
     path('api/requerimientos/', views.api_requerimientos, name='api_requerimientos'),
     path('api/requerimientos/<int:requerimiento_id>/', views.api_requerimiento_detalle, name='api_requerimiento_detalle'),
     path('api/requerimientos/<int:requerimiento_id>/ruta/', views.api_requerimiento_ruta_completa, name='api_requerimiento_ruta_completa'),
-    
+
     # APIs para familias, grupos, subgrupos
     path('api/familias/', views.api_familias, name='api_familias'),
     path('api/familias/<int:familia_id>/', views.api_familia_detalle, name='api_familia_detalle'),
@@ -34,7 +46,7 @@ urlpatterns = [
     path('api/grupos/<int:grupo_id>/', views.api_grupo_detalle, name='api_grupo_detalle'),
     path('api/subgrupos/', views.api_subgrupos, name='api_subgrupos'),
     path('api/subgrupos/<int:subgrupo_id>/', views.api_subgrupo_detalle, name='api_subgrupo_detalle'),
-    
+
     # ========== CRUD VEHÍCULOS ==========
     path('vehiculos/', views.listar_vehiculos, name='vehiculos'),
     path('api/vehiculos-web/', views.api_vehiculos_web, name='api_vehiculos_web'),
@@ -44,7 +56,7 @@ urlpatterns = [
     path('api/vehiculos-web/<int:vehiculo_id>/obtener/', views.api_obtener_vehiculo, name='api_obtener_vehiculo'),
     path('api/tipos-vehiculos-web/', views.api_tipos_vehiculos_web, name='api_tipos_vehiculos_web'),
     path('api/tipos-vehiculos-web/crear/', views.api_crear_tipo_vehiculo, name='api_crear_tipo_vehiculo'),
-    
+
     # ========== CRUD RADIOS ==========
     path('radios/', views.listar_radios, name='radios'),
     path('api/radios-web/', views.api_radios_web, name='api_radios_web'),
@@ -52,7 +64,7 @@ urlpatterns = [
     path('api/radios-web/<int:radio_id>/editar/', views.api_editar_radio, name='api_editar_radio'),
     path('api/radios-web/<int:radio_id>/eliminar/', views.api_eliminar_radio, name='api_eliminar_radio'),
     path('api/radios-web/<int:radio_id>/obtener/', views.api_obtener_radio, name='api_obtener_radio'),
-    
+
     # ========== CRUD SERVICIOS EMERGENCIA ==========
     path('Admin/servicios-emergencia/', views.admin_servicios_emergencia, name='admin_servicios_emergencia'),
     path('servicios-emergencia/', views.listar_servicios_emergencia, name='servicios_emergencia'),
@@ -61,12 +73,12 @@ urlpatterns = [
     path('api/servicios-emergencia-web/<int:servicio_id>/editar/', views.api_editar_servicio_emergencia, name='api_editar_servicio_emergencia'),
     path('api/servicios-emergencia-web/<int:servicio_id>/eliminar/', views.api_eliminar_servicio_emergencia, name='api_eliminar_servicio_emergencia'),
     path('api/servicios-emergencia-web/<int:servicio_id>/obtener/', views.api_obtener_servicio_emergencia, name='api_obtener_servicio_emergencia'),
-    
+
     # APIs para usuarios
     path('api/usuarios/', views.api_usuarios, name='api_usuarios'),
     path('api/usuarios/buscar/', views.api_usuarios_buscar, name='api_usuarios_buscar'),
     path('api/usuarios/<int:usuario_id>/', views.api_usuario_detalle, name='api_usuario_detalle'),
-    
+
     # ========== NUEVAS APIs PARA IONIC ==========
     path('ionic/login/', views.api_login_ionic, name='api_login_ionic'),
     path('ionic/register/', views.api_register_ciudadano, name='api_register_ciudadano'),
@@ -80,5 +92,11 @@ urlpatterns = [
     path('api/trabajador/turno/finalizar-automatico/', views.FinalizarTurnoAutomatico.as_view(), name='finalizar_turno_automatico'),
     path('api/trabajador/turnos/verificar-finalizar/', views.VerificarTurnosParaFinalizar.as_view(), name='verificar_turnos_finalizar'),
     path('api/trabajador/historial-turnos/<int:usuario_id>/', views.ObtenerHistorialTurnos.as_view(), name='historial_turnos'),
-    path('api/usuario/perfil/<int:usuario_id>/',views.perfil_usuario,name='perfil_usuario'),
+
+    # Solicitudes y denuncias móviles / perfil API
+    path("api/solicitudes/ciudadano/", SolicitudCiudadanoCreateView.as_view(), name="solicitud-ciudadano-create"),
+    path("api/denuncias/movil/", DenunciaMovilCreateView.as_view(), name="denuncia-movil-create"),
+    path("api/denuncias/<int:denuncia_id>/aceptar/", DenunciaAceptarView.as_view(), name="denuncia-aceptar"),
+    path("api/denuncias/<int:denuncia_id>/rechazar/", DenunciaRechazarView.as_view(), name="denuncia-rechazar"),
+    path("api/usuario/perfil/<int:usuario_id>/", PerfilUsuarioView.as_view(), name="usuario_perfil_api"),
 ]

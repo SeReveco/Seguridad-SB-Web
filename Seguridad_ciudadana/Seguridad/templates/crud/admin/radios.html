@@ -8,7 +8,7 @@
     <link rel="stylesheet" href="{% static 'CSS/navbar.css' %}">
     <link rel="stylesheet" href="{% static 'CSS/crud/radios.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="icon" type="image/png" href="{% static 'Img/logo_san_bernardo2.png' %}">
+    <link rel="icon" type="image/x-icon" href="{% static 'Img/logo_san_bernardo_2.png' %}">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <script src="https://kit.fontawesome.com/6a284d15f6.js" crossorigin="anonymous"></script>
@@ -44,8 +44,8 @@
                     <a href="{% url 'index' %}" class="dropdown-item2">
                         <i class="fa-solid fa-map"></i> Mapa
                     </a>
-                    <a href="" class="dropdown-item2">
-                        <i class="fa-solid fa-list"></i> Historial de Alertas
+                    <a href="{% url 'admin_denuncias' %}" class="dropdown-item2">
+                        <i class="fa-solid fa-list"></i> Historial de Denuncias
                     </a>
                     <a href="{% url 'denuncias_dashboard' %}" class="dropdown-item2">
                         <i class="fa-solid fa-chart-pie"></i> Graficos

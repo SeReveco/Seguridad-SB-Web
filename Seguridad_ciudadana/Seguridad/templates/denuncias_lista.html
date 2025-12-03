@@ -1,0 +1,183 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8">
+    <title>Historial de Denuncias</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{% static 'CSS/navbar.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <link rel="icon" type="image/x-icon" href="{% static 'Img/logo_san_bernardo_2.png' %}">
+    <link rel="stylesheet" href="{% static 'CSS/denuncias_lista.css' %}">
+</head>
+
+<body>
+
+    <nav id="navbar" class="navbar">
+
+        <div class="logo_navbar">
+            <img src="{% static 'Img/logo_navbar.jpg' %}" class="logo-navbar-img" alt="">
+        </div>
+
+        <h2 class="titulo-pagina">Seguridad Ciudadana "San Bernardo"</h2>
+
+        <!-- Botón del menú Usuario -->
+        <div class="dropdown2">
+            <i id="boton-usuario" role="button" class="fa-solid fa-user dropdown-toggle2" onclick="toggleDropdown2()">
+                <div class="dropdown-menu2" id="dropdownUsuario">
+
+                    <!-- ✅ Mostrar información del usuario si está logueado -->
+                    {% if user.is_authenticated %}
+                    <div class="user-info">
+                        <strong>{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</strong>
+                        <small>{{ user.id_rol.nombre_rol }}</small>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    {% endif %}
+                    <a href="{% url 'perfil_usuario' %}" class="dropdown-item2">
+                        <i class="fa-solid fa-user"></i> Perfil
+                    </a>
+                    <a href="{% url 'index' %}" class="dropdown-item2">
+                        <i class="fa-solid fa-map"></i> Mapa
+                    </a>
+                    <a href="{% url 'admin_denuncias' %}" class="dropdown-item2">
+                        <i class="fa-solid fa-list"></i> Historial de Denuncias
+                    </a>
+                    <a href="{% url 'denuncias_dashboard' %}" class="dropdown-item2">
+                        <i class="fa-solid fa-chart-pie"></i> Graficos
+                    </a>
+                    <a href="{% url 'Admin' %}" class="dropdown-item2">
+                        <i class="fa-solid fa-list"></i> Panel Administración
+                    </a>
+                    <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
+                        <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                    </a>
+                </div>
+            </i>
+        </div>
+
+    </nav>
+
+    <div class="dashboard-wrapper">
+        <!-- Encabezado -->
+        <header class="dashboard-header">
+            <div class="logo-title">
+                <div class="title-group">
+                    <h1 class="page-title">Seguridad Ciudadana "San Bernardo"</h1>
+                    <p class="page-subtitle">Gestión de Denuncias</p>
+                </div>
+            </div>
+
+            <div class="user-icon">
+                <i class="fa-solid fa-user-shield"></i>
+            </div>
+        </header>
+
+        <!-- Tarjetas resumen -->
+        <section class="stats-row">
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fa-solid fa-file-circle-exclamation"></i>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label">Total Denuncias</p>
+                    <p class="stat-value" id="totalDenuncias">0</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fa-solid fa-circle-exclamation"></i>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label">Pendientes</p>
+                    <p class="stat-value" id="totalPendientes">0</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fa-solid fa-spinner"></i>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label">En Proceso</p>
+                    <p class="stat-value" id="totalEnProceso">0</p>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">
+                    <i class="fa-solid fa-circle-check"></i>
+                </div>
+                <div class="stat-info">
+                    <p class="stat-label">Completadas</p>
+                    <p class="stat-value" id="totalCompletadas">0</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Filtros / Buscador / Exportar -->
+        <section class="filters-row">
+            <div class="search-box">
+                <i class="fa-solid fa-magnifying-glass"></i>
+                <input type="text" id="searchInput"
+                    placeholder="Buscar denuncias por número, dirección, requerimiento o denunciante...">
+            </div>
+
+            <div class="filters-actions">
+                <div class="select-wrapper">
+                    <i class="fa-solid fa-layer-group"></i>
+                    <select id="filterClasificacion">
+                        <option value="">Clasificación (todas)</option>
+                        <!-- Se rellenan dinámicamente desde JS -->
+                    </select>
+                </div>
+
+                <div class="select-wrapper">
+                    <i class="fa-solid fa-flag"></i>
+                    <select id="filterEstado">
+                        <option value="">Estado (todos)</option>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="en_proceso">En Proceso</option>
+                        <option value="completada">Completada</option>
+                        <option value="cancelada">Cancelada</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-secondary" id="btnLimpiarFiltros">
+                    <i class="fa-solid fa-broom"></i>
+                    Limpiar
+                </button>
+
+                <button class="btn btn-excel" id="btnExportExcel">
+                    <i class="fa-solid fa-file-excel"></i>
+                    Excel
+                </button>
+            </div>
+        </section>
+
+        <!-- Contenedor de tarjetas de denuncias -->
+        <section class="cards-container" id="denunciasContainer">
+            <!-- Se llena desde JS -->
+        </section>
+
+        <!-- Mensaje vacío -->
+        <div class="empty-state hidden" id="emptyState">
+            <i class="fa-regular fa-folder-open"></i>
+            <p>No se encontraron denuncias con los filtros aplicados.</p>
+        </div>
+
+        <!-- Loader -->
+        <div class="loader-backdrop hidden" id="loaderBackdrop">
+            <div class="loader"></div>
+        </div>
+    </div>
+
+    <!-- JS propio -->
+    <script src="{% static 'JavaScript/denuncias_lista.js' %}"></script>
+    <script src="{% static 'JavaScript/redirecciones.js' %}"></script>
+</body>
+
+</html>
