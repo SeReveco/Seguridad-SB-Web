@@ -11,13 +11,18 @@
 body {
     background: #e8f5f3;
     min-height: 100vh;
+    margin: 0;
+    padding: 0;
 }
 
 /* Wrapper general */
 .dashboard-wrapper {
     max-width: 1250px;
     margin: 0 auto;
-    padding: 24px 16px 40px;
+    padding: 24px 24px 40px;
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.10);
 }
 
 /* ==============================

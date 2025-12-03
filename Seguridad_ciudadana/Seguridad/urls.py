@@ -22,6 +22,7 @@ urlpatterns = [
     # ✅ Denuncias (dashboard y listado web)
     path('Admin/denuncias/dashboard/', views.denuncias_dashboard, name='denuncias_dashboard'),
     path('Admin/denuncias/', views.admin_denuncias, name='admin_denuncias'),
+    path('api/denuncias-web/', views.api_denuncias_web, name='api_denuncias_web'),
 
     # APIs de denuncias para la web
     path('api/denuncias/estadisticas/', views.api_denuncias_estadisticas, name='api_denuncias_estadisticas'),

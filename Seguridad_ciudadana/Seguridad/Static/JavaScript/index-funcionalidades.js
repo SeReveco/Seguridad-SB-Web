@@ -1481,18 +1481,19 @@ function centrarEnDenuncia(id) {
 // ============================================
 
 // Manejar envío del formulario de denuncia - CON CSRF
+// Manejar envío del formulario de denuncia - CON CSRF
 document.getElementById('formDenuncia').addEventListener('submit', async function (e) {
     e.preventDefault();
 
     const formData = new FormData(this);
 
     // Obtener datos del formulario
-    const nombreCiudadano = formData.get('nombre_ciudadano') || '';
+    const nombreCiudadano   = formData.get('nombre_ciudadano')   || '';
     const telefonoCiudadano = formData.get('telefono_ciudadano') || '';
-    const direccionPrincipal = formData.get('direccion') || '';
+    const direccionPrincipal = formData.get('direccion')         || '';
     const direccionSecundaria = formData.get('direccion_secundaria') || '';
-    const detalle = formData.get('detalle') || '';
-    const cuadrante = formData.get('cuadrante') || '';
+    const detalle           = formData.get('detalle')            || '';
+    const cuadrante         = formData.get('cuadrante')          || '';
 
     // Obtener el ID del requerimiento seleccionado
     const requerimientoSelect = document.getElementById('requerimiento');
@@ -1509,27 +1510,22 @@ document.getElementById('formDenuncia').addEventListener('submit', async functio
         mostrarError('El nombre del ciudadano es requerido');
         return;
     }
-
     if (!telefonoCiudadano.trim()) {
         mostrarError('El teléfono del ciudadano es requerido');
         return;
     }
-
     if (!direccionPrincipal.trim()) {
         mostrarError('La dirección principal es requerida');
         return;
     }
-
     if (!cuadrante) {
         mostrarError('Debe seleccionar un cuadrante');
         return;
     }
-
     if (!idRequerimiento) {
         mostrarError('Debe seleccionar un tipo de requerimiento');
         return;
     }
-
     if (!detalle.trim()) {
         mostrarError('El detalle de la denuncia es requerido');
         return;
@@ -1540,7 +1536,7 @@ document.getElementById('formDenuncia').addEventListener('submit', async functio
         telefono_ciudadano: telefonoCiudadano.trim(),
         direccion_denuncia: direccionPrincipal.trim(),
         direccion_secundaria: direccionSecundaria.trim() || direccionPrincipal.trim(),
-        cuadrante_denuncia: parseInt(cuadrante), // parseInt('80A') -> 80
+        cuadrante_denuncia: parseInt(cuadrante),           // parseInt('80A') -> 80
         detalle_denuncia: detalle.trim(),
         id_requerimiento: parseInt(idRequerimiento),
         visibilidad_camaras_denuncia: formData.get('visibilidad_camaras') === 'on',
@@ -1551,7 +1547,6 @@ document.getElementById('formDenuncia').addEventListener('submit', async functio
 
     // Obtener token CSRF
     const csrfToken = getCSRFToken();
-
     if (!csrfToken) {
         mostrarError('No se pudo obtener el token de seguridad. Por favor, recargue la página.');
         return;
@@ -1578,45 +1573,72 @@ document.getElementById('formDenuncia').addEventListener('submit', async functio
             body: JSON.stringify(denunciaData)
         });
 
-        // Cerrar loader
+        const contentType = response.headers.get('content-type') || '';
+        const rawText = await response.text();   // 👈 leemos como texto primero
+
         Swal.close();
 
-        const result = await response.json();
+        let result = null;
 
-        if (result.success) {
-            Swal.fire({
-                icon: 'success',
-                title: '¡Denuncia creada!',
-                html: `
-                    <p>La denuncia se ha registrado correctamente</p>
-                    <p><strong>Número:</strong> ${result.denuncia.numero_denuncia}</p>
-                    <p><strong>Estado:</strong> ${result.denuncia.estado_denuncia}</p>
-                    <p><strong>Fecha:</strong> ${new Date(result.denuncia.fecha_creacion).toLocaleDateString()}</p>
-                `,
-                confirmButtonText: 'Aceptar'
-            });
-
-            cerrarModalDenuncia();
-
-            // Recargar datos después de un breve delay
-            setTimeout(() => {
-                cargarDenunciasDelDia();
-                cargarAsignacionesVehiculos();
-            }, 1500);
-
+        if (contentType.includes('application/json')) {
+            // Intentar parsear JSON
+            try {
+                result = JSON.parse(rawText);
+            } catch (parseError) {
+                console.error('❌ Error parseando JSON de respuesta:', parseError, rawText);
+                throw new Error('La respuesta del servidor no es JSON válido.');
+            }
         } else {
-            throw new Error(result.error || 'Error desconocido al crear la denuncia');
+            // No es JSON → probablemente HTML de error o login
+            console.error('❌ Respuesta NO JSON al crear denuncia. Status:', response.status);
+            console.error('📄 Respuesta completa:\n', rawText);
+            throw new Error('El servidor devolvió una respuesta inesperada (HTML o no JSON).');
         }
+
+        // Manejar códigos de error HTTP o success = false
+        if (!response.ok || !result.success) {
+            const msgBackend = (result && (result.error || result.detail || result.message)) || '';
+            console.error('❌ Error devuelto por el backend:', msgBackend || result);
+
+            throw new Error(
+                msgBackend ||
+                `Error en el servidor (código ${response.status}).`
+            );
+        }
+
+        // Si llegó hasta aquí, TODO OK
+        Swal.fire({
+            icon: 'success',
+            title: '¡Denuncia creada!',
+            html: `
+                <p>La denuncia se ha registrado correctamente</p>
+                <p><strong>Número:</strong> ${result.denuncia.numero_denuncia}</p>
+                <p><strong>Estado:</strong> ${result.denuncia.estado_denuncia}</p>
+                <p><strong>Fecha:</strong> ${new Date(result.denuncia.fecha_creacion).toLocaleDateString()}</p>
+            `,
+            confirmButtonText: 'Aceptar'
+        });
+
+        cerrarModalDenuncia();
+
+        // Recargar datos después de un breve delay
+        setTimeout(() => {
+            cargarDenunciasDelDia();
+            cargarAsignacionesVehiculos();
+        }, 1500);
 
     } catch (error) {
         console.error('❌ Error creando denuncia:', error);
+
         Swal.fire({
             icon: 'error',
             title: 'Error',
             html: `
                 <p>No se pudo crear la denuncia</p>
                 <p><strong>${error.message}</strong></p>
-                <p class="small text-muted mt-2">Por favor, verifique los datos e intente nuevamente.</p>
+                <p class="small text-muted mt-2">
+                    Por favor, verifique los datos e intente nuevamente.
+                </p>
             `,
             confirmButtonText: 'Aceptar'
         });

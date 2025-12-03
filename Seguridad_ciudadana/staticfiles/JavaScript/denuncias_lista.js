@@ -1,67 +1,85 @@
 // static/JavaScript/denuncias_lista.js
 
+console.log("✅ denuncias_lista.js se ha cargado");
+
 document.addEventListener('DOMContentLoaded', () => {
-    const API_URL = '/api/denuncias-lista-web/';
+    console.log("🚀 DOMContentLoaded ejecutado");
 
-    const searchInput = document.getElementById('searchInput');
-    const filterClasificacion = document.getElementById('filterClasificacion');
-    const filterEstado = document.getElementById('filterEstado');
-    const btnLimpiar = document.getElementById('btnLimpiarFiltros');
-    const btnExportExcel = document.getElementById('btnExportExcel');
-    const container = document.getElementById('denunciasContainer');
-    const emptyState = document.getElementById('emptyState');
-    const loaderBackdrop = document.getElementById('loaderBackdrop');
+    // API SIMPLE QUE ESTAMOS USANDO
+    const API_URL = '/api/denuncias-lista/';
 
-    const totalDenunciasEl = document.getElementById('totalDenuncias');
-    const totalPendientesEl = document.getElementById('totalPendientes');
-    const totalEnProcesoEl = document.getElementById('totalEnProceso');
-    const totalCompletadasEl = document.getElementById('totalCompletadas');
+    // ===========================
+    // OBTENER ELEMENTOS DEL DOM (con protección)
+    // ===========================
+    const getEl = (id) => {
+        const el = document.getElementById(id);
+        if (!el) console.warn(`⚠️ Elemento faltante: #${id}`);
+        return el;
+    };
+
+    const searchInput           = getEl('searchInput');
+    const filterClasificacion   = getEl('filterClasificacion');
+    const filterEstado          = getEl('filterEstado');
+    const btnLimpiar            = getEl('btnLimpiarFiltros');
+    const btnExportExcel        = getEl('btnExportExcel');
+    const container             = getEl('denunciasContainer');
+    const emptyState            = getEl('emptyState');
+    const loaderBackdrop        = getEl('loaderBackdrop');
+
+    const totalDenunciasEl      = getEl('totalDenuncias');
+    const totalPendientesEl     = getEl('totalPendientes');
+    const totalEnProcesoEl      = getEl('totalEnProceso');
+    const totalCompletadasEl    = getEl('totalCompletadas');
 
     let denuncias = [];
     let denunciasFiltradas = [];
 
     // ===========================
-    // INIT
+    // INICIO REAL
     // ===========================
+    console.log("📌 Iniciando carga de denuncias...");
     cargarDenuncias();
 
-    // Eventos
-    searchInput.addEventListener('input', aplicarFiltros);
-    filterClasificacion.addEventListener('change', aplicarFiltros);
-    filterEstado.addEventListener('change', aplicarFiltros);
-
-    btnLimpiar.addEventListener('click', () => {
-        searchInput.value = '';
-        filterClasificacion.value = '';
-        filterEstado.value = '';
-        aplicarFiltros();
-    });
-
-    btnExportExcel.addEventListener('click', exportarExcel);
-
     // ===========================
-    // FUNCIONES PRINCIPALES
+    // EVENTOS (solo si el elemento existe)
     // ===========================
+    if (searchInput) searchInput.addEventListener('input', aplicarFiltros);
+    if (filterClasificacion) filterClasificacion.addEventListener('change', aplicarFiltros);
+    if (filterEstado) filterEstado.addEventListener('change', aplicarFiltros);
+
+    if (btnLimpiar) {
+        btnLimpiar.addEventListener('click', () => {
+            if (searchInput) searchInput.value = '';
+            if (filterClasificacion) filterClasificacion.value = '';
+            if (filterEstado) filterEstado.value = '';
+            aplicarFiltros();
+        });
+    }
+
+    if (btnExportExcel) btnExportExcel.addEventListener('click', exportarExcel);
+
+    // ============================================================
+    // 🔥 FUNCIÓN PRINCIPAL: CARGAR DENUNCIAS DESDE EL BACKEND
+    // ============================================================
     async function cargarDenuncias() {
+        console.log("🔄 Llamando a API:", API_URL);
+
         try {
             mostrarLoader(true);
 
-            // Construir URL con parámetros de filtro si existen
             let url = API_URL;
             const params = new URLSearchParams();
 
-            if (filterEstado.value) {
+            // Si quisieras pasar estado como query param al backend:
+            if (filterEstado && filterEstado.value) {
                 params.append('estado', filterEstado.value);
             }
-
-            // Puedes agregar más parámetros si tienes filtros de fecha
-            // if (document.getElementById('fechaInicio')) {
-            //     params.append('fecha_inicio', document.getElementById('fechaInicio').value);
-            // }
 
             if (params.toString()) {
                 url += '?' + params.toString();
             }
+
+            console.log("📡 URL final:", url);
 
             const resp = await fetch(url, {
                 headers: {
@@ -70,20 +88,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
+            console.log("📡 Respuesta HTTP:", resp.status);
+
             if (!resp.ok) {
+                console.error("❌ Error HTTP:", resp);
                 throw new Error('Error al obtener las denuncias');
             }
 
             const data = await resp.json();
+            console.log("📦 Datos recibidos:", data);
 
             if (data.success) {
-                denuncias = data.denuncias;
+                denuncias = data.denuncias || [];
+                console.log(`📊 Total denuncias recibidas: ${denuncias.length}`);
             } else {
-                console.error('Error del servidor:', data.error);
+                console.error("⚠️ Error en servidor:", data.error);
                 denuncias = [];
             }
 
-            // Normalizar algunos campos
+            // Normalizar
             denuncias = denuncias.map(d => ({
                 ...d,
                 numero_denuncia: d.numero_denuncia || `DEN-${String(d.id_denuncia).padStart(6, '0')}`,
@@ -106,22 +129,32 @@ document.addEventListener('DOMContentLoaded', () => {
             renderizarDenuncias();
 
         } catch (error) {
-            console.error('Error cargando denuncias:', error);
-            container.innerHTML = '<div class="alert alert-danger">Error al cargar las denuncias. Por favor, recarga la página.</div>';
+            console.error("❌ Error cargando denuncias:", error);
+
+            if (container) {
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        Error al cargar las denuncias. Recarga la página.
+                    </div>`;
+            }
         } finally {
             mostrarLoader(false);
         }
     }
 
+    // ============================================================
+    // SELECT CLASIFICACIÓN
+    // ============================================================
     function poblarSelectClasificacion(lista) {
-        const clasificacionesUnicas = Array.from(
-            new Set(lista.map(d => d.clasificacion_requerimiento))
-        ).filter(Boolean).sort();
+        if (!filterClasificacion) return;
 
-        // Limpia opciones (mantiene la primera)
-        filterClasificacion.innerHTML = '<option value="">Clasificación (todas)</option>';
+        const clasif = Array.from(new Set(lista.map(d => d.clasificacion_requerimiento)))
+            .filter(Boolean)
+            .sort();
 
-        clasificacionesUnicas.forEach(cl => {
+        filterClasificacion.innerHTML = `<option value="">Clasificación (todas)</option>`;
+
+        clasif.forEach(cl => {
             const opt = document.createElement('option');
             opt.value = cl;
             opt.textContent = cl;
@@ -129,15 +162,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ============================================================
+    // FILTRO GENERAL
+    // ============================================================
     function aplicarFiltros() {
-        const query = searchInput.value.trim().toLowerCase();
-        const clasificacion = filterClasificacion.value;
-        const estado = filterEstado.value;
+        console.log("🔍 Aplicando filtros...");
+
+        const query = searchInput ? searchInput.value.trim().toLowerCase() : '';
+        const clasificacion = filterClasificacion ? filterClasificacion.value : '';
+        const estado = filterEstado ? filterEstado.value : '';
 
         denunciasFiltradas = denuncias.filter(d => {
-            let coincideBusqueda = true;
-            let coincideClasificacion = true;
-            let coincideEstado = true;
+            let ok = true;
 
             if (query) {
                 const texto = [
@@ -149,32 +185,33 @@ document.addEventListener('DOMContentLoaded', () => {
                     d.usuario_registro
                 ].join(' ').toLowerCase();
 
-                coincideBusqueda = texto.includes(query);
+                ok = ok && texto.includes(query);
             }
 
-            if (clasificacion) {
-                coincideClasificacion = (d.clasificacion_requerimiento === clasificacion);
-            }
+            if (clasificacion) ok = ok && d.clasificacion_requerimiento === clasificacion;
+            if (estado) ok = ok && d.estado_denuncia === estado;
 
-            if (estado) {
-                coincideEstado = (d.estado_denuncia === estado);
-            }
-
-            return coincideBusqueda && coincideClasificacion && coincideEstado;
+            return ok;
         });
 
+        console.log(`📊 Filtradas: ${denunciasFiltradas.length}`);
         renderizarDenuncias();
     }
 
+    // ============================================================
+    // RENDER
+    // ============================================================
     function renderizarDenuncias() {
+        if (!container) return;
+
         container.innerHTML = '';
 
         if (!denunciasFiltradas.length) {
-            emptyState.classList.remove('hidden');
+            if (emptyState) emptyState.classList.remove('hidden');
             return;
-        } else {
-            emptyState.classList.add('hidden');
         }
+
+        if (emptyState) emptyState.classList.add('hidden');
 
         denunciasFiltradas.forEach(d => {
             const card = document.createElement('article');
@@ -203,29 +240,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
                 <small class="footer-label">${fechaHoraStr}</small>
             </div>
-
             <div class="denuncia-main">
                 <div class="badges-row">
-                    <span class="badge">
-                        <i class="fa-solid fa-shield-halved"></i>
-                        ${d.requerimiento_nombre}
-                    </span>
-                    <span class="badge">
-                        <i class="fa-solid fa-signal"></i>
-                        ${d.clasificacion_requerimiento}
-                    </span>
+                    <span class="badge"><i class="fa-solid fa-shield-halved"></i> ${d.requerimiento_nombre}</span>
+                    <span class="badge"><i class="fa-solid fa-signal"></i> ${d.clasificacion_requerimiento}</span>
                 </div>
-
                 <p class="denuncia-direccion">
-                    <i class="fa-solid fa-location-dot"></i>
-                    &nbsp;${d.direccion_denuncia}
+                    <i class="fa-solid fa-location-dot"></i> ${d.direccion_denuncia}
                 </p>
-
                 <p class="denuncia-detalle" title="${d.detalle_denuncia}">
                     ${d.detalle_denuncia.substring(0, 100)}${d.detalle_denuncia.length > 100 ? '...' : ''}
                 </p>
             </div>
-
             <div class="denuncia-footer">
                 <div class="footer-left">
                     <span class="footer-label">Denunciante</span>
@@ -236,25 +262,27 @@ document.addEventListener('DOMContentLoaded', () => {
                     <span class="footer-label">Registrado por</span>
                     <span class="footer-value">${d.usuario_registro}</span>
                 </div>
-            </div>
-        `;
+            </div>`;
     }
 
+    // ============================================================
+    // ESTADÍSTICAS
+    // ============================================================
     function actualizarEstadisticas(lista) {
-        totalDenunciasEl.textContent = lista.length;
+        if (totalDenunciasEl) totalDenunciasEl.textContent = lista.length;
 
         const pendientes = lista.filter(d => d.estado_denuncia === 'pendiente').length;
         const enProceso = lista.filter(d => d.estado_denuncia === 'en_proceso').length;
         const completadas = lista.filter(d => d.estado_denuncia === 'completada').length;
 
-        totalPendientesEl.textContent = pendientes;
-        totalEnProcesoEl.textContent = enProceso;
-        totalCompletadasEl.textContent = completadas;
+        if (totalPendientesEl) totalPendientesEl.textContent = pendientes;
+        if (totalEnProcesoEl) totalEnProcesoEl.textContent = enProceso;
+        if (totalCompletadasEl) totalCompletadasEl.textContent = completadas;
     }
 
-    // ===========================
-    // EXPORTAR A EXCEL (CSV)
-    // ===========================
+    // ============================================================
+    // EXPORTAR
+    // ============================================================
     function exportarExcel() {
         if (!denunciasFiltradas.length) {
             alert('No hay denuncias para exportar.');
@@ -293,35 +321,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
         let csv = encabezados.join(';') + '\n';
         filas.forEach(row => {
-            csv += row.map(celda => `"${(celda ?? '').toString().replace(/"/g, '""')}"`).join(';') + '\n';
+            csv += row.map(celda =>
+                `"${(celda ?? '').toString().replace(/"/g, '""')}"`)
+                .join(';') + '\n';
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
         const enlace = document.createElement('a');
-        enlace.href = url;
+        enlace.href = URL.createObjectURL(blob);
         enlace.download = `denuncias_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(enlace);
         enlace.click();
-        document.body.removeChild(enlace);
-        URL.revokeObjectURL(url);
     }
 
-    // ===========================
-    // UTILS
-    // ===========================
+    // ============================================================
+    // UTILIDADES
+    // ============================================================
     function formatearEstado(estado) {
         switch ((estado || '').toLowerCase()) {
-            case 'pendiente':
-                return 'Pendiente';
-            case 'en_proceso':
-                return 'En Proceso';
-            case 'completada':
-                return 'Completada';
-            case 'cancelada':
-                return 'Cancelada';
-            default:
-                return estado || 'Pendiente';
+            case 'pendiente': return 'Pendiente';
+            case 'en_proceso': return 'En Proceso';
+            case 'completada': return 'Completada';
+            case 'cancelada': return 'Cancelada';
+            default: return estado || 'Pendiente';
         }
     }
 
@@ -331,10 +352,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function mostrarLoader(mostrar) {
-        if (mostrar) {
-            loaderBackdrop.classList.remove('hidden');
-        } else {
-            loaderBackdrop.classList.add('hidden');
-        }
+        if (!loaderBackdrop) return;
+        loaderBackdrop.classList.toggle('hidden', !mostrar);
     }
 });

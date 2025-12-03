@@ -2328,103 +2328,154 @@ def api_denuncias_estadisticas(request):
     
 @csrf_exempt
 def api_denuncias_web(request):
-    """API para crear denuncias desde la web - PARA OPERADORES"""
+    """API para crear denuncias desde la web - OPERADORES"""
+    if request.method != 'POST':
+        return JsonResponse(
+            {"success": False, "error": "Método no permitido"},
+            status=405
+        )
+
     try:
-        if request.method == 'POST':
-            data = json.loads(request.body)
-            
-            print(f"📥 Datos recibidos para denuncia: {data}")
-            
-            # Validar campos requeridos
-            campos_requeridos = [
-                'nombre_ciudadano',  # Este será nombre_denunciante
-                'telefono_ciudadano',  # Este será telefono_denunciante
-                'direccion_denuncia',
-                'cuadrante_denuncia',
-                'detalle_denuncia',
-                'id_requerimiento'
-            ]
-            
-            for campo in campos_requeridos:
-                if not data.get(campo):
-                    return JsonResponse({
-                        'success': False, 
-                        'error': f'El campo {campo} es requerido'
-                    }, status=400)
-            
-            # Verificar que el requerimiento existe
-            try:
-                requerimiento = Requerimiento.objects.get(id_requerimiento=data['id_requerimiento'])
-                print(f"✅ Requerimiento encontrado: {requerimiento.nombre_requerimiento}")
-            except Requerimiento.DoesNotExist:
-                return JsonResponse({
-                    'success': False, 
-                    'error': 'El requerimiento seleccionado no existe'
-                }, status=400)
-            
-            # Obtener usuario operador (el que está creando la denuncia)
-            usuario = request.user if request.user.is_authenticated else Usuario.objects.first()
-            
-            # Verificar vehículo si se proporcionó
-            id_vehiculo = data.get('id_vehiculo')
-            vehiculo = None
-            if id_vehiculo:
-                try:
-                    vehiculo = Vehiculos.objects.get(id_vehiculo=id_vehiculo)
-                    print(f"✅ Vehículo asignado: {vehiculo.patente_vehiculo}")
-                except Vehiculos.DoesNotExist:
-                    print(f"⚠️ Vehículo {id_vehiculo} no encontrido")
-            
-            # 🔴 CORRECCIÓN PRINCIPAL: Crear denuncia sin ciudadano
-            # Para denuncias de operadores, id_ciudadano puede ser NULL
-            denuncia = Denuncia.objects.create(
-                hora_denuncia=timezone.now(),
-                fecha_denuncia=timezone.now().date(),
-                direccion_denuncia=data['direccion_denuncia'][:100],
-                direccion_denuncia_1=data.get('direccion_secundaria', data['direccion_denuncia'])[:225],
-                cuadrante_denuncia=int(data['cuadrante_denuncia']),
-                detalle_denuncia=data['detalle_denuncia'][:5000],
-                visibilidad_camaras_denuncia=data.get('visibilidad_camaras_denuncia', False),
-                estado_denuncia='pendiente',
-                id_usuario=usuario,
-                id_ciudadano=None,  # 🔴 ESTE ES EL CAMBIO - puede ser nulo
-                id_requerimiento=requerimiento,
-                nombre_denunciante=data['nombre_ciudadano'][:225],  # Usar nombre_ciudadano del formulario
-                telefono_denunciante=data['telefono_ciudadano'][:20]  # Usar telefono_ciudadano del formulario
-            )
-            
-            print(f"✅ Denuncia creada (operador): {denuncia.id_denuncia}")
-            
-            # Crear asignación de móvil si se proporcionó vehículo
-            if vehiculo:
-                MovilesDenuncia.objects.create(
-                    orden_asignacion=1,
-                    hora_asignacion=timezone.now(),
-                    observaciones='Asignado desde formulario web'[:500],
-                    id_denuncia=denuncia,
-                    id_vehiculo=vehiculo,
-                    id_conductor=usuario
-                )
-                print(f"✅ Móvil asignado a denuncia")
-            
+        # -----------------------------
+        # 1) Intentar decodificar JSON
+        # -----------------------------
+        try:
+            body = request.body.decode("utf-8")
+            data = json.loads(body)
+        except json.JSONDecodeError:
             return JsonResponse({
-                'success': True,
-                'denuncia': {
-                    'id_denuncia': denuncia.id_denuncia,
-                    'numero_denuncia': f"DEN-{denuncia.id_denuncia:06d}",
-                    'estado_denuncia': denuncia.estado_denuncia,
-                    'fecha_creacion': denuncia.fecha_creacion_denuncia.isoformat()
-                },
-                'message': 'Denuncia creada exitosamente por operador'
-            })
-            
-    except Exception as e:
-        print(f"❌ Error en api_denuncias_web: {str(e)}")
-        import traceback
-        print(f"📋 TRACEBACK: {traceback.format_exc()}")
+                "success": False,
+                "error": "JSON inválido en la petición"
+            }, status=400)
+
+        print("📥 Datos recibidos:", data)
+
+        # -----------------------------
+        # 2) Validar campos requeridos
+        # -----------------------------
+        campos_requeridos = [
+            "nombre_ciudadano",
+            "telefono_ciudadano",
+            "direccion_denuncia",
+            "cuadrante_denuncia",
+            "detalle_denuncia",
+            "id_requerimiento"
+        ]
+
+        for campo in campos_requeridos:
+            if not data.get(campo):
+                return JsonResponse({
+                    "success": False,
+                    "error": f"El campo '{campo}' es requerido"
+                }, status=400)
+
+        # -----------------------------
+        # 3) Requerimiento debe existir
+        # -----------------------------
+        try:
+            requerimiento = Requerimiento.objects.get(
+                id_requerimiento=data["id_requerimiento"]
+            )
+            print(f"✅ Requerimiento encontrado: {requerimiento.nombre_requerimiento}")
+        except Requerimiento.DoesNotExist:
+            return JsonResponse({
+                "success": False,
+                "error": "El requerimiento seleccionado no existe"
+            }, status=400)
+
+        # -----------------------------
+        # 4) Usuario operador
+        # -----------------------------
+        if request.user.is_authenticated:
+            usuario = request.user
+        else:
+            usuario = Usuario.objects.first()
+
+        # -----------------------------
+        # 5) Vehículo (opcional)
+        # -----------------------------
+        vehiculo = None
+        id_vehiculo = data.get("id_vehiculo")
+
+        if id_vehiculo:
+            try:
+                vehiculo = Vehiculos.objects.get(id_vehiculo=id_vehiculo)
+                print(f"🚓 Vehículo asignado: {vehiculo.patente_vehiculo}")
+            except Vehiculos.DoesNotExist:
+                print(f"⚠️ Vehículo {id_vehiculo} no existe")
+
+        # -----------------------------
+        # 6) Crear Denuncia
+        # -----------------------------
+        denuncia = Denuncia.objects.create(
+            fecha_denuncia=timezone.now().date(),
+            hora_denuncia=timezone.now(),
+            direccion_denuncia=data["direccion_denuncia"][:100],
+            direccion_denuncia_1=data.get("direccion_secundaria", data["direccion_denuncia"])[:225],
+            cuadrante_denuncia=int(data["cuadrante_denuncia"]),
+            detalle_denuncia=data["detalle_denuncia"][:5000],
+            visibilidad_camaras_denuncia=data.get("visibilidad_camaras_denuncia", False),
+
+            # Campos de estado
+            estado_denuncia="pendiente",
+
+            # Relacionales
+            id_usuario=usuario,
+            id_ciudadano=None,  # operador → no requiere ciudadano
+            id_requerimiento=requerimiento,
+
+            # Datos del denunciante
+            nombre_denunciante=data["nombre_ciudadano"][:225],
+            telefono_denunciante=data["telefono_ciudadano"][:20],
+        )
+
+        print(f"✅ Denuncia creada con ID: {denuncia.id_denuncia}")
+
+        # -----------------------------
+        # 7) Asignación de móvil
+        # -----------------------------
+        if vehiculo:
+            MovilesDenuncia.objects.create(
+                orden_asignacion=1,
+                hora_asignacion=timezone.now(),
+                observaciones="Asignado desde formulario web",
+                id_denuncia=denuncia,
+                id_vehiculo=vehiculo,
+                id_conductor=usuario
+            )
+            print("🚓 Móvil asignado correctamente")
+
+        # -----------------------------
+        # 8) Fecha de creación segura
+        # -----------------------------
+        fecha_creacion = (
+            denuncia.fecha_creacion_denuncia
+            if hasattr(denuncia, "fecha_creacion_denuncia")
+            else timezone.now()
+        )
+
+        # -----------------------------
+        # 9) Respuesta JSON
+        # -----------------------------
         return JsonResponse({
-            'success': False, 
-            'error': f'Error interno del servidor: {str(e)}'
+            "success": True,
+            "denuncia": {
+                "id_denuncia": denuncia.id_denuncia,
+                "numero_denuncia": f"DEN-{denuncia.id_denuncia:06d}",
+                "estado_denuncia": denuncia.estado_denuncia,
+                "fecha_creacion": fecha_creacion.isoformat(),
+            },
+            "message": "Denuncia creada exitosamente por operador"
+        })
+
+    except Exception as e:
+        print("❌ Error en api_denuncias_web:", str(e))
+        import traceback
+        print("📋 TRACEBACK:\n", traceback.format_exc())
+
+        return JsonResponse({
+            "success": False,
+            "error": f"Error interno del servidor: {str(e)}"
         }, status=500)
     
 @csrf_exempt
@@ -3944,35 +3995,58 @@ class DenunciaRechazarView(View):
 @login_required
 def api_denuncias_lista(request):
     """
-    API utilizada por denuncias_lista.js
-    Debe devolver JSON con formato:
-    { success: true, denuncias: [...] }
+    API utilizada por static/JavaScript/denuncias_lista.js
+    Devuelve JSON en formato:
+    {
+      "success": true,
+      "denuncias": [ ... ]
+    }
     """
     try:
-        denuncias = Denuncia.objects.select_related(
-            "id_requerimiento",
-            "id_usuario"
-        ).all().order_by("-fecha_creacion")
+        denuncias = (
+            Denuncia.objects
+            .select_related("id_requerimiento", "id_usuario")
+            .all()
+            .order_by("-fecha_creacion_denuncia")
+        )
 
         data = []
         for d in denuncias:
+            # Fecha y hora seguras (pueden ser null)
+            fecha = d.fecha_denuncia.strftime("%d-%m-%Y") if getattr(d, "fecha_denuncia", None) else ""
+            hora = d.hora_denuncia.strftime("%H:%M") if getattr(d, "hora_denuncia", None) else ""
+
+            # Número de denuncia generado desde el ID
+            numero = f"DEN-{d.id_denuncia:06d}"
+
+            # Usuario que registró
+            if d.id_usuario:
+                usuario_registro = f"{d.id_usuario.nombre_usuario} {d.id_usuario.apellido_pat_usuario}"
+            else:
+                usuario_registro = "No asignado"
+
+            # Requerimiento (puede ser null)
+            if d.id_requerimiento:
+                req_nombre = d.id_requerimiento.nombre_requerimiento
+                req_clasificacion = d.id_requerimiento.clasificacion_requerimiento
+            else:
+                req_nombre = "Sin requerimiento"
+                req_clasificacion = "Sin clasificar"
+
             data.append({
                 "id_denuncia": d.id_denuncia,
-                "numero_denuncia": d.numero_denuncia,
-                "estado_denuncia": d.estado_denuncia,
-                "fecha_denuncia": d.fecha_creacion.strftime("%d-%m-%Y"),
-                "hora_denuncia": d.fecha_creacion.strftime("%H:%M"),
-                "direccion_denuncia": d.direccion_denuncia,
-                "detalle_denuncia": d.detalle_denuncia,
+                "numero_denuncia": numero,
+                "estado_denuncia": d.estado_denuncia or "pendiente",
+                "fecha_denuncia": fecha,
+                "hora_denuncia": hora,
+                "direccion_denuncia": d.direccion_denuncia or "Sin dirección",
+                "detalle_denuncia": d.detalle_denuncia or "Sin detalles",
 
-                # Requerimiento
-                "requerimiento_nombre": getattr(d.id_requerimiento, "nombre_requerimiento", "Sin requerimiento"),
-                "clasificacion_requerimiento": getattr(d.id_requerimiento, "clasificacion_requerimiento", "Sin clasificar"),
+                "requerimiento_nombre": req_nombre,
+                "clasificacion_requerimiento": req_clasificacion,
 
-                # Usuario registró
-                "usuario_registro": f"{d.id_usuario.nombre_usuario} {d.id_usuario.apellido_pat_usuario}" if d.id_usuario else "No asignado",
+                "usuario_registro": usuario_registro,
 
-                # Denunciante
                 "nombre_denunciante": d.nombre_denunciante or "No registrado",
                 "telefono_denunciante": d.telefono_denunciante or "No registrado",
             })
@@ -3980,16 +4054,18 @@ def api_denuncias_lista(request):
         return JsonResponse({"success": True, "denuncias": data})
 
     except Exception as e:
+        import traceback
         print("❌ Error en api_denuncias_lista:", e)
+        print(traceback.format_exc())
         return JsonResponse({"success": False, "error": str(e)}, status=500)
     
 @login_required
 def admin_denuncias(request):
     """
     Página principal de gestión/listado de denuncias para administradores.
-    Renderiza el template: crud/admin/denuncias_lista.html
+    Renderiza el template: denuncias_lista.html
     """
-    # Solo administradores
+    # Ya está protegido por @login_required, pero lo dejamos igual
     if not request.user.is_authenticated:
         messages.error(request, 'No tienes permisos para acceder a esta sección.')
         return redirect('Admin')
@@ -4007,6 +4083,7 @@ def admin_denuncias(request):
         'total_en_proceso': total_en_proceso,
         'total_completadas': total_completadas,
     }
+    # Asegúrate que este template existe en tu carpeta templates
     return render(request, 'denuncias_lista.html', context)
 
 @csrf_exempt
@@ -4301,4 +4378,4 @@ class PerfilUsuarioView(View):
                     "error": "Error interno del servidor",
                 },
                 status=500,
-            )
+            )       

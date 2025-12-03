@@ -6,15 +6,18 @@
     <meta charset="utf-8">
     <title>Historial de Denuncias</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
     <link rel="stylesheet" href="{% static 'CSS/navbar.css' %}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
     <link rel="icon" type="image/x-icon" href="{% static 'Img/logo_san_bernardo_2.png' %}">
     <link rel="stylesheet" href="{% static 'CSS/denuncias_lista.css' %}">
 </head>
 
 <body>
 
+    <!-- NAVBAR -->
     <nav id="navbar" class="navbar">
 
         <div class="logo_navbar">
@@ -23,44 +26,47 @@
 
         <h2 class="titulo-pagina">Seguridad Ciudadana "San Bernardo"</h2>
 
-        <!-- Botón del menú Usuario -->
+        <!-- Botón Usuario -->
         <div class="dropdown2">
-            <i id="boton-usuario" role="button" class="fa-solid fa-user dropdown-toggle2" onclick="toggleDropdown2()">
-                <div class="dropdown-menu2" id="dropdownUsuario">
-
-                    <!-- ✅ Mostrar información del usuario si está logueado -->
-                    {% if user.is_authenticated %}
-                    <div class="user-info">
-                        <strong>{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</strong>
-                        <small>{{ user.id_rol.nombre_rol }}</small>
-                    </div>
-                    <div class="dropdown-divider"></div>
-                    {% endif %}
-                    <a href="{% url 'perfil_usuario' %}" class="dropdown-item2">
-                        <i class="fa-solid fa-user"></i> Perfil
-                    </a>
-                    <a href="{% url 'index' %}" class="dropdown-item2">
-                        <i class="fa-solid fa-map"></i> Mapa
-                    </a>
-                    <a href="{% url 'admin_denuncias' %}" class="dropdown-item2">
-                        <i class="fa-solid fa-list"></i> Historial de Denuncias
-                    </a>
-                    <a href="{% url 'denuncias_dashboard' %}" class="dropdown-item2">
-                        <i class="fa-solid fa-chart-pie"></i> Graficos
-                    </a>
-                    <a href="{% url 'Admin' %}" class="dropdown-item2">
-                        <i class="fa-solid fa-list"></i> Panel Administración
-                    </a>
-                    <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
-                        <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
-                    </a>
-                </div>
+            <i id="boton-usuario" 
+               role="button" 
+               class="fa-solid fa-user dropdown-toggle2"
+               onclick="toggleDropdown2()">
             </i>
-        </div>
 
+            <div class="dropdown-menu2" id="dropdownUsuario">
+                {% if user.is_authenticated %}
+                <div class="user-info">
+                    <strong>{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</strong>
+                    <small>{{ user.id_rol.nombre_rol }}</small>
+                </div>
+                <div class="dropdown-divider"></div>
+                {% endif %}
+
+                <a href="{% url 'perfil_usuario' %}" class="dropdown-item2">
+                    <i class="fa-solid fa-user"></i> Perfil
+                </a>
+                <a href="{% url 'index' %}" class="dropdown-item2">
+                    <i class="fa-solid fa-map"></i> Mapa
+                </a>
+                <a href="{% url 'admin_denuncias' %}" class="dropdown-item2">
+                    <i class="fa-solid fa-list"></i> Historial de Denuncias
+                </a>
+                <a href="{% url 'denuncias_dashboard' %}" class="dropdown-item2">
+                    <i class="fa-solid fa-chart-pie"></i> Gráficos
+                </a>
+                <a href="{% url 'Admin' %}" class="dropdown-item2">
+                    <i class="fa-solid fa-list"></i> Panel Administración
+                </a>
+                <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
+                    <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                </a>
+            </div>
+        </div>
     </nav>
 
     <div class="dashboard-wrapper">
+
         <!-- Encabezado -->
         <header class="dashboard-header">
             <div class="logo-title">
@@ -118,7 +124,7 @@
             </div>
         </section>
 
-        <!-- Filtros / Buscador / Exportar -->
+        <!-- Filtros -->
         <section class="filters-row">
             <div class="search-box">
                 <i class="fa-solid fa-magnifying-glass"></i>
@@ -131,7 +137,6 @@
                     <i class="fa-solid fa-layer-group"></i>
                     <select id="filterClasificacion">
                         <option value="">Clasificación (todas)</option>
-                        <!-- Se rellenan dinámicamente desde JS -->
                     </select>
                 </div>
 
@@ -147,23 +152,21 @@
                 </div>
 
                 <button class="btn btn-secondary" id="btnLimpiarFiltros">
-                    <i class="fa-solid fa-broom"></i>
-                    Limpiar
+                    <i class="fa-solid fa-broom"></i> Limpiar
                 </button>
 
                 <button class="btn btn-excel" id="btnExportExcel">
-                    <i class="fa-solid fa-file-excel"></i>
-                    Excel
+                    <i class="fa-solid fa-file-excel"></i> Excel
                 </button>
             </div>
         </section>
 
-        <!-- Contenedor de tarjetas de denuncias -->
+        <!-- Contenedor Tarjetas -->
         <section class="cards-container" id="denunciasContainer">
-            <!-- Se llena desde JS -->
+            <!-- JS inyecta aquí -->
         </section>
 
-        <!-- Mensaje vacío -->
+        <!-- Estado vacío -->
         <div class="empty-state hidden" id="emptyState">
             <i class="fa-regular fa-folder-open"></i>
             <p>No se encontraron denuncias con los filtros aplicados.</p>
@@ -175,7 +178,7 @@
         </div>
     </div>
 
-    <!-- JS propio -->
+    <!-- JS -->
     <script src="{% static 'JavaScript/denuncias_lista.js' %}"></script>
     <script src="{% static 'JavaScript/redirecciones.js' %}"></script>
 </body>
