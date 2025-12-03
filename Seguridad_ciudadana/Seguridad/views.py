@@ -3094,514 +3094,396 @@ def get_asignacion_activa_usuario(usuario):
 #  INICIAR TURNO DESDE IONIC
 # ============================================================
 
-@method_decorator(csrf_exempt, name='dispatch')
-class IniciarTurnoTrabajador(View):
-    """Iniciar turno desde la app Ionic, evitando duplicar turnos en el mismo día"""
-
-    def post(self, request):
-        try:
-            print("🚀 ===== INICIANDO TURNO DESDE IONIC =====")
-
-            data = json.loads(request.body)
-            print(f"📦 Datos recibidos: {data}")
-
-            usuario_id = data.get('usuario_id')
-            if not usuario_id:
-                return JsonResponse({'error': 'ID de usuario requerido'}, status=400)
-
-            usuario = Usuario.objects.get(id_usuario=usuario_id)
-            print(f"✅ Usuario encontrado: {usuario.nombre_usuario}")
-
-            fecha_hoy = date.today()
-            print(f"📅 Fecha de hoy: {fecha_hoy}")
-
-            # 🔁 ANTES DE NADA: cerrar turno anterior si ya pasó la hora_fin
-            info_cierre = cerrar_turno_si_corresponde(usuario, forzar=False)
-            if info_cierre['ejecutado']:
-                print(f"⏱️ Turno anterior cerrado automáticamente: {info_cierre}")
-
-            # VALIDACIÓN: ¿sigue teniendo turno activo hoy después del cierre automático?
-            turno_activo = AsignacionVehiculo.objects.filter(
-                id_usuario=usuario,
-                fecha_asignacion=fecha_hoy,
-                activo__in=[1, 2, 3]
-            ).exists()
-
-            if turno_activo:
-                print("❌ Usuario ya tiene un turno activo hoy (después de revisar cierre automático)")
-                return JsonResponse({
-                    'error': 'Ya tienes un turno activo hoy. No puedes iniciar otro turno.',
-                    'codigo_error': 'TURNO_ACTIVO'
-                }, status=400)
-
-            # ------------------------------
-            #   DATOS RECIBIDOS DEL FRONT
-            # ------------------------------
-            vehiculo_id = data.get('vehiculo_id')
-            codigo_vehiculo_manual = data.get('codigo_vehiculo_manual')
-            radio_id = data.get('radio_id')
-            kilometraje_inicial = data.get('kilometraje_inicial')  # Puede ser None
-
-            # ------------------------------
-            #   ASIGNACIÓN DE VEHÍCULO
-            # ------------------------------
-            asignacion_vehiculo = None
-            vehiculo_info = None
-
-            if vehiculo_id:
-                # Vehículo seleccionado desde la app
-                vehiculo = Vehiculos.objects.get(id_vehiculo=vehiculo_id)
-                print(f"✅ Vehículo encontrado: {vehiculo.patente_vehiculo}")
-
-                vehiculo_info = {
-                    'id_vehiculo': vehiculo.id_vehiculo,
-                    'patente': vehiculo.patente_vehiculo,
-                    'marca': vehiculo.marca_vehiculo,
-                    'modelo': vehiculo.modelo_vehiculo,
-                    'codigo': vehiculo.codigo_vehiculo
-                }
-
-                # Cambiar estado del vehículo a "en patrulla" (id_estado_vehiculo = 4, por ejemplo)
-                try:
-                    estado_patrulla = EstadoVehiculo.objects.get(id_estado_vehiculo=4)
-                    vehiculo.id_estado_vehiculo = estado_patrulla
-                    vehiculo.save()
-                    print(f"🚗 Estado del vehículo actualizado a: {estado_patrulla.nombre_estado}")
-                except EstadoVehiculo.DoesNotExist:
-                    print("⚠️ No se encontró el estado 'En patrulla' (id 4), se deja el estado actual del vehículo")
-
-                # Crear asignación de vehículo
-                asignacion_vehiculo = AsignacionVehiculo.objects.create(
-                    id_usuario=usuario,
-                    id_vehiculo=vehiculo,
-                    fecha_asignacion=fecha_hoy,
-                    kilometraje_inicial=kilometraje_inicial or 0,
-                    kilometraje_recorrido=0,
-                    kilometraje_total=kilometraje_inicial or 0,
-                    activo=2,  # En proceso / en patrulla
-                )
-
-            elif codigo_vehiculo_manual:
-                # Caso en que se ingresa un código manual en la app
-                print(f"📝 Asignación manual de vehículo: {codigo_vehiculo_manual}")
-                vehiculo_info = {
-                    'id_vehiculo': None,
-                    'patente': 'Manual',
-                    'marca': '',
-                    'modelo': '',
-                    'codigo': codigo_vehiculo_manual
-                }
-
-                asignacion_vehiculo = AsignacionVehiculo.objects.create(
-                    id_usuario=usuario,
-                    id_vehiculo=None,
-                    fecha_asignacion=fecha_hoy,
-                    kilometraje_inicial=0,
-                    kilometraje_recorrido=0,
-                    kilometraje_total=0,
-                    activo=2,
-                )
-
-            # ------------------------------
-            #   ASIGNACIÓN DE RADIO
-            # ------------------------------
-            asignacion_radio = None
-            radio_info = None
-
-            if radio_id:
-                radio = Radio.objects.get(id_radio=radio_id)
-                print(f"📻 Radio encontrada: {radio.nombre_radio} ({radio.codigo_radio})")
-
-                radio_info = {
-                    'id_radio': radio.id_radio,
-                    'nombre_radio': radio.nombre_radio,
-                    'codigo_radio': radio.codigo_radio
-                }
-
-                # Marcar radio en uso
-                radio.estado_radio = 'En uso'
-                radio.save()
-
-                asignacion_radio = AsignacionRadio.objects.create(
-                    id_usuario=usuario,
-                    id_radio=radio,
-                    fecha_asignacion=fecha_hoy
-                )
-
-            # ------------------------------
-            #   INFORMACIÓN DEL TURNO
-            # ------------------------------
-            turno = usuario.id_turno
-            turno_data = None
-            if turno:
-                turno_data = {
-                    'id_turno': turno.id_turno,
-                    'nombre_turno': turno.nombre_turno,
-                    'hora_inicio': turno.hora_inicio.strftime('%H:%M'),
-                    'hora_fin': turno.hora_fin.strftime('%H:%M'),
-                }
-
-            # ------------------------------
-            #   RESPUESTA
-            # ------------------------------
-            response_data = {
-                'success': True,
-                'message': 'Turno iniciado correctamente',
-                'usuario': {
-                    'id_usuario': usuario.id_usuario,
-                    'nombre_completo': f"{usuario.nombre_usuario} {usuario.apellido_pat_usuario}",
-                    'rut_usuario': usuario.rut_usuario,
-                    'correo_electronico_usuario': usuario.correo_electronico_usuario,
-                },
-                'turno': turno_data,
-                'asignacion_vehiculo': {
-                    'id_asignacion': asignacion_vehiculo.id_asignacion_vehiculo if asignacion_vehiculo else None,
-                    'vehiculo': vehiculo_info
-                },
-                'asignacion_radio': {
-                    'id_asignacion': asignacion_radio.id_asignacion_radio if asignacion_radio else None,
-                    'radio': radio_info
-                },
-                # Para que desde la app sepas si el backend cerró algo antes de iniciar
-                'cierre_automatico_anterior': info_cierre if info_cierre['ejecutado'] else None,
-            }
-
-            return JsonResponse(response_data, status=201)
-
-        except Usuario.DoesNotExist:
-            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
-        except Vehiculos.DoesNotExist:
-            return JsonResponse({'error': 'Vehículo no encontrado'}, status=404)
-        except Radio.DoesNotExist:
-            return JsonResponse({'error': 'Radio no encontrada'}, status=404)
-        except Exception as e:
-            print(f"❌ Error al iniciar turno: {e}")
-            return JsonResponse({'error': str(e)}, status=500)
-
-# ============================================================
-#  FINALIZAR TURNO AUTOMÁTICAMENTE (BOTÓN / CRON)
-# ============================================================
-
-@method_decorator(csrf_exempt, name='dispatch')
-class FinalizarTurnoAutomatico(View):
+@csrf_exempt
+def api_login_ionic(request):
     """
-    Endpoint para finalizar el turno de un trabajador.
-    Se puede usar desde un botón en la app o desde un cron.
+    Login único para app móvil (ciudadano y trabajador).
+    Retorna:
+      - success (bool)
+      - user_type: 'ciudadano' | 'trabajador'
+      - user: datos básicos
     """
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
 
-    def post(self, request):
-        try:
-            data = json.loads(request.body)
-            usuario_id = data.get('usuario_id')
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'JSON inválido'}, status=400)
 
-            if not usuario_id:
-                return JsonResponse({'error': 'ID de usuario requerido'}, status=400)
+    email = data.get('email')
+    password = data.get('password')
 
-            usuario = Usuario.objects.get(id_usuario=usuario_id)
-            info_cierre = cerrar_turno_si_corresponde(usuario, forzar=True)
+    if not email or not password:
+        return JsonResponse({'success': False, 'error': 'Email y contraseña son requeridos'}, status=400)
 
-            if not info_cierre['ejecutado']:
-                return JsonResponse({
-                    'success': False,
-                    'message': f"No había asignaciones activas para cerrar. Motivo: {info_cierre['motivo']}"
-                })
+    # 1) Buscar como trabajador
+    try:
+        usuario = Usuario.objects.get(correo_electronico_usuario=email)
+        if not usuario.check_password(password):
+            raise Usuario.DoesNotExist()
 
-            return JsonResponse({
-                'success': True,
-                'message': 'Turno finalizado correctamente',
-                'info_cierre': info_cierre,
-                'fecha_finalizacion': timezone.now().isoformat()
-            })
+        # Trabajador
+        user_payload = {
+            'id': usuario.id_usuario,
+            'user_type': 'trabajador',
+            'nombre': f'{usuario.nombre_usuario} {usuario.apellido_pat_usuario}',
+            'email': usuario.correo_electronico_usuario,
+            'rut': usuario.rut_usuario,
+            'id_rol': usuario.id_rol.id_rol,
+            'nombre_rol': usuario.id_rol.nombre_rol,
+            'telefono': usuario.telefono_movil_usuario,
+            'is_active': usuario.is_active,
+        }
+        return JsonResponse({'success': True, 'user_type': 'trabajador', 'user': user_payload})
 
-        except Usuario.DoesNotExist:
-            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
-        except Exception as e:
-            print(f"❌ Error al finalizar turno automáticamente: {e}")
-            return JsonResponse({'error': str(e)}, status=500)
+    except Usuario.DoesNotExist:
+        pass
 
-@method_decorator(csrf_exempt, name='dispatch')
-class CambiarEstadoVehiculo(View):
-    def post(self, request):
-        """Cambiar el estado del vehículo durante el turno"""
-        try:
-            data = json.loads(request.body)
-            
-            usuario_id = data.get('usuario_id')
-            asignacion_vehiculo_id = data.get('asignacion_vehiculo_id')
-            nuevo_estado = data.get('nuevo_estado')  # 1: Disponible, 2: En proceso, 3: En central
-            
-            if not all([usuario_id, asignacion_vehiculo_id, nuevo_estado]):
-                return JsonResponse({'error': 'Datos incompletos'}, status=400)
-            
-            if nuevo_estado not in [1, 2, 3]:
-                return JsonResponse({'error': 'Estado inválido'}, status=400)
-            
-            # Obtener y actualizar asignación
-            asignacion = AsignacionVehiculo.objects.get(
-                id=asignacion_vehiculo_id,
-                id_usuario_id=usuario_id
+    # 2) Buscar como ciudadano
+    try:
+        ciudadano = Ciudadano.objects.get(correo_electronico_ciudadano=email)
+        # contraseña de ciudadano almacenada en texto plano en BD (según modelo)
+        if ciudadano.password_ciudadano != password:
+            raise Ciudadano.DoesNotExist()
+
+        user_payload = {
+            'id': ciudadano.id_ciudadano,
+            'user_type': 'ciudadano',
+            'nombre': f'{ciudadano.nombre_ciudadano} {ciudadano.apellido_pat_ciudadano}',
+            'email': ciudadano.correo_electronico_ciudadano,
+            'rut': ciudadano.rut_ciudadano,
+            'telefono': ciudadano.telefono_movil_ciudadano,
+            'is_active': ciudadano.is_active_ciudadano,
+        }
+        return JsonResponse({'success': True, 'user_type': 'ciudadano', 'user': user_payload})
+
+    except Ciudadano.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Credenciales inválidas'}, status=401)
+
+
+@csrf_exempt
+def api_register_ciudadano(request):
+    """Registro básico de ciudadanos desde la app móvil."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        return JsonResponse({'success': False, 'error': 'JSON inválido'}, status=400)
+
+    required = ['rut', 'nombre', 'apellido_paterno', 'apellido_materno',
+                'email', 'telefono', 'password']
+    for field in required:
+        if not data.get(field):
+            return JsonResponse(
+                {'success': False, 'error': f'El campo {field} es obligatorio'},
+                status=400
             )
-            
-            estado_anterior = asignacion.activo
-            asignacion.activo = nuevo_estado
-            asignacion.save()
-            
-            estados = {1: 'Disponible', 2: 'En proceso', 3: 'En central'}
-            
-            return JsonResponse({
-                'success': True,
-                'message': f'Estado cambiado de {estados.get(estado_anterior)} a {estados.get(nuevo_estado)}',
-                'estado_anterior': estado_anterior,
-                'nuevo_estado': nuevo_estado,
-                'estado_texto': estados.get(nuevo_estado)
-            })
-            
-        except AsignacionVehiculo.DoesNotExist:
-            return JsonResponse({'error': 'Asignación no encontrada'}, status=404)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
 
-@method_decorator(csrf_exempt, name='dispatch')
-class VerificarTurnosParaFinalizar(View):
-    """
-    Recorre todos los usuarios con turno y cierra los que ya pasaron su hora_fin.
-    Pensado para ser llamado desde un cron/administración, no desde la app.
-    """
+    if Ciudadano.objects.filter(correo_electronico_ciudadano=data['email']).exists():
+        return JsonResponse({'success': False, 'error': 'El correo ya está registrado'}, status=400)
 
-    def post(self, request):
-        try:
-            ahora = timezone.now()
-            fecha_hoy = date.today()
+    if Ciudadano.objects.filter(rut_ciudadano=data['rut']).exists():
+        return JsonResponse({'success': False, 'error': 'El RUT ya está registrado'}, status=400)
 
-            usuarios = Usuario.objects.filter(
-                id_turno__isnull=False,
-                is_active=True
-            ).select_related('id_turno')
+    ciudadano = Ciudadano.objects.create(
+        rut_ciudadano=data['rut'],
+        nombre_ciudadano=data['nombre'],
+        apellido_pat_ciudadano=data['apellido_paterno'],
+        apellido_mat_ciudadano=data['apellido_materno'],
+        correo_electronico_ciudadano=data['email'],
+        telefono_movil_ciudadano=data['telefono'],
+        password_ciudadano=data['password'],  # tal como está definido en el modelo
+    )
 
-            usuarios_procesados = []
-            usuarios_finalizados = []
-
-            for usuario in usuarios:
-                turno = usuario.id_turno
-                if not turno:
-                    continue
-
-                # Si ya pasó la hora_fin del turno
-                if ahora.time() >= turno.hora_fin:
-                    info_cierre = cerrar_turno_si_corresponde(usuario, forzar=False)
-                    usuarios_procesados.append(usuario.id_usuario)
-
-                    if info_cierre['ejecutado']:
-                        usuarios_finalizados.append({
-                            'id_usuario': usuario.id_usuario,
-                            'nombre': f"{usuario.nombre_usuario} {usuario.apellido_pat_usuario}",
-                            'info_cierre': info_cierre
-                        })
-
-            return JsonResponse({
-                'success': True,
-                'fecha': fecha_hoy.isoformat(),
-                'hora_actual': ahora.strftime('%H:%M:%S'),
-                'usuarios_procesados': usuarios_procesados,
-                'usuarios_finalizados': usuarios_finalizados
-            })
-
-        except Exception as e:
-            print(f"❌ Error en VerificarTurnosParaFinalizar: {e}")
-            return JsonResponse({'error': str(e)}, status=500)
-        
-@method_decorator(csrf_exempt, name='dispatch')
-class ObtenerHistorialTurnos(View):
-    """Obtener historial de turnos de un usuario"""
-    def get(self, request, usuario_id):
-        try:
-            usuario = Usuario.objects.get(id_usuario=usuario_id)
-            
-            # Obtener los últimos 30 días de turnos
-            fecha_limite = date.today() - timedelta(days=30)
-            
-            asignaciones = AsignacionVehiculo.objects.filter(
-                id_usuario=usuario,
-                fecha_asignacion__gte=fecha_limite
-            ).select_related('id_vehiculo').order_by('-fecha_asignacion', '-fecha_creacion')
-            
-            historial = []
-            
-            for asignacion in asignaciones:
-                # Buscar asignación de radio correspondiente
-                asignacion_radio = AsignacionRadio.objects.filter(
-                    id_usuario=usuario,
-                    fecha_asignacion=asignacion.fecha_asignacion
-                ).select_related('id_radio').first()
-                
-                historial.append({
-                    'id_asignacion_vehiculo': asignacion.id_asignacion_vehiculo,
-                    'fecha': asignacion.fecha_asignacion.isoformat(),
-                    'hora_inicio': asignacion.fecha_creacion.isoformat() if asignacion.fecha_creacion else None,
-                    'vehiculo': {
-                        'patente': asignacion.id_vehiculo.patente_vehiculo if asignacion.id_vehiculo else 'Manual',
-                        'marca': asignacion.id_vehiculo.marca_vehiculo if asignacion.id_vehiculo else None,
-                        'modelo': asignacion.id_vehiculo.modelo_vehiculo if asignacion.id_vehiculo else None,
-                        'observaciones': asignacion.observaciones
-                    },
-                    'radio': {
-                        'nombre': asignacion_radio.id_radio.nombre_radio if asignacion_radio and asignacion_radio.id_radio else None,
-                        'codigo': asignacion_radio.id_radio.codigo_radio if asignacion_radio and asignacion_radio.id_radio else None,
-                        'devuelta': asignacion_radio.fecha_devolucion is not None if asignacion_radio else None
-                    } if asignacion_radio else None,
-                    'kilometraje': {
-                        'inicial': asignacion.kilometraje_inicial,
-                        'recorrido': asignacion.kilometraje_recorrido,
-                        'total': asignacion.kilometraje_total
-                    },
-                    'estado': asignacion.activo,
-                    'estado_texto': self.get_estado_texto(asignacion.activo),
-                    'duracion_horas': self.calcular_duracion_horas(asignacion)
-                })
-            
-            data = {
-                'usuario': {
-                    'id': usuario.id_usuario,
-                    'nombre': f"{usuario.nombre_usuario} {usuario.apellido_pat_usuario}"
-                },
-                'periodo': {
-                    'desde': fecha_limite.isoformat(),
-                    'hasta': date.today().isoformat(),
-                    'dias': 30
-                },
-                'total_turnos': len(historial),
-                'historial': historial
-            }
-            
-            return JsonResponse(data)
-            
-        except Usuario.DoesNotExist:
-            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
-        except Exception as e:
-            return JsonResponse({'error': str(e)}, status=500)
-    
-    def get_estado_texto(self, estado_id):
-        estados = {
-            1: 'Disponible',
-            2: 'En proceso',
-            3: 'En central',
-            4: 'No disponible'
+    return JsonResponse({
+        'success': True,
+        'user': {
+            'id': ciudadano.id_ciudadano,
+            'user_type': 'ciudadano',
+            'nombre': f'{ciudadano.nombre_ciudadano} {ciudadano.apellido_pat_ciudadano}',
+            'email': ciudadano.correo_electronico_ciudadano,
+            'rut': ciudadano.rut_ciudadano,
+            'telefono': ciudadano.telefono_movil_ciudadano,
+            'is_active': ciudadano.is_active_ciudadano,
         }
-        return estados.get(estado_id, 'Desconocido')
-    
-    def calcular_duracion_horas(self, asignacion):
-        """Calcular duración del turno en horas"""
-        if asignacion.activo in [1, 2, 3]:  # Si aún está activo
-            return None
-        
-        # Si tiene fecha de creación, calcular duración aproximada (8 horas por turno)
-        if asignacion.fecha_creacion:
-            return 8.0
-        
-        return None
-    
-@method_decorator(csrf_exempt, name='dispatch')
-class VerificarAsignacionesHoy(View):
-    """Verificar asignaciones de vehículo y radio para hoy"""
-    def get(self, request, usuario_id):
+    })
+
+
+@csrf_exempt
+def api_dashboard_stats_ionic(request):
+    """Estadísticas simples para dashboard de la app."""
+    if request.method != 'GET':
+        return JsonResponse({'success': False, 'error': 'Método no permitido'}, status=405)
+
+    total_denuncias = Denuncia.objects.count()
+    total_fiscalizaciones = Fiscalizacion.objects.count()
+    total_usuarios = Usuario.objects.count()
+
+    return JsonResponse({
+        'success': True,
+        'total_denuncias': total_denuncias,
+        'total_fiscalizaciones': total_fiscalizaciones,
+        'total_usuarios': total_usuarios,
+    })
+
+
+@csrf_exempt
+def api_vehiculos_ionic(request):
+    """Listado simple de vehículos para la app."""
+    if request.method == 'GET':
+        vehiculos = Vehiculos.objects.select_related('id_tipo_vehiculo', 'id_estado_vehiculo').all()
+        data = [{
+            'id_vehiculo': v.id_vehiculo,
+            'patente': v.patente_vehiculo,
+            'marca': v.marca_vehiculo,
+            'modelo': v.modelo_vehiculo,
+            'codigo_vehiculo': v.codigo_vehiculo,
+            'tipo': v.id_tipo_vehiculo.nombre_tipo_vehiculo,
+            'id_tipo_vehiculo': v.id_tipo_vehiculo.id_tipo_vehiculo,
+            'estado': v.id_estado_vehiculo.nombre_estado,
+        } for v in vehiculos]
+        return JsonResponse(data, safe=False)
+
+    return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+
+@csrf_exempt
+def api_tipos_vehiculos_ionic(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    tipos = TiposVehiculos.objects.all()
+    data = [{
+        'id_tipo_vehiculo': t.id_tipo_vehiculo,
+        'nombre_tipo_vehiculo': t.nombre_tipo_vehiculo,
+    } for t in tipos]
+    return JsonResponse(data, safe=False)
+
+
+@csrf_exempt
+def api_roles_ionic(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    roles = Roles.objects.all()
+    data = [{'id_rol': r.id_rol, 'nombre_rol': r.nombre_rol} for r in roles]
+    return JsonResponse(data, safe=False)
+
+
+@csrf_exempt
+def api_turnos_ionic(request):
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    turnos = Turnos.objects.all()
+    data = [{
+        'id_turno': t.id_turno,
+        'nombre_turno': t.nombre_turno,
+        'hora_inicio': t.hora_inicio.strftime('%H:%M'),
+        'hora_fin': t.hora_fin.strftime('%H:%M'),
+    } for t in turnos]
+    return JsonResponse(data, safe=False)
+
+
+# ---------- HELPERS PARA TURNOS ----------
+
+def _cerrar_asignaciones_fuera_de_turno(usuario: Usuario):
+    """
+    Marca como 'No disponible' (4) las asignaciones de vehículo del usuario
+    que ya no deberían seguir activas (días anteriores o turno ya terminado).
+    """
+    hoy = timezone.localdate()
+    ahora = timezone.localtime().time()
+
+    asignaciones = AsignacionVehiculo.objects.filter(
+        id_usuario=usuario,
+        activo__in=[1, 2, 3]
+    )
+
+    for asig in asignaciones:
+        debe_cerrar = False
+
+        # Cualquier asignación de días anteriores se cierra
+        if asig.fecha_asignacion < hoy:
+            debe_cerrar = True
+        elif asig.fecha_asignacion == hoy and usuario.id_turno:
+            # Si es de hoy pero la hora fin del turno ya pasó
+            if usuario.id_turno.hora_fin <= ahora:
+                debe_cerrar = True
+
+        if debe_cerrar:
+            asig.activo = 4  # No disponible
+            asig.save(update_fields=['activo'])
+
+
+# ---------- ENDPOINTS PARA TRABAJADOR (APP MÓVIL) ----------
+
+@csrf_exempt
+def ObtenerDatosTrabajador(request, usuario_id=None):
+    """
+    Devuelve datos básicos del trabajador (por id) para la pantalla TRABAJADOR.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    # Se permite pasar el id por URL o por querystring (?usuario_id=)
+    if not usuario_id:
+        usuario_id = request.GET.get('usuario_id')
+
+    if not usuario_id:
+        return JsonResponse({'error': 'usuario_id es requerido'}, status=400)
+
+    try:
+        usuario = Usuario.objects.select_related('id_rol', 'id_turno').get(id_usuario=usuario_id)
+    except Usuario.DoesNotExist:
+        return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+
+    data = {
+        'id': usuario.id_usuario,
+        'nombre': f'{usuario.nombre_usuario} {usuario.apellido_pat_usuario}',
+        'rut': usuario.rut_usuario,
+        'email': usuario.correo_electronico_usuario,
+        'id_rol': usuario.id_rol.id_rol,
+        'nombre_rol': usuario.id_rol.nombre_rol,
+        'id_turno': usuario.id_turno.id_turno if usuario.id_turno else None,
+        'nombre_turno': usuario.id_turno.nombre_turno if usuario.id_turno else None,
+    }
+    return JsonResponse(data)
+
+
+@csrf_exempt
+def ObtenerVehiculosPorTipo(request, tipo_vehiculo_id):
+    """
+    Lista vehículos disponibles de un tipo específico.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    vehiculos = Vehiculos.objects.filter(
+        id_tipo_vehiculo_id=tipo_vehiculo_id
+    ).select_related('id_estado_vehiculo')
+
+    data = [{
+        'id_vehiculo': v.id_vehiculo,
+        'patente': v.patente_vehiculo,
+        'marca': v.marca_vehiculo,
+        'modelo': v.modelo_vehiculo,
+        'estado': v.id_estado_vehiculo.nombre_estado,
+    } for v in vehiculos]
+
+    return JsonResponse(data, safe=False)
+
+
+@csrf_exempt
+def VerificarTurnoActivo(request, usuario_id):
+    """
+    Verifica si el trabajador tiene un turno activo HOY.
+    También cierra asignaciones antiguas o fuera de horario.
+    """
+    if request.method != 'GET':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    try:
+        usuario = Usuario.objects.select_related('id_turno').get(id_usuario=usuario_id)
+    except Usuario.DoesNotExist:
+        return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+
+    # Primero cerramos cualquier asignación vieja
+    _cerrar_asignaciones_fuera_de_turno(usuario)
+
+    hoy = timezone.localdate()
+
+    tiene_turno_activo = AsignacionVehiculo.objects.filter(
+        id_usuario=usuario,
+        fecha_asignacion=hoy,
+        activo__in=[1, 2, 3]
+    ).exists()
+
+    return JsonResponse({'tiene_turno_activo': tiene_turno_activo})
+
+
+@csrf_exempt
+def IniciarTurnoTrabajador(request):
+    """
+    Crea una AsignacionVehiculo y opcionalmente AsignacionRadio.
+    Espera JSON:
+      - usuario_id (int)
+      - vehiculo_id (int)
+      - turno_id (int)
+      - radio_id (opcional)
+      - kilometraje_inicial (opcional)
+    """
+    if request.method != 'POST':
+        return JsonResponse({'error': 'Método no permitido'}, status=405)
+
+    try:
+        data = json.loads(request.body.decode('utf-8'))
+    except Exception:
+        return JsonResponse({'error': 'JSON inválido'}, status=400)
+
+    usuario_id = data.get('usuario_id')
+    vehiculo_id = data.get('vehiculo_id')
+    turno_id = data.get('turno_id')
+    radio_id = data.get('radio_id')
+    kilometraje_inicial = data.get('kilometraje_inicial', 0)
+
+    if not usuario_id or not vehiculo_id or not turno_id:
+        return JsonResponse({'error': 'usuario_id, vehiculo_id y turno_id son obligatorios'}, status=400)
+
+    try:
+        usuario = Usuario.objects.select_related('id_turno').get(id_usuario=usuario_id)
+        vehiculo = Vehiculos.objects.get(id_vehiculo=vehiculo_id)
+        turno = Turnos.objects.get(id_turno=turno_id)
+    except Usuario.DoesNotExist:
+        return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
+    except Vehiculos.DoesNotExist:
+        return JsonResponse({'error': 'Vehículo no encontrado'}, status=404)
+    except Turnos.DoesNotExist:
+        return JsonResponse({'error': 'Turno no encontrado'}, status=404)
+
+    hoy = timezone.localdate()
+
+    # Cerrar asignaciones viejas antes de revisar
+    _cerrar_asignaciones_fuera_de_turno(usuario)
+
+    # ¿ya tiene asignación activa HOY?
+    if AsignacionVehiculo.objects.filter(
+        id_usuario=usuario,
+        fecha_asignacion=hoy,
+        activo__in=[1, 2, 3]
+    ).exists():
+        return JsonResponse({'error': 'Ya tienes un turno activo hoy'}, status=400)
+
+    # Crear asignación de vehículo (¡sin observaciones!)
+    asignacion = AsignacionVehiculo.objects.create(
+        id_usuario=usuario,
+        id_vehiculo=vehiculo,
+        fecha_asignacion=hoy,
+        kilometraje_inicial=kilometraje_inicial,
+        kilometraje_recorrido=0,
+        kilometraje_total=kilometraje_inicial,
+        activo=1,  # Disponible
+    )
+
+    # Asignación de radio (opcional)
+    radio_asignado = None
+    if radio_id:
         try:
-            print(f"🔍 Verificando asignaciones hoy para usuario: {usuario_id}")
-            
-            usuario = Usuario.objects.get(id_usuario=usuario_id)
-            fecha_hoy = date.today()
-            
-            # Obtener asignación de vehículo de hoy
-            asignacion_vehiculo = AsignacionVehiculo.objects.filter(
+            radio = Radio.objects.get(id_radio=radio_id)
+            radio_asignado = AsignacionRadio.objects.create(
                 id_usuario=usuario,
-                fecha_asignacion=fecha_hoy
-            ).select_related('id_vehiculo', 'id_vehiculo__id_tipo_vehiculo').first()
-            
-            # Obtener asignación de radio de hoy
-            asignacion_radio = AsignacionRadio.objects.filter(
-                id_usuario=usuario,
-                fecha_asignacion=fecha_hoy,
-                fecha_devolucion__isnull=True
-            ).select_related('id_radio').first()
-            
-            # Preparar datos de vehículo
-            vehiculo_data = None
-            if asignacion_vehiculo and asignacion_vehiculo.id_vehiculo:
-                vehiculo_data = {
-                    'id_vehiculo': asignacion_vehiculo.id_vehiculo.id_vehiculo,
-                    'patente_vehiculo': asignacion_vehiculo.id_vehiculo.patente_vehiculo,
-                    'marca_vehiculo': asignacion_vehiculo.id_vehiculo.marca_vehiculo,
-                    'modelo_vehiculo': asignacion_vehiculo.id_vehiculo.modelo_vehiculo,
-                    'codigo_vehiculo': asignacion_vehiculo.id_vehiculo.codigo_vehiculo,
-                    'tipo_vehiculo': asignacion_vehiculo.id_vehiculo.id_tipo_vehiculo.nombre_tipo_vehiculo,
-                    'estado_asignacion': asignacion_vehiculo.activo,
-                    'estado_texto': self.get_estado_texto(asignacion_vehiculo.activo),
-                    'kilometraje_inicial': asignacion_vehiculo.kilometraje_inicial,
-                    'kilometraje_recorrido': asignacion_vehiculo.kilometraje_recorrido,
-                    'fecha_asignacion': asignacion_vehiculo.fecha_asignacion.isoformat(),
-                    'hora_inicio': asignacion_vehiculo.fecha_creacion.isoformat() if asignacion_vehiculo.fecha_creacion else None
-                }
-            elif asignacion_vehiculo and asignacion_vehiculo.observaciones:
-                vehiculo_data = {
-                    'tipo': 'manual',
-                    'codigo_manual': asignacion_vehiculo.observaciones.replace('Vehículo manual: ', ''),
-                    'estado_asignacion': asignacion_vehiculo.activo,
-                    'estado_texto': self.get_estado_texto(asignacion_vehiculo.activo),
-                    'fecha_asignacion': asignacion_vehiculo.fecha_asignacion.isoformat(),
-                    'hora_inicio': asignacion_vehiculo.fecha_creacion.isoformat() if asignacion_vehiculo.fecha_creacion else None
-                }
-            
-            # Preparar datos de radio
-            radio_data = None
-            if asignacion_radio:
-                radio_data = {
-                    'id_radio': asignacion_radio.id_radio.id_radio,
-                    'nombre_radio': asignacion_radio.id_radio.nombre_radio,
-                    'codigo_radio': asignacion_radio.id_radio.codigo_radio,
-                    'descripcion_radio': asignacion_radio.id_radio.descripcion_radio,
-                    'estado_radio': asignacion_radio.id_radio.estado_radio,
-                    'fecha_asignacion': asignacion_radio.fecha_asignacion.isoformat(),
-                    'fecha_creacion': asignacion_radio.fecha_creacion.isoformat() if asignacion_radio.fecha_creacion else None
-                }
-            
-            # Calcular tiempo transcurrido si hay asignación
-            tiempo_transcurrido = None
-            if asignacion_vehiculo and asignacion_vehiculo.fecha_creacion:
-                tiempo_transcurrido = timezone.now() - asignacion_vehiculo.fecha_creacion
-                horas = int(tiempo_transcurrido.total_seconds() // 3600)
-                minutos = int((tiempo_transcurrido.total_seconds() % 3600) // 60)
-                tiempo_transcurrido = f"{horas}h {minutos}m"
-            
-            data = {
-                'tiene_asignaciones_hoy': asignacion_vehiculo is not None or asignacion_radio is not None,
-                'fecha': fecha_hoy.isoformat(),
-                'vehiculo': vehiculo_data,
-                'radio': radio_data,
-                'tiempo_transcurrido': tiempo_transcurrido,
-                'resumen': {
-                    'tiene_vehiculo': asignacion_vehiculo is not None,
-                    'tiene_radio': asignacion_radio is not None,
-                    'estado_actual': self.get_estado_texto(asignacion_vehiculo.activo) if asignacion_vehiculo else 'Sin asignación',
-                    'puede_iniciar_nuevo': asignacion_vehiculo is None  # Puede iniciar nuevo si no tiene asignación
-                }
-            }
-            
-            print(f"✅ Asignaciones verificadas para usuario {usuario_id}")
-            print(f"📊 Resumen: Vehículo: {data['resumen']['tiene_vehiculo']}, Radio: {data['resumen']['tiene_radio']}")
-            
-            return JsonResponse(data)
-            
-        except Usuario.DoesNotExist:
-            return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
-        except Exception as e:
-            print(f"❌ Error en VerificarAsignacionesHoy: {str(e)}")
-            return JsonResponse({'error': str(e)}, status=500)
-    
-    def get_estado_texto(self, estado_id):
-        estados = {
-            1: 'Disponible',
-            2: 'En proceso',
-            3: 'En central',
-            4: 'No disponible',
-            None: 'Sin asignación'
-        }
-        return estados.get(estado_id, 'Desconocido')
+                id_radio=radio,
+                fecha_asignacion=hoy,
+            )
+        except Radio.DoesNotExist:
+            pass  # si falla la radio igual dejamos creado el turno
+
+    return JsonResponse({
+        'success': True,
+        'mensaje': 'Turno iniciado correctamente',
+        'asignacion_vehiculo_id': asignacion.id_asignacion_vehiculo,
+        'radio_asignacion_id': radio_asignado.id_asignacion_radio if radio_asignado else None,
+    })
