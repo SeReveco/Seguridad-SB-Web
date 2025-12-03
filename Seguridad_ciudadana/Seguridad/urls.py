@@ -71,7 +71,6 @@ urlpatterns = [
     path('ionic/login/', views.api_login_ionic, name='api_login_ionic'),
     path('ionic/register/', views.api_register_ciudadano, name='api_register_ciudadano'),
     path('api/trabajador/datos/<int:usuario_id>/', views.ObtenerDatosTrabajador.as_view(), name='obtener_datos_trabajador'),
-    path('api/trabajador/datos/', views.ObtenerDatosTrabajador.as_view(), name='obtener_datos_trabajador_actual'),
     path('api/trabajador/vehiculos/tipo/<int:tipo_vehiculo_id>/', views.ObtenerVehiculosPorTipo.as_view(), name='obtener_vehiculos_por_tipo'),
     path('api/trabajador/vehiculo/cambiar-estado/', views.CambiarEstadoVehiculo.as_view(), name='cambiar_estado_vehiculo'),
     path('api/trabajador/asignaciones/hoy/<int:usuario_id>/', views.VerificarAsignacionesHoy.as_view(), name='verificar_asignaciones_hoy'),
