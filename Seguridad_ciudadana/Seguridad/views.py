@@ -2784,6 +2784,90 @@ def api_register_ciudadano(request):
             'error': 'Error interno del servidor'
         }, status=500)
         
+# ============================================================
+#  HELPER COMPARTIDO: CERRAR TURNO SI CORRESPONDE
+# ============================================================
+
+def cerrar_turno_si_corresponde(usuario, forzar=False):
+    """
+    Cierra automáticamente las asignaciones de vehículo y radio del usuario
+    para el día de hoy.
+
+    - Si forzar=False -> solo cierra si la hora actual es >= hora_fin del turno.
+    - Si forzar=True  -> intenta cerrar igual, sin revisar el horario.
+
+    Devuelve un diccionario con información de lo que pasó.
+    """
+    info = {
+        'ejecutado': False,
+        'motivo': '',
+        'asignacion_vehiculo_id': None,
+        'asignacion_radio_id': None,
+    }
+
+    ahora = timezone.now()
+    fecha_hoy = date.today()
+
+    turno = usuario.id_turno
+
+    if not forzar:
+        if not turno:
+            info['motivo'] = 'Usuario sin turno configurado'
+            return info
+
+        # Si el turno aún no termina, no cerramos nada
+        if ahora.time() < turno.hora_fin:
+            info['motivo'] = 'El turno aún no termina'
+            return info
+
+        info['motivo'] = 'Turno finalizado por horario'
+    else:
+        info['motivo'] = 'Turno finalizado de forma forzada'
+
+    # Buscar asignación de vehículo activa hoy
+    asignacion_vehiculo = AsignacionVehiculo.objects.filter(
+        id_usuario=usuario,
+        fecha_asignacion=fecha_hoy,
+        activo__in=[1, 2, 3]  # Disponible, En proceso, En central
+    ).select_related('id_vehiculo').first()
+
+    # Buscar asignación de radio activa hoy
+    asignacion_radio = AsignacionRadio.objects.filter(
+        id_usuario=usuario,
+        fecha_asignacion=fecha_hoy,
+        fecha_devolucion__isnull=True
+    ).select_related('id_radio').first()
+
+    if not asignacion_vehiculo and not asignacion_radio:
+        info['motivo'] += ' (no había asignaciones activas)'
+        return info
+
+    # Cerrar asignación de vehículo
+    if asignacion_vehiculo:
+        asignacion_vehiculo.activo = 4  # No disponible / turno cerrado
+        asignacion_vehiculo.save()
+        info['asignacion_vehiculo_id'] = asignacion_vehiculo.id_asignacion_vehiculo
+
+        # Devolver vehículo a "Disponible"
+        if asignacion_vehiculo.id_vehiculo:
+            vehiculo = asignacion_vehiculo.id_vehiculo
+            vehiculo.id_estado_vehiculo_id = 1  # 1: Disponible
+            vehiculo.save()
+
+    # Cerrar asignación de radio
+    if asignacion_radio:
+        asignacion_radio.fecha_devolucion = ahora
+        asignacion_radio.save()
+        info['asignacion_radio_id'] = asignacion_radio.id_asignacion_radio
+
+        if asignacion_radio.id_radio:
+            radio = asignacion_radio.id_radio
+            radio.estado_radio = 'Disponible'
+            radio.save()
+
+    info['ejecutado'] = True
+    return info
+        
 @method_decorator(csrf_exempt, name='dispatch')
 class ObtenerDatosTrabajador(View):
     def get(self, request, usuario_id=None):
@@ -2917,55 +3001,76 @@ class ObtenerVehiculosPorTipo(View):
 
 # ========== VISTAS PARA ASIGNACIONES ==========
 
+# ============================================================
+#  VERIFICAR SI EL USUARIO TIENE TURNO ACTIVO
+# ============================================================
+
 @method_decorator(csrf_exempt, name='dispatch')
 class VerificarTurnoActivo(View):
-    """Verificar si el usuario ya tiene un turno activo hoy"""
+    """Verificar si el usuario ya tiene un turno activo hoy (Ionic)"""
+
     def get(self, request, usuario_id):
         try:
             usuario = Usuario.objects.get(id_usuario=usuario_id)
+
+            # 🔁 Primero intentamos cerrar automáticamente el turno
+            info_cierre = cerrar_turno_si_corresponde(usuario, forzar=False)
+            turno_expirado_y_cerrado = info_cierre['ejecutado']
+
             fecha_hoy = date.today()
-            
-            # Verificar si ya tiene una asignación de vehículo activa hoy
+
+            # Volvemos a consultar después del posible cierre
             asignacion_vehiculo_hoy = AsignacionVehiculo.objects.filter(
                 id_usuario=usuario,
                 fecha_asignacion=fecha_hoy,
-                activo__in=[1, 2, 3]  # Disponible, En proceso, En central
-            ).first()
-            
-            # Verificar si ya tiene una asignación de radio activa hoy
+                activo__in=[1, 2, 3]  # Estados activos
+            ).select_related('id_vehiculo').first()
+
             asignacion_radio_hoy = AsignacionRadio.objects.filter(
                 id_usuario=usuario,
                 fecha_asignacion=fecha_hoy,
                 fecha_devolucion__isnull=True
-            ).first()
-            
+            ).select_related('id_radio').first()
+
             tiene_turno_activo = asignacion_vehiculo_hoy is not None or asignacion_radio_hoy is not None
-            
-            data = {
-                'tiene_turno_activo': tiene_turno_activo,
-                'usuario_id': usuario_id,
-                'fecha': fecha_hoy.isoformat(),
-                'detalles': {
-                    'asignacion_vehiculo': {
-                        'existe': asignacion_vehiculo_hoy is not None,
-                        'id': asignacion_vehiculo_hoy.id_asignacion_vehiculo if asignacion_vehiculo_hoy else None,
-                        'estado': asignacion_vehiculo_hoy.activo if asignacion_vehiculo_hoy else None,
-                        'estado_texto': self.get_estado_vehiculo_texto(asignacion_vehiculo_hoy.activo) if asignacion_vehiculo_hoy else None
+
+            if tiene_turno_activo:
+                detalle = {
+                    'vehiculo': {
+                        'id_asignacion': asignacion_vehiculo_hoy.id_asignacion_vehiculo,
+                        'id_vehiculo': asignacion_vehiculo_hoy.id_vehiculo.id_vehiculo if asignacion_vehiculo_hoy.id_vehiculo else None,
+                        'patente': asignacion_vehiculo_hoy.id_vehiculo.patente_vehiculo if asignacion_vehiculo_hoy.id_vehiculo else 'Manual',
+                        'estado': asignacion_vehiculo_hoy.activo,
+                        'estado_texto': self.get_estado_vehiculo_texto(asignacion_vehiculo_hoy.activo),
+                        'observaciones': asignacion_vehiculo_hoy.observaciones
                     } if asignacion_vehiculo_hoy else None,
-                    'asignacion_radio': {
-                        'existe': asignacion_radio_hoy is not None,
-                        'id': asignacion_radio_hoy.id if asignacion_radio_hoy else None
+                    'radio': {
+                        'id_asignacion': asignacion_radio_hoy.id_asignacion_radio,
+                        'id_radio': asignacion_radio_hoy.id_radio.id_radio if asignacion_radio_hoy.id_radio else None,
+                        'nombre_radio': asignacion_radio_hoy.id_radio.nombre_radio if asignacion_radio_hoy.id_radio else None,
+                        'codigo_radio': asignacion_radio_hoy.id_radio.codigo_radio if asignacion_radio_hoy.id_radio else None,
+                        'fecha_asignacion': asignacion_radio_hoy.fecha_asignacion.isoformat(),
+                        'fecha_devolucion': asignacion_radio_hoy.fecha_devolucion.isoformat() if asignacion_radio_hoy.fecha_devolucion else None
                     } if asignacion_radio_hoy else None
                 }
+            else:
+                detalle = 'No hay asignaciones activas hoy'
+
+            data = {
+                'tiene_turno_activo': tiene_turno_activo,
+                # Para que desde Ionic sepas si el backend cerró algo automáticamente
+                'turno_expirado_y_cerrado': turno_expirado_y_cerrado,
+                'info_cierre': info_cierre if turno_expirado_y_cerrado else None,
+                'detalle': detalle
             }
-            
+
             return JsonResponse(data)
-            
+
         except Usuario.DoesNotExist:
             return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
         except Exception as e:
             return JsonResponse({'error': str(e)}, status=500)
-    
+
     def get_estado_vehiculo_texto(self, estado_id):
         estados = {
             1: 'Disponible',
@@ -2974,101 +3079,121 @@ class VerificarTurnoActivo(View):
             4: 'No disponible'
         }
         return estados.get(estado_id, 'Desconocido')
+    
+def get_asignacion_activa_usuario(usuario):
+    """
+    Retorna la asignación de vehículo activa del usuario (si existe).
+    Estados activos: 1, 2, 3 (Disponible, En proceso, En central)
+    """
+    return AsignacionVehiculo.objects.filter(
+        id_usuario=usuario,
+        activo__in=[1, 2, 3]
+    ).order_by('-fecha_creacion').first()
+
+# ============================================================
+#  INICIAR TURNO DESDE IONIC
+# ============================================================
 
 @method_decorator(csrf_exempt, name='dispatch')
 class IniciarTurnoTrabajador(View):
-    """Iniciar turno con validación de turno activo"""
+    """Iniciar turno desde la app Ionic, evitando duplicar turnos en el mismo día"""
+
     def post(self, request):
         try:
-            print("🚀 ===== INICIANDO TURNO CON VALIDACION =====")
-            
+            print("🚀 ===== INICIANDO TURNO DESDE IONIC =====")
+
             data = json.loads(request.body)
             print(f"📦 Datos recibidos: {data}")
-            
+
             usuario_id = data.get('usuario_id')
             if not usuario_id:
                 return JsonResponse({'error': 'ID de usuario requerido'}, status=400)
-            
-            # Obtener usuario
+
             usuario = Usuario.objects.get(id_usuario=usuario_id)
             print(f"✅ Usuario encontrado: {usuario.nombre_usuario}")
-            
+
             fecha_hoy = date.today()
             print(f"📅 Fecha de hoy: {fecha_hoy}")
-            
-            # VALIDACIÓN: Verificar si ya tiene turno activo hoy
+
+            # 🔁 ANTES DE NADA: cerrar turno anterior si ya pasó la hora_fin
+            info_cierre = cerrar_turno_si_corresponde(usuario, forzar=False)
+            if info_cierre['ejecutado']:
+                print(f"⏱️ Turno anterior cerrado automáticamente: {info_cierre}")
+
+            # VALIDACIÓN: ¿sigue teniendo turno activo hoy después del cierre automático?
             turno_activo = AsignacionVehiculo.objects.filter(
                 id_usuario=usuario,
                 fecha_asignacion=fecha_hoy,
-                activo__in=[1, 2, 3]  # Estados activos
+                activo__in=[1, 2, 3]
             ).exists()
-            
+
             if turno_activo:
-                print(f"❌ Usuario ya tiene un turno activo hoy")
+                print("❌ Usuario ya tiene un turno activo hoy (después de revisar cierre automático)")
                 return JsonResponse({
                     'error': 'Ya tienes un turno activo hoy. No puedes iniciar otro turno.',
                     'codigo_error': 'TURNO_ACTIVO'
                 }, status=400)
-            
-            # Obtener datos del turno
+
+            # ------------------------------
+            #   DATOS RECIBIDOS DEL FRONT
+            # ------------------------------
             vehiculo_id = data.get('vehiculo_id')
             codigo_vehiculo_manual = data.get('codigo_vehiculo_manual')
             radio_id = data.get('radio_id')
-            
-            # ASIGNACIÓN DE VEHÍCULO
+            kilometraje_inicial = data.get('kilometraje_inicial')  # Puede ser None
+            observaciones = data.get('observaciones', '')
+
+            # ------------------------------
+            #   ASIGNACIÓN DE VEHÍCULO
+            # ------------------------------
             asignacion_vehiculo = None
             vehiculo_info = None
-            
+
             if vehiculo_id:
+                # Vehículo seleccionado desde la app
                 vehiculo = Vehiculos.objects.get(id_vehiculo=vehiculo_id)
                 print(f"✅ Vehículo encontrado: {vehiculo.patente_vehiculo}")
+
                 vehiculo_info = {
+                    'id_vehiculo': vehiculo.id_vehiculo,
                     'patente': vehiculo.patente_vehiculo,
                     'marca': vehiculo.marca_vehiculo,
                     'modelo': vehiculo.modelo_vehiculo,
                     'codigo': vehiculo.codigo_vehiculo
                 }
-                
-                # ACTUALIZAR: Cambiar estado del vehículo a "4: En patrulla"
-                # Primero, obtener el estado "En patrulla" (id 4)
+
+                # Cambiar estado del vehículo a "en patrulla" (id_estado_vehiculo = 4, por ejemplo)
                 try:
                     estado_patrulla = EstadoVehiculo.objects.get(id_estado_vehiculo=4)
-                    # Actualizar el estado del vehículo
                     vehiculo.id_estado_vehiculo = estado_patrulla
                     vehiculo.save()
                     print(f"🚗 Estado del vehículo actualizado a: {estado_patrulla.nombre_estado}")
                 except EstadoVehiculo.DoesNotExist:
-                    print(f"⚠️ No se encontró el estado 'En patrulla' (id 4)")
-                    # Si no existe el estado 4, usar "No disponible" (id 5) como alternativa
-                    try:
-                        estado_no_disponible = EstadoVehiculo.objects.get(id_estado_vehiculo=5)
-                        vehiculo.id_estado_vehiculo = estado_no_disponible
-                        vehiculo.save()
-                        print(f"🚗 Estado del vehículo actualizado a: {estado_no_disponible.nombre_estado}")
-                    except EstadoVehiculo.DoesNotExist:
-                        print(f"⚠️ No se encontró el estado 'No disponible' (id 5) tampoco")
-                
+                    print("⚠️ No se encontró el estado 'En patrulla' (id 4), se deja el estado actual del vehículo")
+
                 # Crear asignación de vehículo
                 asignacion_vehiculo = AsignacionVehiculo.objects.create(
                     id_usuario=usuario,
                     id_vehiculo=vehiculo,
                     fecha_asignacion=fecha_hoy,
-                    kilometraje_inicial=vehiculo.total_kilometraje,
+                    kilometraje_inicial=kilometraje_inicial or 0,
                     kilometraje_recorrido=0,
-                    kilometraje_total=vehiculo.total_kilometraje,
-                    activo=1,  # Disponible para el conductor
-                    fecha_creacion=timezone.now()
+                    kilometraje_total=kilometraje_inicial or 0,
+                    activo=2,  # En proceso / en patrulla
+                    observaciones=observaciones
                 )
-                print(f"✅ Asignación de vehículo creada. ID: {asignacion_vehiculo.id_asignacion_vehiculo}")
-            
+
             elif codigo_vehiculo_manual:
-                print(f"✅ Vehículo manual: {codigo_vehiculo_manual}")
+                # Caso en que se ingresa un código manual en la app
+                print(f"📝 Asignación manual de vehículo: {codigo_vehiculo_manual}")
                 vehiculo_info = {
-                    'tipo': 'manual',
+                    'id_vehiculo': None,
+                    'patente': 'Manual',
+                    'marca': '',
+                    'modelo': '',
                     'codigo': codigo_vehiculo_manual
                 }
-                
-                # Crear asignación manual
+
                 asignacion_vehiculo = AsignacionVehiculo.objects.create(
                     id_usuario=usuario,
                     id_vehiculo=None,
@@ -3076,182 +3201,126 @@ class IniciarTurnoTrabajador(View):
                     kilometraje_inicial=0,
                     kilometraje_recorrido=0,
                     kilometraje_total=0,
-                    activo=1,  # Disponible
-                    # NO incluir observaciones ya que no existe el campo
-                    fecha_creacion=timezone.now()
+                    activo=2,
+                    observaciones=f"Vehículo manual: {codigo_vehiculo_manual}. {observaciones}"
                 )
-                print(f"✅ Asignación manual creada. ID: {asignacion_vehiculo.id_asignacion_vehiculo}")
-            
-            # ASIGNACIÓN DE RADIO
+
+            # ------------------------------
+            #   ASIGNACIÓN DE RADIO
+            # ------------------------------
             asignacion_radio = None
             radio_info = None
-            
+
             if radio_id:
                 radio = Radio.objects.get(id_radio=radio_id)
-                print(f"✅ Radio encontrada: {radio.nombre_radio} (estado: {radio.estado_radio})")
+                print(f"📻 Radio encontrada: {radio.nombre_radio} ({radio.codigo_radio})")
+
                 radio_info = {
-                    'nombre': radio.nombre_radio,
-                    'codigo': radio.codigo_radio
+                    'id_radio': radio.id_radio,
+                    'nombre_radio': radio.nombre_radio,
+                    'codigo_radio': radio.codigo_radio
                 }
-                
-                # Verificar si la radio está disponible
-                if radio.estado_radio != 'Disponible':
-                    return JsonResponse({
-                        'error': f'La radio {radio.nombre_radio} no está disponible',
-                        'codigo_error': 'RADIO_NO_DISPONIBLE'
-                    }, status=400)
-                
-                # Crear asignación de radio
+
+                # Marcar radio en uso
+                radio.estado_radio = 'En uso'
+                radio.save()
+
                 asignacion_radio = AsignacionRadio.objects.create(
                     id_usuario=usuario,
                     id_radio=radio,
-                    fecha_asignacion=fecha_hoy,
-                    fecha_creacion=timezone.now()
+                    fecha_asignacion=fecha_hoy
                 )
-                print(f"✅ Asignación de radio creada. ID: {asignacion_radio.id_asignacion_radio}")
-                
-                # Actualizar estado de la radio
-                radio.estado_radio = 'No Disponible'
-                radio.save()
-                print(f"📻 Radio marcada como No Disponible")
-            
-            # Calcular hora de finalización automática (8 horas después)
-            hora_inicio = timezone.now()
-            hora_finalizacion = hora_inicio + timedelta(hours=8)
-            
-            # PREPARAR RESPUESTA
+
+            # ------------------------------
+            #   INFORMACIÓN DEL TURNO
+            # ------------------------------
+            turno = usuario.id_turno
+            turno_data = None
+            if turno:
+                turno_data = {
+                    'id_turno': turno.id_turno,
+                    'nombre_turno': turno.nombre_turno,
+                    'hora_inicio': turno.hora_inicio.strftime('%H:%M'),
+                    'hora_fin': turno.hora_fin.strftime('%H:%M'),
+                }
+
+            # ------------------------------
+            #   RESPUESTA
+            # ------------------------------
             response_data = {
                 'success': True,
                 'message': 'Turno iniciado correctamente',
-                'turno_id': asignacion_vehiculo.id_asignacion_vehiculo if asignacion_vehiculo else None,
-                'asignacion_vehiculo_id': asignacion_vehiculo.id_asignacion_vehiculo if asignacion_vehiculo else None,
-                'asignacion_radio_id': asignacion_radio.id_asignacion_radio if asignacion_radio else None,
-                'fecha_inicio': fecha_hoy.isoformat(),
-                'hora_inicio': hora_inicio.isoformat(),
-                'hora_finalizacion_automatica': hora_finalizacion.isoformat(),
-                'detalles': {
-                    'usuario': {
-                        'id': usuario.id_usuario,
-                        'nombre': f"{usuario.nombre_usuario} {usuario.apellido_pat_usuario}"
-                    },
-                    'vehiculo': vehiculo_info,
-                    'radio': radio_info,
-                    'estado': 'Disponible',
-                    'tiempo_restante': '8:00:00'
-                }
+                'usuario': {
+                    'id_usuario': usuario.id_usuario,
+                    'nombre_completo': f"{usuario.nombre_usuario} {usuario.apellido_pat_usuario}",
+                    'rut_usuario': usuario.rut_usuario,
+                    'correo_electronico_usuario': usuario.correo_electronico_usuario,
+                },
+                'turno': turno_data,
+                'asignacion_vehiculo': {
+                    'id_asignacion': asignacion_vehiculo.id_asignacion_vehiculo if asignacion_vehiculo else None,
+                    'vehiculo': vehiculo_info
+                },
+                'asignacion_radio': {
+                    'id_asignacion': asignacion_radio.id_asignacion_radio if asignacion_radio else None,
+                    'radio': radio_info
+                },
+                # Para que desde la app sepas si el backend cerró algo antes de iniciar
+                'cierre_automatico_anterior': info_cierre if info_cierre['ejecutado'] else None,
             }
-            
-            print("✅ Turno iniciado exitosamente")
-            print(f"⏰ Hora de finalización automática: {hora_finalizacion}")
-            
-            return JsonResponse(response_data)
-            
+
+            return JsonResponse(response_data, status=201)
+
         except Usuario.DoesNotExist:
-            print(f"❌ Usuario no encontrado: {usuario_id}")
             return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
         except Vehiculos.DoesNotExist:
-            print(f"❌ Vehículo no encontrado: {vehiculo_id}")
             return JsonResponse({'error': 'Vehículo no encontrado'}, status=404)
         except Radio.DoesNotExist:
-            print(f"❌ Radio no encontrada: {radio_id}")
             return JsonResponse({'error': 'Radio no encontrada'}, status=404)
         except Exception as e:
-            print(f"❌ Error en IniciarTurnoTrabajador: {str(e)}")
-            import traceback
-            print(f"📋 Traceback completo:\n{traceback.format_exc()}")
-            return JsonResponse({'error': f'Error interno: {str(e)}'}, status=500)
+            print(f"❌ Error al iniciar turno: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+
+# ============================================================
+#  FINALIZAR TURNO AUTOMÁTICAMENTE (BOTÓN / CRON)
+# ============================================================
 
 @method_decorator(csrf_exempt, name='dispatch')
 class FinalizarTurnoAutomatico(View):
-    """Finalizar turnos automáticamente después de 8 horas"""
+    """
+    Endpoint para finalizar el turno de un trabajador.
+    Se puede usar desde un botón en la app o desde un cron.
+    """
+
     def post(self, request):
         try:
-            print("🛑 ===== FINALIZANDO TURNOS AUTOMÁTICAMENTE =====")
-            
             data = json.loads(request.body)
             usuario_id = data.get('usuario_id')
-            
+
             if not usuario_id:
                 return JsonResponse({'error': 'ID de usuario requerido'}, status=400)
-            
+
             usuario = Usuario.objects.get(id_usuario=usuario_id)
-            fecha_hoy = date.today()
-            
-            # Buscar asignación de vehículo activa hoy
-            asignacion_vehiculo = AsignacionVehiculo.objects.filter(
-                id_usuario=usuario,
-                fecha_asignacion=fecha_hoy,
-                activo__in=[1, 2, 3]  # Estados activos
-            ).first()
-            
-            if not asignacion_vehiculo:
+            info_cierre = cerrar_turno_si_corresponde(usuario, forzar=True)
+
+            if not info_cierre['ejecutado']:
                 return JsonResponse({
                     'success': False,
-                    'message': 'No se encontró un turno activo para finalizar'
+                    'message': f"No había asignaciones activas para cerrar. Motivo: {info_cierre['motivo']}"
                 })
-            
-            # Buscar asignación de radio activa hoy
-            asignacion_radio = AsignacionRadio.objects.filter(
-                id_usuario=usuario,
-                fecha_asignacion=fecha_hoy,
-                fecha_devolucion__isnull=True
-            ).first()
-            
-            cambios_realizados = []
-            
-            # Finalizar asignación de vehículo
-            if asignacion_vehiculo:
-                # Actualizar estado a "No disponible" (4)
-                estado_anterior = asignacion_vehiculo.activo
-                asignacion_vehiculo.activo = 4
-                asignacion_vehiculo.save()
-                
-                cambios_realizados.append(f"Vehículo: estado cambiado de {self.get_estado_texto(estado_anterior)} a No disponible")
-                print(f"✅ Vehículo finalizado: ID {asignacion_vehiculo.id_asignacion_vehiculo}")
-            
-            # Finalizar asignación de radio
-            if asignacion_radio:
-                # Marcar como devuelta
-                asignacion_radio.fecha_devolucion = timezone.now()
-                asignacion_radio.save()
-                
-                # Marcar radio como disponible
-                radio = asignacion_radio.id_radio
-                radio.estado_radio = 'Disponible'
-                radio.save()
-                
-                cambios_realizados.append(f"Radio: devuelta y marcada como Disponible")
-                print(f"✅ Radio finalizada: {radio.nombre_radio}")
-            
-            response_data = {
+
+            return JsonResponse({
                 'success': True,
-                'message': 'Turno finalizado automáticamente',
-                'fecha_finalizacion': timezone.now().isoformat(),
-                'cambios': cambios_realizados,
-                'detalles': {
-                    'asignacion_vehiculo_id': asignacion_vehiculo.id_asignacion_vehiculo if asignacion_vehiculo else None,
-                    'asignacion_radio_id': asignacion_radio.id_asignacion_radio if asignacion_radio else None,
-                    'estado_final': 'No disponible'
-                }
-            }
-            
-            print("✅ Turno finalizado automáticamente")
-            return JsonResponse(response_data)
-            
+                'message': 'Turno finalizado correctamente',
+                'info_cierre': info_cierre,
+                'fecha_finalizacion': timezone.now().isoformat()
+            })
+
         except Usuario.DoesNotExist:
             return JsonResponse({'error': 'Usuario no encontrado'}, status=404)
         except Exception as e:
-            print(f"❌ Error en FinalizarTurnoAutomatico: {str(e)}")
+            print(f"❌ Error al finalizar turno automáticamente: {e}")
             return JsonResponse({'error': str(e)}, status=500)
-    
-    def get_estado_texto(self, estado_id):
-        estados = {
-            1: 'Disponible',
-            2: 'En proceso',
-            3: 'En central',
-            4: 'No disponible'
-        }
-        return estados.get(estado_id, 'Desconocido')
 
 @method_decorator(csrf_exempt, name='dispatch')
 class CambiarEstadoVehiculo(View):
@@ -3297,99 +3366,53 @@ class CambiarEstadoVehiculo(View):
 
 @method_decorator(csrf_exempt, name='dispatch')
 class VerificarTurnosParaFinalizar(View):
-    """Verificar turnos que deben finalizarse automáticamente"""
-    def get(self, request):
-        try:
-            print("🔍 ===== VERIFICANDO TURNOS PARA FINALIZAR =====")
-            
-            ahora = timezone.now()
-            limite_horas = 8  # 8 horas de turno
-            hora_limite = ahora - timedelta(hours=limite_horas)
-            fecha_hoy = date.today()
-            
-            # Buscar asignaciones de vehículo activas por más de 8 horas
-            asignaciones_expiradas = AsignacionVehiculo.objects.filter(
-                fecha_asignacion=fecha_hoy,
-                activo__in=[1, 2, 3],  # Estados activos
-                fecha_creacion__lt=hora_limite
-            ).select_related('id_usuario', 'id_vehiculo')
-            
-            turnos_para_finalizar = []
-            
-            for asignacion in asignaciones_expiradas:
-                # Calcular horas transcurridas
-                horas_transcurridas = (ahora - asignacion.fecha_creacion).total_seconds() / 3600
-                
-                turnos_para_finalizar.append({
-                    'id_asignacion_vehiculo': asignacion.id_asignacion_vehiculo,
-                    'usuario': {
-                        'id': asignacion.id_usuario.id_usuario,
-                        'nombre': f"{asignacion.id_usuario.nombre_usuario} {asignacion.id_usuario.apellido_pat_usuario}"
-                    },
-                    'vehiculo': {
-                        'patente': asignacion.id_vehiculo.patente_vehiculo if asignacion.id_vehiculo else 'Manual',
-                        'observaciones': asignacion.observaciones
-                    },
-                    'estado_actual': asignacion.activo,
-                    'estado_texto': self.get_estado_texto(asignacion.activo),
-                    'hora_inicio': asignacion.fecha_creacion.isoformat(),
-                    'horas_transcurridas': round(horas_transcurridas, 2),
-                    'debe_finalizar': horas_transcurridas >= limite_horas
-                })
-            
-            # Buscar asignaciones de radio sin devolver
-            asignaciones_radio_pendientes = AsignacionRadio.objects.filter(
-                fecha_asignacion=fecha_hoy,
-                fecha_devolucion__isnull=True,
-                fecha_creacion__lt=hora_limite
-            ).select_related('id_usuario', 'id_radio')
-            
-            radios_para_devolver = []
-            
-            for asignacion in asignaciones_radio_pendientes:
-                horas_transcurridas = (ahora - asignacion.fecha_creacion).total_seconds() / 3600
-                
-                radios_para_devolver.append({
-                    'id_asignacion_radio': asignacion.id_asignacion_radio,
-                    'usuario_id': asignacion.id_usuario.id_usuario,
-                    'radio': {
-                        'nombre': asignacion.id_radio.nombre_radio,
-                        'codigo': asignacion.id_radio.codigo_radio
-                    },
-                    'horas_transcurridas': round(horas_transcurridas, 2),
-                    'debe_devolverse': horas_transcurridas >= limite_horas
-                })
-            
-            data = {
-                'fecha_verificacion': ahora.isoformat(),
-                'limite_horas': limite_horas,
-                'hora_limite': hora_limite.isoformat(),
-                'turnos_vehiculo_expirados': turnos_para_finalizar,
-                'radios_pendientes_devolucion': radios_para_devolver,
-                'resumen': {
-                    'total_turnos_expirados': len([t for t in turnos_para_finalizar if t['debe_finalizar']]),
-                    'total_radios_devolver': len([r for r in radios_para_devolver if r['debe_devolverse']])
-                }
-            }
-            
-            print(f"📊 Turnos expirados: {data['resumen']['total_turnos_expirados']}")
-            print(f"📻 Radios por devolver: {data['resumen']['total_radios_devolver']}")
-            
-            return JsonResponse(data)
-            
-        except Exception as e:
-            print(f"❌ Error en VerificarTurnosParaFinalizar: {str(e)}")
-            return JsonResponse({'error': str(e)}, status=500)
-    
-    def get_estado_texto(self, estado_id):
-        estados = {
-            1: 'Disponible',
-            2: 'En proceso',
-            3: 'En central',
-            4: 'No disponible'
-        }
-        return estados.get(estado_id, 'Desconocido')
+    """
+    Recorre todos los usuarios con turno y cierra los que ya pasaron su hora_fin.
+    Pensado para ser llamado desde un cron/administración, no desde la app.
+    """
 
+    def post(self, request):
+        try:
+            ahora = timezone.now()
+            fecha_hoy = date.today()
+
+            usuarios = Usuario.objects.filter(
+                id_turno__isnull=False,
+                is_active=True
+            ).select_related('id_turno')
+
+            usuarios_procesados = []
+            usuarios_finalizados = []
+
+            for usuario in usuarios:
+                turno = usuario.id_turno
+                if not turno:
+                    continue
+
+                # Si ya pasó la hora_fin del turno
+                if ahora.time() >= turno.hora_fin:
+                    info_cierre = cerrar_turno_si_corresponde(usuario, forzar=False)
+                    usuarios_procesados.append(usuario.id_usuario)
+
+                    if info_cierre['ejecutado']:
+                        usuarios_finalizados.append({
+                            'id_usuario': usuario.id_usuario,
+                            'nombre': f"{usuario.nombre_usuario} {usuario.apellido_pat_usuario}",
+                            'info_cierre': info_cierre
+                        })
+
+            return JsonResponse({
+                'success': True,
+                'fecha': fecha_hoy.isoformat(),
+                'hora_actual': ahora.strftime('%H:%M:%S'),
+                'usuarios_procesados': usuarios_procesados,
+                'usuarios_finalizados': usuarios_finalizados
+            })
+
+        except Exception as e:
+            print(f"❌ Error en VerificarTurnosParaFinalizar: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
+        
 @method_decorator(csrf_exempt, name='dispatch')
 class ObtenerHistorialTurnos(View):
     """Obtener historial de turnos de un usuario"""
