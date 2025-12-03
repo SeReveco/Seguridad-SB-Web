@@ -1,6 +1,7 @@
 from datetime import date, timedelta
 import random
 import re
+from time import localtime
 from django.contrib import messages  # type: ignore
 from django.shortcuts import render, redirect, get_object_or_404  # type: ignore
 from django.contrib.auth import login, authenticate, logout  # type: ignore
@@ -9,9 +10,7 @@ from django.contrib.auth.hashers import make_password, check_password  # type: i
 from django.contrib.auth.decorators import login_required  # type: ignore
 from django.http import HttpResponse, JsonResponse  # type: ignore
 from django.utils import timezone
-from rest_framework.views import APIView  # type: ignore
-from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated  # type: ignore
+from django.views.decorators.http import require_GET  # type: ignore
 from django.views import View  # type: ignore
 from .models import (
     EstadoVehiculo, FamiliaDenuncia, GrupoDenuncia, Requerimiento, SubgrupoDenuncia,
@@ -2786,6 +2785,70 @@ def api_register_ciudadano(request):
             'success': False,
             'error': 'Error interno del servidor'
         }, status=500)
+        
+@require_GET
+def perfil_usuario(request, usuario_id):
+    """
+    Devuelve datos del usuario + estadísticas de denuncias/solicitudes.
+    Estructura:
+    {
+      "usuario": {...},
+      "estadisticas": {
+          "total_denuncias": int,
+          "total_solicitudes": int,
+          "denuncia_activa": {...} | null
+      }
+    }
+    """
+    try:
+        usuario = Usuario.objects.get(pk=usuario_id)
+    except Usuario.DoesNotExist:
+        return JsonResponse({"detail": "Usuario no encontrado"}, status=404)
+
+    # Contadores
+    total_denuncias = Denuncia.objects.filter(usuario=usuario).count()
+    total_solicitudes = SolicitudCiudadano.objects.filter(usuario=usuario).count()
+
+    # Denuncia activa (pendiente o en proceso)
+    denuncia_activa = (
+        Denuncia.objects
+        .filter(usuario=usuario, estado__in=["pendiente", "en_proceso"])
+        .order_by("-fecha_creacion")
+        .first()
+    )
+
+    denuncia_data = None
+    if denuncia_activa:
+        denuncia_data = {
+            "id": denuncia_activa.id,
+            "tipo": getattr(denuncia_activa, "tipo", ""),
+            "estado": getattr(denuncia_activa, "estado", ""),
+            "descripcion": getattr(denuncia_activa, "descripcion", ""),
+            "fecha": denuncia_activa.fecha_creacion.isoformat(),
+        }
+
+    data = {
+        "usuario": {
+            "id": usuario.id,
+            "nombre": getattr(usuario, "nombre", usuario.first_name),
+            "apellido_paterno": getattr(usuario, "apellido_paterno", ""),
+            "apellido_materno": getattr(usuario, "apellido_materno", ""),
+            "telefono": getattr(usuario, "telefono", ""),
+            "correo": getattr(usuario, "correo", getattr(usuario, "email", "")),
+            "ultimo_inicio_sesion": (
+                localtime(usuario.last_login).isoformat()
+                if usuario.last_login
+                else None
+            ),
+        },
+        "estadisticas": {
+            "total_denuncias": total_denuncias,
+            "total_solicitudes": total_solicitudes,
+            "denuncia_activa": denuncia_data,
+        },
+    }
+
+    return JsonResponse(data) 
         
 @method_decorator(csrf_exempt, name='dispatch')
 class ObtenerDatosTrabajador(View):

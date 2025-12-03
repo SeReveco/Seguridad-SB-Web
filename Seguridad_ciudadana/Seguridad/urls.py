@@ -80,4 +80,5 @@ urlpatterns = [
     path('api/trabajador/turno/finalizar-automatico/', views.FinalizarTurnoAutomatico.as_view(), name='finalizar_turno_automatico'),
     path('api/trabajador/turnos/verificar-finalizar/', views.VerificarTurnosParaFinalizar.as_view(), name='verificar_turnos_finalizar'),
     path('api/trabajador/historial-turnos/<int:usuario_id>/', views.ObtenerHistorialTurnos.as_view(), name='historial_turnos'),
+    path('api/usuario/perfil/<int:usuario_id>/',views.perfil_usuario,name='perfil_usuario'),
 ]
