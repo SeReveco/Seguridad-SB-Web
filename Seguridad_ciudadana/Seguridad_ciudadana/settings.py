@@ -1,17 +1,14 @@
 from pathlib import Path
 import os
-from datetime import timedelta
 from decouple import config
 import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# SECRET_KEY desde variables de entorno
 SECRET_KEY = config('SECRET_KEY', default='django-insecure-f(tp3foo&9y!)2n_a9vz+%als((omf9rulg%6j8ek1f4se@h3f')
 
-AUTH_USER_MODEL = 'Seguridad.Usuario' 
+AUTH_USER_MODEL = 'Seguridad.Usuario'
 
-# DEBUG - QUITAR EL DUPLICADO AL FINAL
 DEBUG = config('DEBUG', default=False, cast=bool)
 
 ALLOWED_HOSTS = [
@@ -22,7 +19,6 @@ ALLOWED_HOSTS = [
     '*'
 ]
 
-# ---------------- APPS ----------------
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -31,17 +27,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
 
-    # TUS APPS
     'Seguridad',
 
-    # LIBRERÍAS
     'rest_framework',
     'corsheaders',
 ]
 
-# ---------------- MIDDLEWARE CORREGIDO ----------------
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',  # ← DEBE SER EL PRIMERO
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -71,7 +64,6 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'Seguridad_ciudadana.wsgi.application'
 
-# ---------------- DATABASE ----------------
 if config('DATABASE_URL', default=''):
     DATABASES = {
         'default': dj_database_url.config(
@@ -96,7 +88,6 @@ else:
         }
     }
 
-# ---------------- PASSWORDS ----------------
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -104,46 +95,41 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-# ---------------- IDIOMA / ZONA ----------------
 LANGUAGE_CODE = 'es-cl'
 TIME_ZONE = 'America/Santiago'
 USE_I18N = True
 USE_TZ = True
 
-# ---------------- STATIC ----------------
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, "static")]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+from whitenoise.storage import CompressedManifestStaticFilesStorage
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# ---------------- REST FRAMEWORK ----------------
+# 🔹 REST_FRAMEWORK SIN JWT
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
-        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.BasicAuthentication',
     ),
     'DEFAULT_PERMISSION_CLASSES': (
-        'rest_framework.permissions.IsAuthenticated',
-    )
+        'rest_framework.permissions.AllowAny',  # o IsAuthenticated si quieres proteger
+    ),
 }
 
-# ---------------- JWT CONFIG ----------------
-SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=1),
-    "AUTH_HEADER_TYPES": ("Bearer",),
-}
+# 🔹 SIN SIMPLE_JWT (lo quitamos por completo)
 
-# ---------------- CORS CONFIGURACIÓN MEJORADA ----------------
-CORS_ALLOW_ALL_ORIGINS = True  # Para desarrollo, en producción restringir
+# 🔹 CORS
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
-    'OPTIONS', 
+    'OPTIONS',
     'PATCH',
     'POST',
     'PUT',
