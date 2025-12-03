@@ -39,8 +39,8 @@
                     </div>
                     <div class="dropdown-divider"></div>
                     {% endif %}
-                    <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
-                        <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                    <a href="{% url 'perfil_usuario' %}" class="dropdown-item2">
+                        <i class="fa-solid fa-user"></i> Perfil
                     </a>
                     <a href="{% url 'index' %}" class="dropdown-item2">
                         <i class="fa-solid fa-map"></i> Mapa
@@ -48,117 +48,131 @@
                     <a href="" class="dropdown-item2">
                         <i class="fa-solid fa-list"></i> Historial de Alertas
                     </a>
-                    <a href="" class="dropdown-item2">
+                    <a href="{% url 'denuncias_dashboard' %}" class="dropdown-item2">
                         <i class="fa-solid fa-chart-pie"></i> Graficos
                     </a>
                     <a href="{% url 'Admin' %}" class="dropdown-item2">
                         <i class="fa-solid fa-list"></i> Panel Administración
                     </a>
-
+                    <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
+                        <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+                    </a>
                 </div>
             </i>
         </div>
 
     </nav>
 
-    <div class="container-fluid py-4 dashboard-wrapper">
+    <div class="graficos-section">
+        <div class="container-fluid py-4 dashboard-wrapper">
 
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <div>
+            <div class="d-flex justify-content-between align-items-center mb-4">
                 <h1 class="page-title mb-1">Dashboard de Denuncias</h1>
                 <p class="page-subtitle mb-0">Estadísticas generales de las denuncias registradas</p>
             </div>
-            <a href="{% url 'index' %}" class="btn btn-link text-decoration-none volver-link">
-                ⟵ Volver al inicio
-            </a>
+
+            <!-- FILA 1: ESTADO / FAMILIA / PRIORIDAD / TOP REQUERIMIENTOS -->
+            <div class="row g-4 mb-4">
+                <!-- Denuncias por Estado -->
+                <div class="col-lg-3 col-md-6">
+                    <div class="dashboard-card">
+                        <div class="dashboard-card-header">
+                            <h5>Denuncias por Estado</h5>
+                            <span class="badge total-badge" id="badge-total-estado">0</span>
+                        </div>
+                        <div class="dashboard-card-body">
+                            <h6 class="chart-subtitle">Distribución por Estado</h6>
+                            <div class="chart-wrapper chart-wrapper-estado">
+                                <canvas id="denunciasPorEstadoChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Denuncias por Familia -->
+                <div class="col-lg-3 col-md-6">
+                    <div class="dashboard-card">
+                        <div class="dashboard-card-header">
+                            <h5>Denuncias por Familia</h5>
+                            <span class="badge total-badge" id="badge-total-familia">0</span>
+                        </div>
+                        <div class="dashboard-card-body">
+                            <h6 class="chart-subtitle">Top Familias de Denuncia</h6>
+                            <div class="chart-wrapper">
+                                <canvas id="denunciasPorFamiliaChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Denuncias por Prioridad -->
+                <div class="col-lg-3 col-md-6">
+                    <div class="dashboard-card">
+                        <div class="dashboard-card-header">
+                            <h5>Denuncias por Prioridad</h5>
+                            <span class="badge total-badge" id="badge-total-clasificacion">0</span>
+                        </div>
+                        <div class="dashboard-card-body">
+                            <h6 class="chart-subtitle">Clasificación de Requerimientos</h6>
+                            <div class="chart-wrapper">
+                                <canvas id="denunciasPorClasificacionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 🆕 Top 5 Requerimientos -->
+                <div class="col-lg-3 col-md-6">
+                    <div class="dashboard-card">
+                        <div class="dashboard-card-header">
+                            <h5>Top 5 Requerimientos</h5>
+                            <span class="badge total-badge" id="badge-total-requerimiento">0</span>
+                        </div>
+                        <div class="dashboard-card-body">
+                            <h6 class="chart-subtitle">Mayor frecuencia</h6>
+                            <div class="chart-wrapper">
+                                <canvas id="topRequerimientosChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FILA 2: POR MES + TOP USUARIOS -->
+            <div class="row g-4">
+                <!-- Denuncias por Mes -->
+                <div class="col-lg-8 col-md-7">
+                    <div class="dashboard-card">
+                        <div class="dashboard-card-header">
+                            <h5>Denuncias por Mes (últimos 12 meses)</h5>
+                            <span class="badge total-badge" id="badge-total-mes">0</span>
+                        </div>
+                        <div class="dashboard-card-body">
+                            <h6 class="chart-subtitle">Tendencia temporal</h6>
+                            <div class="chart-wrapper">
+                                <canvas id="denunciasPorMesChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Top Usuarios -->
+                <div class="col-lg-4 col-md-5">
+                    <div class="dashboard-card">
+                        <div class="dashboard-card-header">
+                            <h5>Top 10 Usuarios</h5>
+                            <span class="badge total-badge" id="badge-total-usuario">0</span>
+                        </div>
+                        <div class="dashboard-card-body">
+                            <h6 class="chart-subtitle">Denuncias registradas por usuario</h6>
+                            <div class="chart-wrapper">
+                                <canvas id="denunciasPorUsuarioChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
-
-        <!-- FILA 1: ESTADO / CATEGORÍA (FAMILIA) / PRIORIDAD -->
-        <div class="row g-4 mb-4">
-            <!-- Denuncias por Estado -->
-            <div class="col-lg-4 col-md-6">
-                <div class="dashboard-card">
-                    <div class="dashboard-card-header">
-                        <h5>Denuncias por Estado</h5>
-                        <span class="badge total-badge" id="badge-total-estado">0</span>
-                    </div>
-                    <div class="dashboard-card-body">
-                        <h6 class="chart-subtitle">Distribución por Estado</h6>
-                        <div class="chart-wrapper">
-                            <canvas id="denunciasPorEstadoChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Denuncias por Familia -->
-            <div class="col-lg-4 col-md-6">
-                <div class="dashboard-card">
-                    <div class="dashboard-card-header">
-                        <h5>Denuncias por Familia</h5>
-                        <span class="badge total-badge" id="badge-total-familia">0</span>
-                    </div>
-                    <div class="dashboard-card-body">
-                        <h6 class="chart-subtitle">Top Familias de Denuncia</h6>
-                        <div class="chart-wrapper">
-                            <canvas id="denunciasPorFamiliaChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Denuncias por Clasificación / Prioridad -->
-            <div class="col-lg-4 col-md-12">
-                <div class="dashboard-card">
-                    <div class="dashboard-card-header">
-                        <h5>Denuncias por Prioridad</h5>
-                        <span class="badge total-badge" id="badge-total-clasificacion">0</span>
-                    </div>
-                    <div class="dashboard-card-body">
-                        <h6 class="chart-subtitle">Clasificación de Requerimientos</h6>
-                        <div class="chart-wrapper">
-                            <canvas id="denunciasPorClasificacionChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- FILA 2: POR MES + TOP USUARIOS -->
-        <div class="row g-4">
-            <!-- Denuncias por Mes -->
-            <div class="col-lg-8 col-md-7">
-                <div class="dashboard-card">
-                    <div class="dashboard-card-header">
-                        <h5>Denuncias por Mes (últimos 12 meses)</h5>
-                        <span class="badge total-badge" id="badge-total-mes">0</span>
-                    </div>
-                    <div class="dashboard-card-body">
-                        <h6 class="chart-subtitle">Tendencia temporal</h6>
-                        <div class="chart-wrapper">
-                            <canvas id="denunciasPorMesChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Top Usuarios -->
-            <div class="col-lg-4 col-md-5">
-                <div class="dashboard-card">
-                    <div class="dashboard-card-header">
-                        <h5>Top 10 Usuarios</h5>
-                        <span class="badge total-badge" id="badge-total-usuario">0</span>
-                    </div>
-                    <div class="dashboard-card-body">
-                        <h6 class="chart-subtitle">Denuncias registradas por usuario</h6>
-                        <div class="chart-wrapper">
-                            <canvas id="denunciasPorUsuarioChart"></canvas>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
     </div>
 
     <!-- Chart.js -->
@@ -168,6 +182,7 @@
 
     <!-- JS del Dashboard -->
     <script src="{% static 'JavaScript/graficos.js' %}"></script>
+    <script src="{% static 'JavaScript/redirecciones.js' %}"></script>
 
 </body>
 

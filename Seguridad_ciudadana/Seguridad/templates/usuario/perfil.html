@@ -5,12 +5,19 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="{% static 'CSS/navbar.css' %}">
   <link rel="icon" type="image/png" href="{% static 'Img/logo_san_bernardo_2.png' %}">
   <link rel="stylesheet" href="{% static 'CSS/usuario/perfil.css' %}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+  <script src="https://kit.fontawesome.com/6a284d15f6.js" crossorigin="anonymous"></script>
   <title>Perfil de Usuario - Sistema de Seguridad</title>
 </head>
 
 <body>
+
+  <!-- NAVBAR -->
   <nav id="navbar" class="navbar">
 
     <div class="logo_navbar">
@@ -21,49 +28,49 @@
 
     <!-- Botón del menú Usuario -->
     <div class="dropdown2">
-      <i id="boton-usuario" role="button" class="fa-solid fa-user dropdown-toggle2" onclick="toggleDropdown2()">
-        <div class="dropdown-menu2" id="dropdownUsuario">
+      <i id="boton-usuario" role="button" class="fa-solid fa-user dropdown-toggle2"></i>
 
-          <!-- ✅ Mostrar información del usuario si está logueado -->
-          {% if user.is_authenticated %}
-          <div class="user-info">
-            <strong>{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</strong>
-            <small>{{ user.id_rol.nombre_rol }}</small>
-          </div>
-          <div class="dropdown-divider"></div>
-          {% endif %}
-          <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
-            <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
-          </a>
-          <a href="{% url 'index' %}" class="dropdown-item2">
-            <i class="fa-solid fa-map"></i> Mapa
-          </a>
-          <a href="" class="dropdown-item2">
-            <i class="fa-solid fa-list"></i> Historial de Alertas
-          </a>
-          <a href="" class="dropdown-item2">
-            <i class="fa-solid fa-chart-pie"></i> Graficos
-          </a>
-          <a href="{% url 'Admin' %}" class="dropdown-item2">
-            <i class="fa-solid fa-list"></i> Panel Administración
-          </a>
-
+      <div class="dropdown-menu2" id="dropdownUsuario">
+        {% if user.is_authenticated %}
+        <div class="user-info">
+          <strong>{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</strong>
+          <small>{{ user.id_rol.nombre_rol }}</small>
         </div>
-      </i>
+        <div class="dropdown-divider"></div>
+        {% endif %}
+
+        <a href="{% url 'perfil_usuario' %}" class="dropdown-item2">
+          <i class="fa-solid fa-user"></i> Perfil
+        </a>
+        <a href="{% url 'index' %}" class="dropdown-item2">
+          <i class="fa-solid fa-map"></i> Mapa
+        </a>
+        <a href="" class="dropdown-item2">
+          <i class="fa-solid fa-list"></i> Historial de Alertas
+        </a>
+        <a href="{% url 'denuncias_dashboard' %}" class="dropdown-item2">
+          <i class="fa-solid fa-chart-pie"></i> Graficos
+        </a>
+        <a href="{% url 'Admin' %}" class="dropdown-item2">
+          <i class="fa-solid fa-list"></i> Panel Administración
+        </a>
+        <a href="{% url 'logout' %}" class="dropdown-item2 logout-btn">
+          <i class="fa-solid fa-right-from-bracket"></i> Cerrar Sesión
+        </a>
+      </div>
     </div>
 
   </nav>
 
-  <!-- Header del Perfil -->
-  <header class="profile-header">
-    <div class="container">
+  <!-- HEADER PERFIL -->
+  <header class="profile-header-wrapper">
+    <div class="profile-header">
       <div class="header-content">
         <div class="header-info">
           <h1><i class="fas fa-user-circle"></i>Mi Perfil</h1>
           <p>Información personal y estadísticas</p>
         </div>
         <div class="header-actions">
-          <!-- Botones adicionales si los necesitas -->
           <a href="{% url 'index' %}" class="btn btn-primary">
             <i class="fas fa-home"></i>Volver al Inicio
           </a>
@@ -72,12 +79,11 @@
     </div>
   </header>
 
-  <!-- El resto del contenido se mantiene igual -->
-  <main class="container">
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="perfil-container">
     <div class="profile-grid">
       <!-- Columna Izquierda -->
       <div class="profile-sidebar">
-        <!-- Tarjeta de Perfil -->
         <div class="card profile-card">
           <div class="card-content">
             <div class="profile-avatar">
@@ -86,7 +92,7 @@
             <h2 class="profile-name">{{ user.nombre_usuario }} {{ user.apellido_pat_usuario }}</h2>
             <p class="profile-email">{{ user.correo_electronico_usuario }}</p>
 
-            <!-- Rol del Usuario -->
+            <!-- Rol -->
             <div class="profile-badges">
               <span class="badge badge-role">
                 <i class="fas fa-user-tag"></i>
@@ -101,10 +107,10 @@
                 <i class="fas fa-clock"></i>
                 Turno: {{ user.id_turno.nombre_turno }}
               </span>
-              <p class="turno-horario">
-                {{ user.id_turno.hora_inicio|time:"H:i" }} - {{ user.id_turno.hora_fin|time:"H:i" }}
-              </p>
             </div>
+            <p class="turno-horario">
+              {{ user.id_turno.hora_inicio|time:"H:i" }} - {{ user.id_turno.hora_fin|time:"H:i" }}
+            </p>
             {% endif %}
 
             <!-- Estado -->
@@ -123,76 +129,87 @@
             </div>
           </div>
         </div>
-
-        <!-- El resto del contenido lateral se mantiene igual -->
-        <!-- ... -->
       </div>
 
       <!-- Columna Derecha -->
       <div class="profile-content">
-        <!-- El contenido principal se mantiene igual -->
-        <!-- ... -->
+        <h2 class="profile-section-title">
+          <i class="fa-solid fa-id-card"></i> Datos del usuario
+        </h2>
+
+        <div class="profile-details-grid">
+          <div class="detail-item">
+            <span class="detail-label">Nombre</span>
+            <span class="detail-value">{{ user.nombre_usuario }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Apellido paterno</span>
+            <span class="detail-value">{{ user.apellido_pat_usuario }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Apellido materno</span>
+            <span class="detail-value">{{ user.apellido_mat_usuario }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Correo electrónico</span>
+            <span class="detail-value">{{ user.correo_electronico_usuario }}</span>
+          </div>
+          <div class="detail-item">
+            <span class="detail-label">Rol</span>
+            <span class="detail-value">{{ user.id_rol.nombre_rol }}</span>
+          </div>
+
+          <div class="detail-item detail-item--full">
+            <span class="detail-label">Último acceso</span>
+            <span class="detail-value">
+              {% if user.last_login %}
+              {{ user.last_login|date:"d/m/Y H:i" }}
+              {% else %}
+              Nunca
+              {% endif %}
+            </span>
+          </div>
+
+          {% if user.id_turno %}
+          <div class="detail-item detail-item--full">
+            <span class="detail-label">Turno</span>
+            <span class="detail-value">
+              {{ user.id_turno.nombre_turno }}
+              ({{ user.id_turno.hora_inicio|time:"H:i" }} - {{ user.id_turno.hora_fin|time:"H:i" }})
+            </span>
+          </div>
+          {% endif %}
+        </div>
+
+        {% if denuncias_count or fiscalizaciones_count %}
+        <h2 class="profile-section-title section-mt">
+          <i class="fa-solid fa-chart-line"></i> Actividad en el sistema
+        </h2>
+
+        <div class="profile-stats">
+          <div class="stat-box">
+            <span class="stat-label">Denuncias registradas</span>
+            <span class="stat-value">{{ denuncias_count }}</span>
+          </div>
+          <div class="stat-box">
+            <span class="stat-label">Fiscalizaciones realizadas</span>
+            <span class="stat-value">{{ fiscalizaciones_count }}</span>
+          </div>
+        </div>
+        {% endif %}
       </div>
     </div>
   </main>
 
-  <!-- Footer -->
-  <footer class="profile-footer">
-    <div class="container">
-      <div class="footer-content">
-        <div class="footer-info">
-          <h4>Sistema de Seguridad</h4>
-          <p>Perfil de usuario - {{ user.get_full_name }}</p>
-        </div>
-        <div class="footer-meta">
-          <p>
-            Último acceso:
-            {% if user.last_login %}
-            {{ user.last_login|date:"d/m/Y H:i" }}
-            {% else %}
-            Nunca
-            {% endif %}
-          </p>
-        </div>
-      </div>
-    </div>
-  </footer>
-
   <!-- Font Awesome -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
 
-  <script>
-    // Efectos de interacción
-    document.addEventListener('DOMContentLoaded', function () {
-      // Animación de entrada para las tarjetas
-      const cards = document.querySelectorAll('.card');
-      cards.forEach((card, index) => {
-        card.style.animationDelay = `${index * 0.1}s`;
-        card.classList.add('fade-in-up');
-      });
+  <!-- JS global navbar -->
+  <script src="{% static 'JavaScript/redirecciones.js' %}"></script>
 
-      // Efecto hover para botones
-      const buttons = document.querySelectorAll('.btn, .nav-btn');
-      buttons.forEach(btn => {
-        btn.addEventListener('mouseenter', function () {
-          this.style.transform = 'translateY(-2px)';
-        });
-        btn.addEventListener('mouseleave', function () {
-          this.style.transform = 'translateY(0)';
-        });
-      });
+  <!-- JS específico del perfil (solo animaciones) -->
+  <script src="{% static 'JavaScript/perfil.js' %}"></script>
 
-      // Menú móvil
-      const navToggle = document.getElementById('navToggle');
-      const navMenu = document.querySelector('.nav-menu');
-
-      if (navToggle && navMenu) {
-        navToggle.addEventListener('click', function () {
-          navMenu.classList.toggle('nav-menu-active');
-        });
-      }
-    });
-  </script>
 </body>
 
 </html>

@@ -1,167 +1,244 @@
-/* ===== Layout general ===== */
+/* ================================
+   ESTILO GENERAL DEL DASHBOARD
+================================ */
 
 body {
-    margin: 0;
-    padding: 0;
-    background: #eef2f7;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+    sans-serif;
+  background: #e8f5f3;
 }
 
-/* El navbar lo maneja navbar.css, aquí solo alineamos el contenido */
+/* Sección que envuelve todo el dashboard */
+.graficos-section {
+  padding: 20px;
+  margin: 20px;
+  background: #f8f9fa;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+}
+
+/* Contenedor principal centrado */
 .dashboard-wrapper {
-    max-width: 1250px;
-    margin: 90px auto 40px; /* deja espacio para tu navbar azul */
-    padding: 0 20px;
-    box-sizing: border-box;
+  max-width: 100%;        /* ⬅️ antes era 1250px */
+  margin: 0 auto;
+  padding: 0 8px;
+  box-sizing: border-box;
 }
 
-/* ===== Títulos y header ===== */
-
+/* Títulos */
 .page-title {
-    font-weight: 800;
-    font-size: 1.9rem;
-    letter-spacing: .02em;
-    color: #0f172a;
-    margin: 0;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #222;
+  margin: 0;
 }
 
 .page-subtitle {
-    color: #6b7280;
-    font-size: .95rem;
-    margin-top: 4px;
+  font-size: 1rem;
+  color: #666;
+  margin-top: 4px;
 }
 
 .volver-link {
-    font-weight: 500;
-    color: #0ea5e9;
+  font-weight: 500;
+  color: #0d6efd;
+  text-decoration: none;
+  font-size: 0.95rem;
 }
 
 .volver-link:hover {
-    color: #0284c7;
+  color: #0b5ed7;
 }
 
-/* ===== Sistema de grid ligero (sin Bootstrap) ===== */
+/* ================================
+   UTILIDADES TIPO BOOTSTRAP
+================================ */
+
+.container-fluid {
+  width: 100%;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.mb-4 {
+  margin-bottom: 1.5rem;
+}
+
+/* ================================
+   SISTEMA DE FILAS Y COLUMNAS
+================================ */
 
 .row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.4rem;
-    margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;        /* separación entre columnas */
+  margin: 0;
 }
 
+/* Por defecto en móviles: 100% */
+.col-lg-3,
 .col-lg-4,
 .col-lg-8,
 .col-md-6,
 .col-md-7,
 .col-md-5,
 .col-md-12 {
-    flex: 1 1 100%;
+  flex: 1 1 100%;
+  max-width: 100%;
 }
 
-/* breakpoint ~768px */
+/* ≥768px: comportamiento "md" */
 @media (min-width: 768px) {
-    .col-md-6 {
-        flex: 0 0 calc(50% - 0.7rem);
-        max-width: calc(50% - 0.7rem);
-    }
+  .col-md-6 {
+    flex: 0 0 calc(50% - 0.75rem);
+    max-width: calc(50% - 0.75rem);
+  }
 
-    .col-md-7 {
-        flex: 0 0 calc(58.333% - 0.7rem);
-        max-width: calc(58.333% - 0.7rem);
-    }
+  .col-md-7 {
+    flex: 0 0 calc(58.333% - 0.75rem);
+    max-width: calc(58.333% - 0.75rem);
+  }
 
-    .col-md-5 {
-        flex: 0 0 calc(41.666% - 0.7rem);
-        max-width: calc(41.666% - 0.7rem);
-    }
+  .col-md-5 {
+    flex: 0 0 calc(41.666% - 0.75rem);
+    max-width: calc(41.666% - 0.75rem);
+  }
 
-    .col-md-12 {
-        flex: 0 0 100%;
-        max-width: 100%;
-    }
+  .col-md-12 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
 }
 
-/* breakpoint ~992px */
+/* ≥992px: comportamiento "lg" */
 @media (min-width: 992px) {
-    .col-lg-4 {
-        flex: 0 0 calc(33.333% - 0.7rem);
-        max-width: calc(33.333% - 0.7rem);
-    }
+  /* 4 columnas iguales para la primera fila */
+  .col-lg-3 {
+    flex: 0 0 calc(25% - 1.2rem);
+    max-width: calc(25% - 1.2rem);
+  }
 
-    .col-lg-8 {
-        flex: 0 0 calc(66.666% - 0.7rem);
-        max-width: calc(66.666% - 0.7rem);
-    }
+  /* por si en otras filas usas 4/8 */
+  .col-lg-4 {
+    flex: 0 0 calc(33.333% - 1rem);
+    max-width: calc(33.333% - 1rem);
+  }
+
+  .col-lg-8 {
+    flex: 0 0 calc(66.666% - 1rem);
+    max-width: calc(66.666% - 1rem);
+  }
+
+  /* altura base de los recuadros de la fila 1 */
+  .col-lg-3 .chart-wrapper,
+  .col-lg-4 .chart-wrapper {
+    min-height: 230px;
+  }
+
+  /* gráfico largo de la fila 2 (por mes) */
+  .col-lg-8 .chart-wrapper {
+    min-height: 260px;
+  }
 }
 
-/* ===== Cards del dashboard ===== */
+/* más alto solo el de “Denuncias por Estado” */
+.chart-wrapper-estado {
+  min-height: 300px;
+}
+
+/* ================================
+   CONTENEDOR DE GRÁFICOS
+================================ */
+
+.chart-wrapper {
+  background: #f3f4f6;                 /* fondo del recuadro */
+  border-radius: 14px;                 /* esquinas redondeadas */
+  padding: 18px 20px;                  /* espacio interno */
+  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.35); /* borde interno suave */
+  position: relative;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Asegura que el canvas ocupe bien el recuadro */
+.chart-wrapper canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* ================================
+   TARJETAS DEL DASHBOARD
+================================ */
 
 .dashboard-card {
-    background: #ffffff;
-    border-radius: 18px;
-    box-shadow: 0 10px 30px rgba(15, 23, 42, 0.09);
-    border: 1px solid rgba(148, 163, 184, 0.22);
-    display: flex;
-    flex-direction: column;
-    height: 100%;
-    overflow: hidden;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 20px 24px;
+  box-shadow: 0 5px 20px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
+.dashboard-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+}
+
+/* Encabezado de la tarjeta */
 .dashboard-card-header {
-    padding: 10px 18px;
-    background: linear-gradient(90deg, rgba(37, 99, 235, 0.06), transparent);
-    border-bottom: 1px solid rgba(226, 232, 240, 0.9);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
 }
 
 .dashboard-card-header h5 {
-    margin: 0;
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #111827;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #111827;
+  margin: 0;
 }
 
+/* Cuerpo de la tarjeta */
 .dashboard-card-body {
-    padding: 12px 18px 18px;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Subtítulo pequeño arriba del chart */
-.chart-subtitle {
-    margin: 0 0 6px;
-    font-size: 0.78rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: #9ca3af;
-}
-
-/* Badge con totales */
+/* Badge con total */
 .total-badge {
-    background: #2563eb;
-    color: #ffffff;
-    border-radius: 999px;
-    padding: 3px 10px;
-    font-size: 0.7rem;
-    font-weight: 600;
+  background: #0d6efd;
+  padding: 4px 10px;
+  color: #ffffff;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.8rem;
 }
 
-/* ===== Contenedores de gráficos ===== */
-
-.chart-wrapper {
-    position: relative;
-    height: 230px;
-}
-
-@media (min-width: 992px) {
-    /* un poco más alto para el gráfico de líneas grande */
-    .col-lg-8 .chart-wrapper {
-        height: 260px;
-    }
-}
-
-@media (max-width: 767px) {
-    .chart-wrapper {
-        height: 220px;
-    }
+/* Subtítulo encima del gráfico */
+.chart-subtitle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #777;
+  margin: 0 0 12px 0;
 }

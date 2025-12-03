@@ -274,7 +274,7 @@ def perfil_usuario(request):
             'fiscalizaciones_count': fiscalizaciones_count,
         }
         
-        return render(request, 'perfil_usuario.html', context)
+        return render(request, 'usuario/perfil.html', context)
     
     except Exception as e:
         print(f"Error en perfil_usuario: {e}")
@@ -2190,6 +2190,7 @@ def api_denuncias_estadisticas(request):
     - Denuncias por familia de denuncia
     - Top 10 usuarios con más denuncias registradas
     - Denuncias por clasificación/prioridad (clasificacion_requerimiento)
+    - Top 5 requerimientos más frecuentes
     """
     if request.method != 'GET':
         return JsonResponse({'error': 'Método no permitido'}, status=405)
@@ -2272,6 +2273,21 @@ def api_denuncias_estadisticas(request):
         ]
         por_clasificacion_data = [item['total'] for item in por_clasificacion_qs]
 
+        # ---------- 6) 🆕 Top 5 requerimientos más frecuentes ----------
+        por_requerimiento_qs = (
+            qs_base
+            .select_related('id_requerimiento')
+            .values('id_requerimiento__nombre_requerimiento')
+            .annotate(total=Count('id_denuncia'))
+            .order_by('-total')[:5]
+        )
+
+        por_requerimiento_labels = [
+            item['id_requerimiento__nombre_requerimiento'] or 'Sin requerimiento'
+            for item in por_requerimiento_qs
+        ]
+        por_requerimiento_data = [item['total'] for item in por_requerimiento_qs]
+
         data = {
             'por_mes': {
                 'labels': por_mes_labels,
@@ -2292,6 +2308,11 @@ def api_denuncias_estadisticas(request):
             'por_clasificacion': {
                 'labels': por_clasificacion_labels,
                 'data': por_clasificacion_data,
+            },
+            # 🆕 lo que espera tu JS para el donut de Top 5 Requerimientos
+            'por_requerimiento': {
+                'labels': por_requerimiento_labels,
+                'data': por_requerimiento_data,
             },
         }
 

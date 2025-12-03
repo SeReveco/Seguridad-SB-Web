@@ -1,38 +1,65 @@
 // ===== Configuración base =====
-
-document.addEventListener('DOMContentLoaded', () => {
-    cargarDatosDashboard();
-});
-
 const apiUrl = "/api/denuncias/estadisticas/";
 
 // Paletas de colores
 const paletteStates = ['#10b981', '#3b82f6', '#f97316', '#ef4444', '#6b7280'];
 const paletteFamilies = ['#1d4ed8', '#2563eb', '#0ea5e9', '#22c55e', '#a855f7', '#f97316', '#facc15'];
 const palettePriority = ['#ef4444', '#f59e0b', '#22c55e', '#6b7280'];
+const paletteRequerimientos = ['#6366f1', '#22c55e', '#f97316', '#e11d48', '#0ea5e9']; // 5 colores
+
+// Verde = Bajo, Amarillo = Medio, Rojo = Alto
+function getClasifColor(label) {
+    const key = (label || '').toString().trim().toLowerCase();
+
+    if (key === 'baja') return '#22c55e';   // verde
+    if (key === 'media') return '#facc15';  // amarillo
+    if (key === 'alta') return '#ef4444';   // rojo
+
+    return '#6b7280'; // por defecto
+}
+
+function getEstadoColor(label) {
+    const key = (label || '').toString().trim().toLowerCase();
+
+    if (key === 'pendiente') return '#facc15';
+    if (key === 'en_proceso' || key === 'en proceso') return '#3b82f6';
+    if (key === 'completada' || key === 'cerrada') return '#22c55e';
+    if (key === 'cancelada') return '#ef4444';
+
+    return '#6b7280';
+}
 
 // Registrar plugin de etiquetas
 if (window.ChartDataLabels) {
     Chart.register(ChartDataLabels);
 }
 
-function cargarDatosDashboard() {
-    fetch(apiUrl)
-        .then(response => {
-            if (!response.ok) {
-                throw new Error("Error al obtener datos del backend");
-            }
-            return response.json();
-        })
-        .then(data => {
-            dibujarGraficos(data);
-        })
-        .catch(error => {
-            console.error(error);
-            alert("No se pudieron cargar las estadísticas de denuncias.");
-        });
+// Cargar datos al iniciar
+document.addEventListener('DOMContentLoaded', cargarDatosDashboard);
+
+// ========================
+//  CARGA DE DATOS
+// ========================
+async function cargarDatosDashboard() {
+    try {
+        const response = await fetch(apiUrl);
+        if (!response.ok) {
+            throw new Error("Error al obtener datos del backend");
+        }
+
+        const data = await response.json();
+        console.log("📊 Datos dashboard:", data);
+
+        dibujarGraficos(data);
+    } catch (error) {
+        console.error("❌ Error cargando datos del dashboard:", error);
+        alert("No se pudieron cargar las estadísticas de denuncias.");
+    }
 }
 
+// ========================
+//  FUNCIÓN PRINCIPAL
+// ========================
 function dibujarGraficos(data) {
 
     // ========= Denuncias por Estado (barras) =========
@@ -81,7 +108,9 @@ function dibujarGraficos(data) {
                 },
                 y: {
                     beginAtZero: true,
+                    max: 250,           // límite superior
                     ticks: {
+                        stepSize: 25,   // de 25 en 25
                         precision: 0,
                         color: '#9ca3af'
                     },
@@ -136,7 +165,7 @@ function dibujarGraficos(data) {
                         size: 10,
                         weight: '600'
                     },
-                    formatter: (value, ctx) => {
+                    formatter: (value) => {
                         if (!totalFamilia || value === 0) return '';
                         const porcentaje = (value / totalFamilia) * 100;
                         return porcentaje >= 5 ? `${value}` : '';
@@ -151,16 +180,7 @@ function dibujarGraficos(data) {
     const totalClasif = (data.por_clasificacion.data || []).reduce((a, b) => a + b, 0);
     document.getElementById('badge-total-clasificacion').innerText = totalClasif;
 
-    // mapear etiquetas a colores: Media, Alta, Baja, Urgencia, etc.
-    const priorityColorMap = {
-        'Media': '#f97316',
-        'Alta': '#22c55e',
-        'Baja': '#6366f1',
-        'Urgencia': '#ef4444'
-    };
-    const clasifColors = data.por_clasificacion.labels.map(
-        label => priorityColorMap[label] || '#6b7280'
-    );
+    const clasifColors = data.por_clasificacion.labels.map(getClasifColor);
 
     new Chart(ctxClasificacion, {
         type: 'doughnut',
@@ -199,7 +219,7 @@ function dibujarGraficos(data) {
                         size: 10,
                         weight: '600'
                     },
-                    formatter: (value, ctx) => {
+                    formatter: (value) => {
                         if (!totalClasif || value === 0) return '';
                         const porcentaje = (value / totalClasif) * 100;
                         return porcentaje >= 5 ? `${value}` : '';
@@ -320,4 +340,60 @@ function dibujarGraficos(data) {
             }
         }
     });
+
+    // ========= Top 5 Requerimientos (donut) =========
+    if (data.por_requerimiento && data.por_requerimiento.data && data.por_requerimiento.labels) {
+        const ctxReq = document.getElementById('topRequerimientosChart').getContext('2d');
+        const totalReq = (data.por_requerimiento.data || []).reduce((a, b) => a + b, 0);
+        document.getElementById('badge-total-requerimiento').innerText = totalReq;
+
+        new Chart(ctxReq, {
+            type: 'doughnut',
+            data: {
+                labels: data.por_requerimiento.labels,
+                datasets: [{
+                    data: data.por_requerimiento.data,
+                    backgroundColor: paletteRequerimientos.slice(0, data.por_requerimiento.data.length),
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '60%',
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            boxWidth: 14,
+                            font: { size: 11 }
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const value = ctx.raw || 0;
+                                const porcentaje = totalReq ? ((value / totalReq) * 100).toFixed(1) : 0;
+                                return ` ${ctx.label}: ${value} (${porcentaje}%)`;
+                            }
+                        }
+                    },
+                    datalabels: {
+                        color: '#111827',
+                        font: {
+                            size: 10,
+                            weight: '600'
+                        },
+                        formatter: (value) => {
+                            if (!totalReq || value === 0) return '';
+                            const porcentaje = (value / totalReq) * 100;
+                            return porcentaje >= 5 ? `${value}` : '';
+                        }
+                    }
+                }
+            }
+        });
+    } else {
+        console.log('ℹ️ No viene data.por_requerimiento desde la API:', data.por_requerimiento);
+    }
 }
