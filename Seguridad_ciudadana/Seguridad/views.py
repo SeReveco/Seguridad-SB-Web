@@ -3141,7 +3141,6 @@ class IniciarTurnoTrabajador(View):
             codigo_vehiculo_manual = data.get('codigo_vehiculo_manual')
             radio_id = data.get('radio_id')
             kilometraje_inicial = data.get('kilometraje_inicial')  # Puede ser None
-            observaciones = data.get('observaciones', '')
 
             # ------------------------------
             #   ASIGNACIÓN DE VEHÍCULO
@@ -3180,7 +3179,6 @@ class IniciarTurnoTrabajador(View):
                     kilometraje_recorrido=0,
                     kilometraje_total=kilometraje_inicial or 0,
                     activo=2,  # En proceso / en patrulla
-                    observaciones=observaciones
                 )
 
             elif codigo_vehiculo_manual:
@@ -3202,7 +3200,6 @@ class IniciarTurnoTrabajador(View):
                     kilometraje_recorrido=0,
                     kilometraje_total=0,
                     activo=2,
-                    observaciones=f"Vehículo manual: {codigo_vehiculo_manual}. {observaciones}"
                 )
 
             # ------------------------------
