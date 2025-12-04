@@ -243,7 +243,7 @@ async function cargarRequerimientosExistentes() {
     }
 }
 
-// ✅ RENDERIZAR REQUERIMIENTOS EN TABLA
+// ✅ RENDERIZAR REQUERIMIENTOS EN TARJETAS (ESTILO LISTADO DE USUARIOS)
 function renderizarRequerimientos() {
     const contenedor = document.getElementById('lista-requerimientos');
     
@@ -260,35 +260,21 @@ function renderizarRequerimientos() {
     // Aplicar filtros si existen
     const requerimientosFiltrados = aplicarFiltros(window.todosRequerimientos);
     
-    // Crear tabla
-    const tablaHTML = crearTablaRequerimientos(requerimientosFiltrados);
-    contenedor.innerHTML = tablaHTML;
+    // Crear tarjetas
+    const tarjetasHTML = crearTarjetasRequerimientos(requerimientosFiltrados);
+    contenedor.innerHTML = tarjetasHTML;
     
     // Agregar animación de entrada
-    animarEntradaTabla();
+    animarEntradaTarjetas();
     
     // Actualizar contador de resultados
     actualizarContadorResultados(requerimientosFiltrados.length);
 }
 
-// ✅ CREAR TABLA DE REQUERIMIENTOS
-function crearTablaRequerimientos(requerimientos) {
+// ✅ CREAR TARJETAS DE REQUERIMIENTOS (GRID)
+function crearTarjetasRequerimientos(requerimientos) {
     let html = `
-        <div class="table-container">
-            <table class="requerimientos-table">
-                <thead>
-                    <tr>
-                        <th width="5%">N°</th>
-                        <th width="25%">Nombre del Requerimiento</th>
-                        <th width="10%">Código</th>
-                        <th width="10%">Clasificación</th>
-                        <th width="15%">Subgrupo</th>
-                        <th width="15%">Grupo</th>
-                        <th width="15%">Familia</th>
-                        <th width="5%">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody>
+        <div class="lista-requerimientos-grid">
     `;
     
     requerimientos.forEach((req, index) => {
@@ -296,42 +282,75 @@ function crearTablaRequerimientos(requerimientos) {
         const id = req.id_requerimiento || req.id;
         const nombre = req.nombre_requerimiento || req.nombre || 'Sin nombre';
         const codigo = req.codigo_requerimiento || req.codigo || 'N/A';
-        const clasificacion = req.clasificacion_requerimiento || req.clasificacion || 'Sin clasificación';
+        const clasificacion = (req.clasificacion_requerimiento || req.clasificacion || 'Sin clasificación');
         const subgrupo = req.subgrupo_nombre || req.nombre_subgrupo_denuncia || 'Sin subgrupo';
         const grupo = req.grupo_nombre || req.nombre_grupo_denuncia || 'Sin grupo';
         const familia = req.familia_nombre || req.nombre_familia_denuncia || 'Sin familia';
+        const descripcion = req.descripcion_requerimiento || req.descripcion || 'Sin descripción registrada';
         
-        // Determinar clase de clasificación
-        const claseClasificacion = clasificacion.toLowerCase() === 'baja' ? 'clasificacion-baja' :
-                                 clasificacion.toLowerCase() === 'media' ? 'clasificacion-media' :
-                                 clasificacion.toLowerCase() === 'alta' ? 'clasificacion-alta' : 'clasificacion-sin';
+        // Determinar clases para clasificación (badge + borde de la tarjeta)
+        let claseBadge = 'sin';
+        let claseCard = 'clasificacion-sin';
+        
+        const clasificacionLower = clasificacion.toString().toLowerCase();
+        if (clasificacionLower === 'baja') {
+            claseBadge = 'baja';
+            claseCard = 'clasificacion-baja-card';
+        } else if (clasificacionLower === 'media') {
+            claseBadge = 'media';
+            claseCard = 'clasificacion-media-card';
+        } else if (clasificacionLower === 'alta') {
+            claseBadge = 'alta';
+            claseCard = 'clasificacion-alta-card';
+        }
         
         html += `
-            <tr class="requerimiento-fila" data-id="${id}">
-                <td class="text-center">${index + 1}</td>
-                <td class="requerimiento-nombre">${nombre}</td>
-                <td class="text-center"><span class="codigo-requerimiento">${codigo}</span></td>
-                <td class="text-center">
-                    <span class="clasificacion-badge ${claseClasificacion}">${clasificacion}</span>
-                </td>
-                <td>${subgrupo}</td>
-                <td>${grupo}</td>
-                <td>${familia}</td>
-                <td class="text-center acciones">
-                    <button type="button" class="btn-editar-tabla" onclick="editarRequerimientoDesdeLista(${id})" title="Editar requerimiento">
-                        <i class="fa-solid fa-pen-to-square"></i>
+            <div class="requerimiento-card ${claseCard}" data-id="${id}">
+                <div class="requerimiento-header">
+                    <h4 class="requerimiento-nombre">
+                        ${index + 1}. ${nombre}
+                    </h4>
+                    <span class="requerimiento-clasificacion clasificacion-badge ${claseBadge}">
+                        ${clasificacion}
+                    </span>
+                </div>
+
+                <div class="requerimiento-info">
+                    <div class="requerimiento-dato">
+                        <strong><i class="fa-solid fa-hashtag"></i> Código</strong>
+                        <span><span class="codigo-requerimiento">${codigo}</span></span>
+                    </div>
+                    <div class="requerimiento-dato">
+                        <strong><i class="fa-solid fa-sitemap"></i> Familia</strong>
+                        <span>${familia}</span>
+                    </div>
+                    <div class="requerimiento-dato">
+                        <strong><i class="fa-solid fa-layer-group"></i> Grupo</strong>
+                        <span>${grupo}</span>
+                    </div>
+                    <div class="requerimiento-dato">
+                        <strong><i class="fa-solid fa-diagram-project"></i> Subgrupo</strong>
+                        <span>${subgrupo}</span>
+                    </div>
+                    <div class="requerimiento-dato descripcion">
+                        <strong><i class="fa-solid fa-align-left"></i> Descripción</strong>
+                        <span class="texto-descripcion">${descripcion}</span>
+                    </div>
+                </div>
+
+                <div class="requerimiento-acciones">
+                    <button type="button" class="btn-editar-requerimiento" onclick="editarRequerimientoDesdeLista(${id})" title="Editar requerimiento">
+                        <i class="fa-solid fa-pen-to-square"></i> Editar
                     </button>
-                    <button type="button" class="btn-eliminar-tabla" onclick="eliminarRequerimientoDesdeLista(${id})" title="Eliminar requerimiento">
-                        <i class="fa-solid fa-trash"></i>
+                    <button type="button" class="btn-eliminar-requerimiento-card" onclick="eliminarRequerimientoDesdeLista(${id})" title="Eliminar requerimiento">
+                        <i class="fa-solid fa-trash"></i> Eliminar
                     </button>
-                </td>
-            </tr>
+                </div>
+            </div>
         `;
     });
     
     html += `
-                </tbody>
-            </table>
         </div>
     `;
     
@@ -744,23 +763,23 @@ async function ejecutarEliminacionRequerimiento(idRequerimiento, requerimiento) 
     }
 }
 
-// ✅ FILTRAR REQUERIMIENTOS EN LA LISTA
+// ✅ FILTRAR REQUERIMIENTOS EN LA LISTA (BUSCA EN TARJETAS)
 function filtrarRequerimientos() {
     const searchInput = document.getElementById('buscar-requerimientos');
     if (!searchInput) return;
     
     const searchTerm = searchInput.value.toLowerCase().trim();
-    const filas = document.querySelectorAll('.requerimiento-fila');
+    const tarjetas = document.querySelectorAll('.requerimiento-card');
     
     let visibleCount = 0;
     
-    filas.forEach(fila => {
-        const texto = fila.textContent.toLowerCase();
+    tarjetas.forEach(card => {
+        const texto = card.textContent.toLowerCase();
         if (texto.includes(searchTerm)) {
-            fila.style.display = '';
+            card.style.display = '';
             visibleCount++;
         } else {
-            fila.style.display = 'none';
+            card.style.display = 'none';
         }
     });
     
@@ -884,18 +903,18 @@ function mostrarListaVacia(mensaje) {
     `;
 }
 
-// ✅ ANIMAR ENTRADA DE TABLA
-function animarEntradaTabla() {
-    const filas = document.querySelectorAll('.requerimiento-fila');
-    filas.forEach((fila, index) => {
-        fila.style.opacity = '0';
-        fila.style.transform = 'translateX(-20px)';
+// ✅ ANIMAR ENTRADA DE TARJETAS
+function animarEntradaTarjetas() {
+    const cards = document.querySelectorAll('.requerimiento-card');
+    cards.forEach((card, index) => {
+        card.style.opacity = '0';
+        card.style.transform = 'translateY(10px)';
         
         setTimeout(() => {
-            fila.style.transition = 'all 0.3s ease';
-            fila.style.opacity = '1';
-            fila.style.transform = 'translateX(0)';
-        }, index * 50);
+            card.style.transition = 'all 0.3s ease';
+            card.style.opacity = '1';
+            card.style.transform = 'translateY(0)';
+        }, index * 40);
     });
 }
 

@@ -46,7 +46,7 @@ body::before {
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   margin-bottom: 1rem;
   padding: 15px 25px;
-  z-index: 10000; /* Añadido - mayor que el modal */
+  z-index: 900; /* Añadido - mayor que el modal */
 }
 
 /* Estilo Dropdown */

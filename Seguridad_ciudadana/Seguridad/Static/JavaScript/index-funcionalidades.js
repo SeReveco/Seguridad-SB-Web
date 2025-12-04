@@ -1187,14 +1187,14 @@ async function cargarDenunciasDelDia() {
     }
 }
 
-// Mostrar denuncias en la lista - ACTUALIZADA
+// Mostrar denuncias en la lista - NUEVO DISEÑO COMPACTO
 function mostrarDenunciasEnLista(denuncias) {
     const contenedor = document.getElementById('lista-denuncias-hoy');
 
     if (!denuncias || denuncias.length === 0) {
         contenedor.innerHTML = `
             <div class="sin-datos">
-                <i class="fas a-clipboard-list fa-3x"></i>
+                <i class="fas fa-clipboard-list fa-3x"></i>
                 <h4>No hay denuncias hoy</h4>
                 <p>No se han registrado denuncias en el día de hoy.</p>
             </div>
@@ -1211,88 +1211,45 @@ function mostrarDenunciasEnLista(denuncias) {
     });
 
     const denunciasHTML = denuncias.map(denuncia => {
-        // Determinar color del estado
-        let claseEstado = 'estado-pendiente';
-        let iconoEstado = '⏳';
+        const { cardClass, chipClass, label } = obtenerConfigEstadoDenuncia(
+            denuncia.estado_denuncia || denuncia.display_estado
+        );
 
-        switch (denuncia.estado_denuncia?.toLowerCase()) {
-            case 'en_proceso':
-            case 'en proceso':
-                claseEstado = 'estado-proceso';
-                iconoEstado = '🚨';
-                break;
-            case 'completada':
-                claseEstado = 'estado-completada';
-                iconoEstado = '✅';
-                break;
-            case 'cancelada':
-                claseEstado = 'estado-cancelada';
-                iconoEstado = '❌';
-                break;
-            default:
-                claseEstado = 'estado-pendiente';
-                iconoEstado = '⏳';
-        }
-
-        // Formatear información del móvil si existe
-        let infoMovil = '';
-        if (denuncia.movil_asignado) {
-            infoMovil = `
-                <div class="info-secundaria">
-                    <i class="fas fa-car"></i>
-                    <strong>Móvil:</strong> ${denuncia.movil_asignado.patente}
-                </div>
-            `;
-        }
+        const hora = denuncia.display_hora || denuncia.hora_denuncia || '';
+        const nombre = denuncia.nombre_denunciante || 'Anónimo';
+        const direccion = denuncia.direccion_denuncia || 'Sin dirección';
 
         return `
-            <div class="item-denuncia" data-id="${denuncia.id_denuncia}">
-                <div class="denuncia-header">
-                    <div class="denuncia-info-principal">
-                        <div class="denuncia-hora">
-                            <i class="far fa-clock"></i>
-                            ${denuncia.display_hora || denuncia.hora_denuncia || ''}
-                        </div>
-                        <div class="denuncia-estado ${claseEstado}">
-                            ${iconoEstado} ${denuncia.display_estado || denuncia.estado_denuncia || 'Pendiente'}
-                        </div>
+            <div class="item-denuncia ${cardClass}" data-id="${denuncia.id_denuncia}">
+                <div class="denuncia-card-left">
+                    <div class="denuncia-hora">
+                        <i class="far fa-clock"></i> ${hora}
                     </div>
-                    
-                    <div class="info-principal">
-                        <i class="fas fa-user"></i>
-                        <strong>${denuncia.nombre_denunciante || 'Anónimo'}</strong>
-                        <span class="telefono-denunciante">
-                            <i class="fas fa-phone"></i> ${denuncia.telefono_denunciante || 'Sin teléfono'}
-                        </span>
+                    <div class="denuncia-nombre">
+                        ${nombre}
                     </div>
-                    
-                    <div class="info-secundaria">
+                    <div class="denuncia-direccion">
                         <i class="fas fa-map-marker-alt"></i>
-                        ${denuncia.direccion_denuncia || 'Sin dirección'}
+                        ${direccion}
                     </div>
-                    
-                    <div class="info-secundaria">
-                        <i class="fas fa-exclamation-circle"></i>
-                        <strong>${denuncia.nombre_requerimiento || 'Sin requerimiento'}</strong>
-                        <span class="clasificacion ${denuncia.clasificacion_requerimiento?.toLowerCase() || 'media'}">
-                            ${denuncia.clasificacion_requerimiento || 'Media'}
-                        </span>
-                    </div>
-                    
-                    ${infoMovil}
-                    
-                    <div class="info-secundaria">
-                        <i class="fas fa-info-circle"></i>
-                        ${denuncia.detalle_denuncia?.substring(0, 120) || 'Sin detalles'}${denuncia.detalle_denuncia?.length > 120 ? '...' : ''}
-                    </div>
-                    
-                    <div class="denuncia-footer">
-                        <div class="denuncia-cuadrante">
-                            <i class="fas fa-th"></i> Cuadrante ${denuncia.cuadrante_denuncia || 'N/A'}
-                        </div>
-                        <button class="btn-ver-mapa" onclick="mostrarDenunciaEnMapa(${denuncia.id_denuncia})" 
-                                title="Ver en el mapa">
-                            <i class="fa-solid fa-map-marker-alt"></i> Ver en Mapa
+                </div>
+
+                <div class="denuncia-card-right">
+                    <span class="chip-estado ${chipClass}">
+                        ${label}
+                    </span>
+                    <div class="denuncia-acciones">
+                        <button type="button"
+                                class="btn-denuncia btn-denuncia-mapa"
+                                data-id="${denuncia.id_denuncia}"
+                                title="Ver ubicación en el mapa">
+                            <i class="fas fa-map-marker-alt"></i>
+                        </button>
+                        <button type="button"
+                                class="btn-denuncia btn-denuncia-detalle"
+                                data-id="${denuncia.id_denuncia}"
+                                title="Ver detalle de la denuncia">
+                            <i class="fas fa-info-circle"></i>
                         </button>
                     </div>
                 </div>
@@ -1302,11 +1259,35 @@ function mostrarDenunciasEnLista(denuncias) {
 
     contenedor.innerHTML = denunciasHTML;
 
-    // Agregar evento de clic a cada denuncia
-    document.querySelectorAll('.item-denuncia').forEach(item => {
-        item.addEventListener('click', function () {
-            const id = this.getAttribute('data-id');
-            mostrarDetallesDenuncia(id, denuncias.find(d => d.id_denuncia == id));
+    // Click en toda la tarjeta → detalle
+    document.querySelectorAll('.item-denuncia').forEach(card => {
+        card.addEventListener('click', function () {
+            const id = parseInt(this.getAttribute('data-id'));
+            const denuncia = (denunciasHoy || []).find(d => d.id_denuncia === id);
+            if (denuncia) {
+                mostrarDetallesDenuncia(id, denuncia);
+            }
+        });
+    });
+
+    // Botón "Ver en mapa"
+    document.querySelectorAll('.btn-denuncia-mapa').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation(); // que no dispare el detalle
+            const id = parseInt(this.getAttribute('data-id'));
+            mostrarDenunciaEnMapa(id);
+        });
+    });
+
+    // Botón "Ver detalle"
+    document.querySelectorAll('.btn-denuncia-detalle').forEach(btn => {
+        btn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            const id = parseInt(this.getAttribute('data-id'));
+            const denuncia = (denunciasHoy || []).find(d => d.id_denuncia === id);
+            if (denuncia) {
+                mostrarDetallesDenuncia(id, denuncia);
+            }
         });
     });
 }
@@ -1398,12 +1379,39 @@ function mostrarDenunciaEnMapa(id) {
     }
 }
 
+function obtenerConfigEstadoDenuncia(estadoRaw) {
+    const estado = (estadoRaw || '').toLowerCase();
+
+    // valores por defecto (pendiente)
+    let cardClass = 'denuncia-card--pendiente';
+    let chipClass = 'chip-estado--pendiente';
+    let label = 'Pendiente';
+
+    if (estado === 'en_proceso' || estado === 'en proceso') {
+        cardClass = 'denuncia-card--proceso';
+        chipClass = 'chip-estado--proceso';
+        label = 'En proceso';
+    } else if (estado === 'completada') {
+        cardClass = 'denuncia-card--completada';
+        chipClass = 'chip-estado--completada';
+        label = 'Completada';
+    } else if (estado === 'cancelada') {
+        cardClass = 'denuncia-card--cancelada';
+        chipClass = 'chip-estado--cancelada';
+        label = 'Cancelada';
+    }
+
+    return { cardClass, chipClass, label };
+}
+
 // Función para mostrar detalles de una denuncia
 function mostrarDetallesDenuncia(id, denuncia) {
     if (!denuncia) return;
 
+    const numero = denuncia.numero_denuncia || id;
+
     Swal.fire({
-        title: `Denuncia #${id}`,
+        title: `Denuncia #${numero}`,
         html: `
             <div class="detalle-denuncia">
                 <div class="detalle-item">
@@ -1449,7 +1457,7 @@ function mostrarDetallesDenuncia(id, denuncia) {
         `,
         showCloseButton: true,
         showConfirmButton: false,
-        width: '600px',
+        width: '650px',
         customClass: {
             popup: 'popup-detalle-denuncia'
         }
